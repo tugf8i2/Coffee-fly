@@ -50,7 +50,7 @@ Es importante porque sin esta herramienta, los fletes informales encarecen el ca
 
 ### Tecnologías
 
-- **Backend**: Node.js (porque ya lo conocemos y tiene gran ecosistema de paquetes para APIs REST)
+- **Backend**: Python con Flask (porque tiene una sintaxis sencilla y clara, es ideal para construir APIs REST ligeras y escalables, y permite un desarrollo ágil adaptado al tamaño de nuestro equipo)
 - **Base de datos**: PostgreSQL (porque es gratuita, robusta y soporta bien las relaciones entre flotas, rutas y costos)
 - **Frontend**: React (porque tiene mucha documentación, permite construir interfaces responsivas y el equipo tiene experiencia previa)
 
