@@ -1,3 +1,8 @@
+
+![Logo de mi proyecto](LOGO-Coffee Fly.png)
+
+
+
 # ☕ Cumbre Cafetera — Aplicativo de Transporte y Logística de Café
 
 **SENA · Tecnólogo en Análisis y Desarrollo de Software · Ficha 3407179**
