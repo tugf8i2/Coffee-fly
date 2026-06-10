@@ -1,5 +1,5 @@
 
-![Logo de mi proyecto](LOGO-Coffee Fly.png)
+![Logo de mi proyecto](LOGO.png)
 
 
 
