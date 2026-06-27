@@ -124,6 +124,7 @@ La arquitectura en capas separa el sistema en responsabilidades bien definidas, 
 | **Repositories** | Comunicación directa con PostgreSQL: guardar ubicaciones, consultar viajes, registrar eventos |
 | **Services** | Contienen las reglas de negocio: iniciar viaje, validar solicitudes, procesar sincronización offline |
 | **API / Routers** | Puntos de acceso que reciben peticiones de la app móvil y el sistema web y las dirigen al servicio correspondiente |
+| **Utils** | Herramientas auxiliares para fechas, reportes y lógica geográfica. |
 
 ### Estrategia Offline First
 
