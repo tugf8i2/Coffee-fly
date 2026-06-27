@@ -1,7 +1,4 @@
-
 ![Logo de mi proyecto](LOGO.png)
-
-
 
 # ☕ Cumbre Cafetera — Aplicativo de Transporte y Logística de Café
 
@@ -115,30 +112,43 @@ Se eligió Scrum por su enfoque iterativo e incremental, que permite desarrollar
 
 ### Arquitectura: N-Capas
 
-La arquitectura en capas separa el sistema en responsabilidades bien definidas, lo que permite que el equipo trabaje en paralelo sin interferencias, facilita el mantenimiento futuro y escala la solución sin reescribir desde cero.
+El sistema sigue una **arquitectura N-Capas**, un patrón de diseño que organiza el software en capas independientes, donde cada una tiene una responsabilidad específica y solo se comunica con la capa inmediatamente adyacente. Esto permite que el equipo trabaje en paralelo sin interferencias, facilita el mantenimiento futuro y permite escalar la solución sin reescribir todo desde cero.
+
+**Frontend (interfaces de usuario):**
+
+- **Web App (React):** Dashboard, Usuarios, Vehículos, Rutas, Viajes, Monitoreo en tiempo real, Reportes.
+- **Mobile App (React Native):** Dashboard, Viaje, Eventos, Historial, Perfil, Configuración. Implementa la estrategia **Offline First** descrita más abajo, con almacenamiento local (SQLite) y una cola de pendientes para sincronización.
+
+**Backend (capas del servidor):**
 
 | Capa | Responsabilidad |
 |---|---|
-| **Models** | Definen las entidades del sistema: Usuario, Caficultor, Vehículo, Solicitud, Entrega, GPS, Historial |
-| **Schemas** | Validan los datos de entrada y salida (ej: coordenadas GPS válidas, solicitudes completas) |
-| **Repositories** | Comunicación directa con PostgreSQL: guardar ubicaciones, consultar viajes, registrar eventos |
-| **Services** | Contienen las reglas de negocio: iniciar viaje, validar solicitudes, procesar sincronización offline |
-| **API / Routers** | Puntos de acceso que reciben peticiones de la app móvil y el sistema web y las dirigen al servicio correspondiente |
-| **Utils** | Herramientas auxiliares para fechas, reportes y lógica geográfica. |
+| **1. API / Routers** | Gestiona los puntos de entrada (FastAPI), define rutas y dirige peticiones de la app web y móvil hacia el servicio correspondiente. |
+| **2. Services** | Contiene la lógica de negocio: validar solicitudes, iniciar viajes, procesar sincronización offline. |
+| **3. Models** | Define las entidades del sistema y sus relaciones: Usuario, Caficultor, Vehículo, Solicitud, Entrega, GPS, Historial. |
+| **4. Schemas** | Valida los datos de entrada y salida con Pydantic (ej: coordenadas GPS válidas, solicitudes completas). |
+| **5. Repositories** | Abstrae el acceso a datos: comunicación directa con PostgreSQL + PostGIS para guardar ubicaciones, consultar viajes, registrar eventos. |
+| **6. Utils / Externos** | Funciones auxiliares para fechas, reportes, lógica geográfica, configuración y seguridad. |
+
+El flujo de una petición recorre las capas de arriba hacia abajo: la petición entra por **API/Routers**, pasa a **Services** para aplicar las reglas de negocio, estos usan los **Models** y **Schemas** para validar la información, y finalmente los **Repositories** acceden a la base de datos. Cada capa solo conoce a la capa siguiente, nunca se salta niveles ni depende de capas superiores — esto mantiene el sistema desacoplado y fácil de mantener.
 
 ### Estrategia Offline First
 
 El transporte de café se realiza en zonas rurales con cobertura limitada. Por eso el sistema implementa una estrategia **Offline First**:
 
-1. **Almacenamiento local (SQLite):** los datos se guardan en el dispositivo si no hay conexión
-2. **Cola de pendientes:** los registros se marcan para sincronización posterior
-3. **Sincronización automática:** al detectar conexión, el sistema envía los datos en segundo plano sin interrumpir al usuario
+1. **Almacenamiento local (SQLite):** los datos se guardan en el dispositivo si no hay conexión.
+2. **Cola de pendientes:** los registros se marcan para sincronización posterior.
+3. **Sincronización automática:** al detectar conexión, el sistema envía los datos en segundo plano sin interrumpir al usuario.
 
 ### GPS y Trazabilidad en Tiempo Real
 
-- La app captura periódicamente **latitud, longitud, fecha/hora y estado del viaje**
-- Se usan **WebSockets** para transmitir la ubicación automáticamente sin consultas constantes
-- **PostgreSQL + PostGIS** permite almacenar coordenadas, calcular distancias, analizar rutas, implementar geocercas y generar reportes geográficos
+- La app captura periódicamente **latitud, longitud, fecha/hora y estado del viaje**.
+- Se usan **WebSockets** para transmitir la ubicación automáticamente sin consultas constantes.
+- **PostgreSQL + PostGIS** permite almacenar coordenadas, calcular distancias, analizar rutas, implementar geocercas y generar reportes geográficos.
+
+### Seguridad
+
+Implementación de **HTTPS/TLS**, tokens **JWT**, contraseñas cifradas con **bcrypt** y datos offline protegidos con **cifrado AES-256**.
 
 ### Stack Tecnológico
 
@@ -149,6 +159,7 @@ El transporte de café se realiza en zonas rurales con cobertura limitada. Por e
 | **Frontend web** | React | Interfaces responsivas, amplia documentación, experiencia previa del equipo |
 | **App móvil** | React Native | Una sola base de código para Android e iOS |
 | **Offline** | SQLite | Almacenamiento local ligero y confiable en dispositivos móviles |
+| **Comunicación en tiempo real** | WebSockets | Transmisión continua de ubicación sin consultas constantes |
 
 ---
 
