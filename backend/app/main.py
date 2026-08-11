@@ -10,7 +10,11 @@ from app.api.carga_api import (router as carga_router)
 from app.api.solicitud_api import (router as solicitud_router)
 from app.api.historial_eventos_api import (router as historial_eventos_api)
 import app.models
-from app.core.database import Base, engine
+from app.core.database import Base, engine, SessionLocal
+from app.models.usuario_models import Usuario
+from app.models.rol_models import Rol
+from app.core.security import hash_password
+import os
 
 
 from fastapi import FastAPI
@@ -23,6 +27,25 @@ app = FastAPI()
 @app.on_event("startup")
 def create_support_tables():
     Base.metadata.create_all(bind=engine)
+    # Bootstrap seguro para instalaciones nuevas: sin un registrador inicial
+    # el endpoint protegido de creación de usuarios no puede utilizarse.
+    db = SessionLocal()
+    try:
+        registrador = db.query(Rol).filter(Rol.descripcion_rol.ilike("registrador")).first()
+        if registrador and not db.query(Usuario).filter(Usuario.rol_id == registrador.id_rol).first():
+            email = os.getenv("BOOTSTRAP_REGISTRADOR_EMAIL", "admin@coffeefly.com").strip().lower()
+            password = os.getenv("BOOTSTRAP_REGISTRADOR_PASSWORD", "Admin123")
+            db.add(Usuario(
+                nombre_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_NOMBRE", "Administrador"),
+                apellido=os.getenv("BOOTSTRAP_REGISTRADOR_APELLIDO", "CoffeeFly"),
+                correo_usuario=email,
+                telefono_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_TELEFONO", "3000000000"),
+                contrasena=hash_password(password),
+                rol_id=registrador.id_rol,
+            ))
+            db.commit()
+    finally:
+        db.close()
 
 # 🔥 CORS (aquí mismo, después de crear app)
 app.add_middleware(
