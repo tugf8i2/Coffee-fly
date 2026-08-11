@@ -1,0 +1,100 @@
+/* FONDO GENERAL */
+.caficultor-page {
+  background-color: rgb(240, 234, 223);
+  min-height: 100vh;
+  padding-bottom: 50px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* HEADER */
+.caf-header {
+  text-align: center;
+  padding: 50px 20px 20px;
+}
+
+.caf-header h1 {
+  color: #627c55;
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+}
+
+.caf-header p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* GRID DE TARJETAS */
+.caf-grid {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+  padding: 30px 20px;
+}
+
+/* CARD */
+.caf-card {
+  background: white;
+  width: 260px;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.caf-card:hover {
+  transform: translateY(-5px);
+}
+
+.caf-card h3 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.caf-card p {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 15px;
+}
+
+/* BOTONES */
+.caf-card button {
+  background-color: #627c55;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.caf-card button:hover {
+  background-color: #4a5f41;
+}
+
+/* INFO BOX */
+.caf-info {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+  padding: 0 20px;
+}
+
+.info-box {
+  background: white;
+  width: 80%;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.info-box h3 {
+  color: #627c55;
+  margin-bottom: 10px;
+}
+
+.info-box p {
+  color: #666;
+}

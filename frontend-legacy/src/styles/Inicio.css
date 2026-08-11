@@ -1,0 +1,112 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  background: rgb(240, 234, 223);
+}
+
+/* HERO */
+.hero {
+  background: url("https://images.unsplash.com/photo-1509042239860-f550ce710b93") center/cover;
+  color: white;
+  text-align: center;
+  padding: 120px 20px;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  text-shadow: 2px 2px 6px black;
+}
+
+.hero p {
+  margin-top: 10px;
+  font-size: 1.2rem;
+}
+
+/* SECTIONS */
+.section {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.section h2 {
+  margin-bottom: 20px;
+  color: #384d2e;
+}
+
+.section.dark {
+  background: #384d2e;
+  color: white;
+}
+
+/* TEXT */
+.text {
+  max-width: 800px;
+  margin: 0 auto 30px auto;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+/* CARDS */
+.card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.card h3 {
+  margin: 10px 0;
+  color: #384d2e;
+}
+
+.card p {
+  padding: 0 10px 15px;
+  color: #666;
+}
+
+/* FACTS */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.fact {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  color: #333;
+}
+
+/* FOOTER */
+.footer {
+  background: #384d2e;
+  color: white;
+  text-align: center;
+  padding: 15px;
+}

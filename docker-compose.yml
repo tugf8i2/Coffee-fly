@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      # Nombre de la BD usado localmente: 'coffeefly'
+      POSTGRES_DB: coffeefly
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      # El 5432 del equipo ya lo usa otra instalación de PostgreSQL.
+      # El contenedor conserva 5432 internamente; clientes externos usan 5433.
+      # Puedes cambiarlo sin tocar este archivo con POSTGRES_HOST_PORT.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Inicializar la base con el script SQL si no existe
+      - ./backend/BaseDatos.sql:/docker-entrypoint-initdb.d/BaseDatos.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coffeefly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    working_dir: /app
+    command: sh -c "PYTHONPATH=/app python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: development
+      # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
+      DATABASE_URL: postgresql://postgres:1234@db:5432/coffeefly
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+          # Para que el navegador que carga los archivos estáticos pueda alcanzar el backend
+          EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

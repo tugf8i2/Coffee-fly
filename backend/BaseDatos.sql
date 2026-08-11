@@ -1,0 +1,242 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+-- =========================
+-- ROL
+-- =========================
+CREATE TABLE public.rol (
+    id_rol SERIAL PRIMARY KEY,
+    descripcion_rol character varying(200)
+);
+
+-- =========================
+-- USUARIO
+-- =========================
+CREATE TABLE public.usuario (
+    id_usuario SERIAL PRIMARY KEY,
+
+    nombre_usuario character varying(30) NOT NULL,
+    apellido character varying(30) NOT NULL,
+    correo_usuario character varying(30) NOT NULL,
+    telefono_usuario character(10) NOT NULL,
+    contrasena character varying(255),
+
+    departamento character varying(100),
+    municipio character varying(100),
+    vereda character varying(100),
+
+    rol_id integer,
+
+    CONSTRAINT fk_usuario_rol FOREIGN KEY (rol_id)
+        REFERENCES public.rol (id_rol),
+
+    CONSTRAINT uq_usuario_correo UNIQUE (correo_usuario),
+    CONSTRAINT chk_contrasena_longitud CHECK (length(contrasena) >= 8)
+);
+
+-- =========================
+-- CONDUCTOR
+-- =========================
+CREATE TABLE public.conductor (
+    id_conductor SERIAL PRIMARY KEY,
+
+    numero_licencia character varying(20) NOT NULL,
+    licencia character varying(20) NOT NULL,
+
+    usuario_id integer,
+
+    CONSTRAINT fk_conductor_usuario FOREIGN KEY (usuario_id)
+        REFERENCES public.usuario (id_usuario),
+
+    CONSTRAINT conductor_usuario_unique UNIQUE (usuario_id)
+);
+
+-- =========================
+-- UBICACION (UUID)
+-- =========================
+CREATE TABLE public.ubicacion (
+    id_ubicacion uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+
+    x numeric(9,6),
+    y numeric(9,6),
+
+    departamento character varying(50) NOT NULL,
+    ciudad character varying(50) NOT NULL,
+    direccion text NOT NULL
+);
+
+-- =========================
+-- COOPERATIVA
+-- =========================
+CREATE TABLE public.cooperativa (
+    id_cooperativa SERIAL PRIMARY KEY,
+
+    nombre character varying(50),
+    telefono character(10) NOT NULL,
+    correo character varying(50) NOT NULL,
+
+    ubicacion_id uuid NOT NULL,
+
+    CONSTRAINT fk_cooperativa_ubicacion FOREIGN KEY (ubicacion_id)
+        REFERENCES public.ubicacion (id_ubicacion)
+);
+
+-- =========================
+-- RUTA
+-- =========================
+CREATE TABLE public.ruta (
+    id_ruta SERIAL PRIMARY KEY,
+
+    nombre_ruta character varying(100) NOT NULL,
+    descripcion_recorrido text,
+    distancia_estimada numeric(5,2),
+    tiempo_estimado_horas numeric(4,2),
+
+    cooperativa_id integer,
+
+    CONSTRAINT fk_ruta_cooperativa FOREIGN KEY (cooperativa_id)
+        REFERENCES public.cooperativa (id_cooperativa)
+);
+
+-- =========================
+-- VEHICULO
+-- =========================
+CREATE TABLE public.vehiculo (
+    id_vehiculo SERIAL PRIMARY KEY,
+
+    placa character varying(7) NOT NULL,
+    tipo_vehiculo character varying(30) NOT NULL,
+    capacidad_kg real NOT NULL,
+    estado_vehiculo character varying(20),
+
+    conductor_id integer,
+
+    CONSTRAINT fk_vehiculo_conductor FOREIGN KEY (conductor_id)
+        REFERENCES public.conductor (id_conductor),
+
+    CONSTRAINT chk_capacidad_positiva CHECK (capacidad_kg > 0),
+
+    CONSTRAINT chk_estados_vehiculo CHECK (
+        estado_vehiculo IN ('disponible', 'en camino', 'en mantenimiento')
+    )
+);
+
+-- =========================
+-- CARGA (UUID)
+-- =========================
+CREATE TABLE public.carga (
+    id_carga uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+
+    peso_kg numeric(8,2),
+    descripcion character varying(100),
+
+    vehiculo_id integer,
+    cooperativa_id integer,
+    ruta_id integer,
+
+    estado_sincronizacion character varying(20) DEFAULT 'pendiente' NOT NULL,
+    actualizado_en timestamp DEFAULT current_timestamp,
+
+    CONSTRAINT fk_carga_vehiculo FOREIGN KEY (vehiculo_id)
+        REFERENCES public.vehiculo (id_vehiculo),
+
+    CONSTRAINT fk_carga_cooperativa FOREIGN KEY (cooperativa_id)
+        REFERENCES public.cooperativa (id_cooperativa),
+
+    CONSTRAINT fk_carga_ruta FOREIGN KEY (ruta_id)
+        REFERENCES public.ruta (id_ruta),
+
+    CONSTRAINT chk_peso_positivo CHECK (peso_kg > 0)
+);
+
+-- =========================
+-- SOLICITUD (UUID)
+-- =========================
+CREATE TABLE public.solicitud (
+    id_solicitud uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+
+    estado_solicitud character varying(20) NOT NULL,
+    fecha_hora_solicitud timestamp NOT NULL,
+
+    caficultor_id integer,
+    carga_id uuid,
+
+    estado_sincronizacion character varying(20) DEFAULT 'pendiente' NOT NULL,
+
+    CONSTRAINT chk_estados_permitidos CHECK (
+        estado_solicitud IN ('pendiente', 'en camino', 'entregado', 'cancelado')
+    ),
+
+    CONSTRAINT fk_solicitud_caficultor FOREIGN KEY (caficultor_id)
+        REFERENCES public.usuario (id_usuario),
+
+    CONSTRAINT fk_solicitud_carga FOREIGN KEY (carga_id)
+        REFERENCES public.carga (id_carga)
+);
+
+-- =========================
+-- HISTORIAL DE EVENTOS (UUID)
+-- =========================
+CREATE TABLE public.historial_de_eventos (
+    id_evento uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+
+    carga_id uuid NOT NULL,
+    descripcion_evento character varying(100) NOT NULL,
+
+    fecha_hora_evento timestamp NOT NULL,
+    fecha_hora_sincronizacion timestamp NOT NULL,
+
+    ubicacion_id uuid,
+    conductor_id integer,
+    usuario_id_cambio integer NOT NULL,
+
+    CONSTRAINT fk_historial_ubicacion FOREIGN KEY (ubicacion_id)
+        REFERENCES public.ubicacion (id_ubicacion),
+
+    CONSTRAINT fk_historial_carga FOREIGN KEY (carga_id)
+        REFERENCES public.carga (id_carga),
+
+    CONSTRAINT fk_historial_conductor FOREIGN KEY (conductor_id)
+        REFERENCES public.conductor (id_conductor),
+
+    CONSTRAINT fk_historial_usuario_cambio FOREIGN KEY (usuario_id_cambio)
+        REFERENCES public.usuario (id_usuario)
+);
+
+-- =========================
+-- INSERT ROLES
+-- =========================
+INSERT INTO public.rol (descripcion_rol) VALUES
+('coordinador'),
+('conductor'),
+('registrador'),
+('caficultor');
+
+-- =========================
+-- SELECT (JOIN EJEMPLO)
+-- =========================
+SELECT 
+rol.descripcion_rol AS perfil, 
+u_caficultor.nombre_usuario AS nombre_productor,
+u_caficultor.vereda AS vereda,
+u_caficultor.municipio AS municipio,
+solicitud.id_solicitud AS carga,
+solicitud.estado_solicitud AS estado,
+ruta.nombre_ruta AS ruta_asignada,
+carga.id_carga AS viaje,
+carga.peso_kg AS kilogramos_totales,
+vehiculo.placa AS placa_transporte
+FROM public.solicitud
+INNER JOIN public.usuario u_caficultor 
+    ON solicitud.caficultor_id = u_caficultor.id_usuario
+INNER JOIN public.rol 
+    ON u_caficultor.rol_id = rol.id_rol
+LEFT JOIN public.carga 
+    ON solicitud.carga_id = carga.id_carga
+LEFT JOIN public.ruta 
+    ON carga.ruta_id = ruta.id_ruta
+LEFT JOIN public.vehiculo 
+    ON carga.vehiculo_id = vehiculo.id_vehiculo;

@@ -1,0 +1,196 @@
+/* =========================
+   BASE PAGE
+========================= */
+
+.page {
+  background: linear-gradient(135deg, rgb(240, 234, 223), #f7f4ee);
+  min-height: 100vh;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.page h1 {
+  text-align: center;
+  color: #4f6b45;
+  font-size: 2rem;
+  margin-bottom: 25px;
+}
+
+/* =========================
+   FORM CARD
+========================= */
+
+form {
+  background: white;
+  max-width: 520px;
+  margin: 0 auto 30px;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  display: grid;
+  gap: 12px;
+  transition: 0.3s ease;
+}
+
+form:hover {
+  transform: translateY(-2px);
+}
+
+/* INPUTS + SELECT */
+form input,
+form select {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e6e6e6;
+  outline: none;
+  font-size: 0.95rem;
+  background: #fafafa;
+  transition: 0.2s;
+}
+
+form input:focus,
+form select:focus {
+  border-color: #627c55;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(98, 124, 85, 0.15);
+}
+
+/* BUTTON */
+form button {
+  background: linear-gradient(135deg, #627c55, #4a5f41);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(98, 124, 85, 0.25);
+}
+
+/* =========================
+   TABLE CONTAINER
+========================= */
+
+.table-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* TABLE */
+.custom-table {
+  width: 100%;
+  max-width: 1000px;
+  background: white;
+  border-collapse: collapse;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  table-layout: fixed;
+}
+
+/* HEADER */
+.custom-table thead {
+  background: #627c55;
+  color: white;
+}
+
+.custom-table th {
+  padding: 14px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+/* CELLS */
+.custom-table td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+  word-break: break-word;
+}
+
+/* ROW HOVER */
+.custom-table tbody tr:hover {
+  background: #f6f9f4;
+}
+
+/* =========================
+   ACTION BUTTONS
+========================= */
+
+.col-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-edit {
+  background: #f4b942;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-delete {
+  background: #e25555;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* =========================
+   RESPONSIVE (SIN SCROLL)
+========================= */
+
+@media (max-width: 768px) {
+
+  .custom-table thead {
+    display: none;
+  }
+
+  .custom-table,
+  .custom-table tbody,
+  .custom-table tr,
+  .custom-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .custom-table tr {
+    margin-bottom: 15px;
+    background: white;
+    padding: 12px;
+    border-radius: 14px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+  }
+
+  .custom-table td {
+    display: flex;
+    justify-content: space-between;
+    border: none;
+    padding: 8px 5px;
+  }
+
+  /* etiquetas móviles */
+  .custom-table td:nth-child(1)::before { content: "ID"; font-weight: bold; }
+  .custom-table td:nth-child(2)::before { content: "Nombre"; font-weight: bold; }
+  .custom-table td:nth-child(3)::before { content: "Correo"; font-weight: bold; }
+  .custom-table td:nth-child(4)::before { content: "Rol"; font-weight: bold; }
+
+  .col-actions {
+    justify-content: center;
+    width: 100%;
+  }
+} 

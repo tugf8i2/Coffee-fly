@@ -173,3 +173,32 @@ Implementación de **HTTPS/TLS**, tokens **JWT**, contraseñas cifradas con **bc
 | Nicolás Ramírez Rincón | Analista |
 
 **Instructora:** Rocío Malpica
+
+---
+
+## Implementación actual: Docker + React Native
+
+La versión funcional actual se encuentra en `frontend/` y utiliza React Native con Expo para web, Android e iOS. El backend FastAPI y PostgreSQL se levantan con Docker Compose.
+
+### Levantar el proyecto
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+```
+
+- Frontend web: `http://localhost:8080`
+- API: `http://localhost:8000`
+- Documentación API: `http://localhost:8000/docs`
+- PostgreSQL para clientes externos: `127.0.0.1:5433`
+
+### Comandos Docker
+
+```powershell
+docker compose ps
+docker compose logs -f
+docker compose down
+docker compose down -v
+```
+
+`docker compose down` conserva los datos. `docker compose down -v` elimina el volumen de PostgreSQL y reinicia la base de datos desde cero.

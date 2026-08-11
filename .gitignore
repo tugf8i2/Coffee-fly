@@ -1,0 +1,14 @@
+node_modules/
+**/node_modules/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.expo/
+frontend/dist/
+frontend/dist-*/
+.env
+*.log
+
+**/.git/
+**/.env
+
