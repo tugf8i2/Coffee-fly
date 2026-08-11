@@ -1,0 +1,35 @@
+.viajes-page {
+  padding: 40px 20px;
+  background: #f0eade;
+  min-height: 100vh;
+}
+
+.viajes-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.viajes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.viajes-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.viajes-card button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* 📱 MOBILE */
+@media (max-width: 768px) {
+  .viajes-grid {
+    grid-template-columns: 1fr;
+  }
+}

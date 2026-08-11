@@ -1,0 +1,135 @@
+/* RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* FONDO GENERAL */
+body {
+    background-color: rgb(240, 234, 223);
+    min-height: 100vh;
+}
+
+/* CENTRADO DE LA PÁGINA */
+main.page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* TARJETA LOGIN */
+.login-container {
+    background-color: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+/* HEADER */
+.logo-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.logo {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
+.logo-title h1 {
+    color: rgb(98, 124, 85);
+    font-size: 2rem;
+}
+
+/* FORM */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: rgb(98, 124, 85);
+}
+
+/* BOTÓN */
+.btn-submit {
+    width: 100%;
+    padding: 12px;
+    background-color: rgb(98, 124, 85);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-submit:hover {
+    background-color: #4a5f41;
+}
+
+/* NAV */
+.register-section {
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.text-back {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.link-back {
+    color: rgb(98, 124, 85);
+    font-weight: bold;
+}
+
+.link-back:hover {
+    text-decoration: underline;
+}
+
+/* FOOTER DENTRO DE TARJETA */
+.login-footer {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+}
