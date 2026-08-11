@@ -67,7 +67,7 @@ class UsuarioRepository:
     def update_usuario(
         self,
         id_usuario: int,
-        usuario: UsuarioUpdate
+        usuario: Usuario
     ) -> Usuario | None:
 
         db_usuario = self.get_usuario(
@@ -76,21 +76,6 @@ class UsuarioRepository:
 
         if db_usuario is None:
             return None
-
-
-        for key, value in (
-            usuario
-            .model_dump(
-                exclude_unset=True
-            )
-            .items()
-        ):
-
-            setattr(
-                db_usuario,
-                key,
-                value
-            )
 
 
         self.db.commit()
