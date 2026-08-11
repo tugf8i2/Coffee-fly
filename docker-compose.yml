@@ -29,6 +29,9 @@ services:
       - "8000:8000"
     environment:
       ENV: development
+      # Credenciales del registrador inicial (solo se usa si la BD no tiene registradores).
+      BOOTSTRAP_REGISTRADOR_EMAIL: ${BOOTSTRAP_REGISTRADOR_EMAIL:-admin@coffeefly.com}
+      BOOTSTRAP_REGISTRADOR_PASSWORD: ${BOOTSTRAP_REGISTRADOR_PASSWORD:-Admin123}
       # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
       DATABASE_URL: postgresql://postgres:1234@db:5432/coffeefly
     depends_on:
