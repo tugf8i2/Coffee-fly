@@ -39,22 +39,6 @@ def listar_usuarios(
 
 
 @router.get(
-    "/{id_usuario}",
-    response_model=UsuarioResponse
-)
-def obtener_usuario(
-    id_usuario: int,
-    db: Session = Depends(get_db)
-):
-
-    service = UsuarioService(db)
-
-    return service.obtener_usuario(
-        id_usuario
-    )
-
-
-@router.get(
     "/correo/{correo}",
     response_model=UsuarioResponse
 )
@@ -67,6 +51,22 @@ def obtener_usuario_por_correo(
 
     return service.obtener_usuario_por_correo(
         correo
+    )
+
+
+@router.get(
+    "/{id_usuario}",
+    response_model=UsuarioResponse
+)
+def obtener_usuario(
+    id_usuario: int,
+    db: Session = Depends(get_db)
+):
+
+    service = UsuarioService(db)
+
+    return service.obtener_usuario(
+        id_usuario
     )
 
 
@@ -112,13 +112,14 @@ def actualizar_usuario(
 def eliminar_usuario(
     id_usuario: int,
     db: Session = Depends(get_db),
-    _registrador = Depends(require_registrador),
+    registrador = Depends(require_registrador),
 ):
 
     service = UsuarioService(db)
 
     service.eliminar_usuario(
-        id_usuario
+        id_usuario,
+        registrador.id_usuario,
     )
 
     return {

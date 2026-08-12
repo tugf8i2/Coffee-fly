@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL } from './config';
 
@@ -106,6 +106,26 @@ export default function UserManagement({ go, token, styles }) {
     if (response.ok) loadUsers();
   };
 
+  const confirmRemove = (user) => {
+    const confirmation = `¿Seguro que quieres eliminar a ${user.nombre_usuario} ${user.apellido}? Esta acción no se puede deshacer.`;
+
+    // React Native Web no procesa las acciones de Alert. En navegador se usa
+    // confirm para que el botón Eliminar ejecute realmente la petición DELETE.
+    if (Platform.OS === 'web') {
+      if (window.confirm(confirmation)) remove(user.id_usuario);
+      return;
+    }
+
+    Alert.alert(
+      'Eliminar perfil',
+      confirmation,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => remove(user.id_usuario) },
+      ],
+    );
+  };
+
   const field = (label, key, options = {}) => <View key={key}>
     <Text style={styles.label}>{label}</Text>
     <TextInput style={styles.input} value={String(form[key] ?? '')} onChangeText={(value) => updateField(key, value)} {...options} />
@@ -136,7 +156,7 @@ export default function UserManagement({ go, token, styles }) {
         <Text>{user.correo_usuario}</Text><Text style={styles.muted}>{label}</Text>
         <TouchableOpacity style={styles.primary} onPress={() => startEdit(user)}><Text style={styles.primaryText}>Editar perfil</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => changeStatus(user.id_usuario, state.habilitado === false)}><Text style={styles.link}>{state.habilitado === false ? 'Habilitar y desbloquear' : 'Deshabilitar perfil'}</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => remove(user.id_usuario)}><Text style={styles.error}>Eliminar perfil</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => confirmRemove(user)}><Text style={styles.error}>Eliminar perfil</Text></TouchableOpacity>
       </View>;
     })}
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>

@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.solicitud_models import Solicitud
+from app.models.carga_models import Carga
 
 from app.schemas.solicitud_schemas import (
     SolicitudCreate,
@@ -44,6 +45,28 @@ class SolicitudRepository:
             .offset(skip)
             .limit(limit)
             .all()
+        )
+
+    def get_solicitudes_por_caficultor(self, caficultor_id: int):
+        return (
+            self.db.query(Solicitud, Carga)
+            .outerjoin(Carga, Solicitud.carga_id == Carga.id_carga)
+            .filter(Solicitud.caficultor_id == caficultor_id)
+            .order_by(Solicitud.fecha_hora_solicitud.desc())
+            .all()
+        )
+
+    def get_seguimiento_por_caficultor(self, caficultor_id: int):
+        return (
+            self.db.query(Solicitud, Carga)
+            .outerjoin(Carga, Solicitud.carga_id == Carga.id_carga)
+            .filter(
+                Solicitud.caficultor_id == caficultor_id,
+                Solicitud.estado_solicitud.in_(["pendiente", "en camino"]),
+                Carga.vehiculo_id.isnot(None),
+            )
+            .order_by(Solicitud.fecha_hora_solicitud.desc())
+            .first()
         )
 
 

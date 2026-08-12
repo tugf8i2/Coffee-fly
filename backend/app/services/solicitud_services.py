@@ -40,6 +40,47 @@ class SolicitudService:
             )
         )
 
+    def obtener_dashboard_caficultor(self, caficultor_id: int):
+        registros = self.repository.get_solicitudes_por_caficultor(caficultor_id)
+        solicitudes = [
+            {
+                "id_solicitud": str(solicitud.id_solicitud),
+                "estado_solicitud": solicitud.estado_solicitud,
+                "fecha_hora_solicitud": solicitud.fecha_hora_solicitud,
+                "estado_sincronizacion": solicitud.estado_sincronizacion,
+                "peso_kg": float(carga.peso_kg) if carga and carga.peso_kg is not None else 0,
+                "observacion": carga.descripcion if carga else None,
+            }
+            for solicitud, carga in registros
+        ]
+        entregadas = [item for item in solicitudes if item["estado_solicitud"] == "entregado"]
+        activas = [item for item in solicitudes if item["estado_solicitud"] in {"pendiente", "en camino"}]
+        return {
+            "resumen": {
+                "total_solicitudes": len(solicitudes),
+                "solicitudes_activas": len(activas),
+                "despachos_entregados": len(entregadas),
+                "kg_solicitados": round(sum(item["peso_kg"] for item in solicitudes), 2),
+                "kg_despachados": round(sum(item["peso_kg"] for item in entregadas), 2),
+            },
+            "solicitudes_activas": activas,
+            "historial_despachos": entregadas,
+        }
+
+    def obtener_seguimiento_caficultor(self, caficultor_id: int):
+        registro = self.repository.get_seguimiento_por_caficultor(caficultor_id)
+        if not registro:
+            raise HTTPException(status_code=404, detail="No tienes una solicitud activa con vehículo asignado")
+        solicitud, carga = registro
+        # Ubicación simulada vigente hasta conectar un proveedor GPS real.
+        return {
+            "id_solicitud": str(solicitud.id_solicitud),
+            "estado_solicitud": solicitud.estado_solicitud,
+            "vehiculo_id": carga.vehiculo_id,
+            "peso_kg": float(carga.peso_kg or 0),
+            "ubicacion": {"latitud": 4.7110, "longitud": -74.0721, "actualizado_en": solicitud.fecha_hora_solicitud},
+        }
+
 
     def obtener_solicitud(
         self,

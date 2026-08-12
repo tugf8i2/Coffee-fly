@@ -25,6 +25,11 @@ def set_account_disabled(user_id: int, disabled: bool):
     state["blocked_until"] = None
     return state
 
+
+def remove_account_state(user_id: int):
+    """Elimina el estado temporal de inicio de sesión de un perfil borrado."""
+    _login_attempts.pop(user_id, None)
+
 def login_user(db, data):
 
     user = login_get_user_by_email(db, data.email)

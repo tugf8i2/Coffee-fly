@@ -43,6 +43,22 @@ def listar_solicitudes(
     )
 
 
+@router.get("/mis-solicitudes")
+def consultar_dashboard_caficultor(
+    db: Session = Depends(get_db),
+    caficultor: Usuario = Depends(require_roles("caficultor")),
+):
+    return SolicitudService(db).obtener_dashboard_caficultor(caficultor.id_usuario)
+
+
+@router.get("/mi-seguimiento")
+def consultar_seguimiento_caficultor(
+    db: Session = Depends(get_db),
+    caficultor: Usuario = Depends(require_roles("caficultor")),
+):
+    return SolicitudService(db).obtener_seguimiento_caficultor(caficultor.id_usuario)
+
+
 @router.get(
     "/{id_solicitud}",
     response_model=SolicitudResponse
