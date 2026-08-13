@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL } from '../config/Api';
 
 const states = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelada' };
 
-export default function FarmerDashboard({ go, token, styles }) {
+export default function MiActividad({ go, token, styles }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
