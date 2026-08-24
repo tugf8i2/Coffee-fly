@@ -31,6 +31,8 @@ class UsuarioBase(BaseModel):
     vereda: Optional[str] = None
 
     rol_id: Optional[int] = None
+    licencia: Optional[str] = Field(default=None, max_length=20)
+    foto_licencia: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
     pass
@@ -64,6 +66,8 @@ class UsuarioUpdate(BaseModel):
     vereda: Optional[str] = None
 
     rol_id: Optional[int] = None
+    licencia: Optional[str] = Field(default=None, max_length=20)
+    foto_licencia: Optional[str] = None
 
 class UsuarioResponse(BaseModel):
     id_usuario: int
@@ -72,6 +76,11 @@ class UsuarioResponse(BaseModel):
     correo_usuario: EmailStr
     telefono_usuario: str
     rol_id: int
+    departamento: Optional[str] = None
+    municipio: Optional[str] = None
+    vereda: Optional[str] = None
+    licencia: Optional[str] = None
+    tiene_foto_licencia: bool = False
 
 
     class Config:

@@ -13,6 +13,9 @@ class Usuario(Base):
     correo_usuario = Column(String(30), nullable=False, unique=True)
     telefono_usuario = Column(String(10), nullable=False)
     contrasena = Column(String(255), nullable=False)
+    departamento = Column(String(100), nullable=True)
+    municipio = Column(String(100), nullable=True)
+    vereda = Column(String(100), nullable=True)
 
     rol_id = Column(Integer, ForeignKey("public.rol.id_rol"))
     rol = relationship("Rol", back_populates="usuarios")

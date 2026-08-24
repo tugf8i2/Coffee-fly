@@ -44,6 +44,13 @@ class VehiculoRepository:
             .all()
         )
 
+    def get_vehiculo_by_placa(self, placa: str) -> Vehiculo | None:
+        return (
+            self.db.query(Vehiculo)
+            .filter(Vehiculo.placa.ilike(placa.strip()))
+            .first()
+        )
+
 
     def create_vehiculo(
         self,
