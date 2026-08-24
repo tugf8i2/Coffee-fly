@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL } from '../config/Api';
 
-export default function FarmerTracking({ go, token, styles }) {
+export default function SeguimientoVehiculo({ go, token, styles }) {
   const [tracking, setTracking] = useState(null); const [error, setError] = useState('');
   const load = async () => { try { const r = await fetch(`${API_BASE_URL}/solicitudes/mi-seguimiento`, {headers:{Authorization:`Bearer ${token}`}}); const d = await r.json(); if (!r.ok) throw Error(d.detail || 'No se pudo consultar el seguimiento'); setTracking(d); } catch(e) { setError(e.message); } };
   useEffect(()=>{load();},[]);

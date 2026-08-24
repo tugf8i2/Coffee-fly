@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL } from '../config/Api';
 
-export default function CollectionRequestList({ go, token, styles }) {
+export default function SolicitudesRecoleccion({ go, token, styles }) {
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState('');
 
