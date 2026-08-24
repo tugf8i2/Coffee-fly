@@ -43,8 +43,8 @@ CREATE TABLE public.usuario (
 CREATE TABLE public.conductor (
     id_conductor SERIAL PRIMARY KEY,
 
-    numero_licencia character varying(20) NOT NULL,
     licencia character varying(20) NOT NULL,
+    foto_licencia text NOT NULL,
 
     usuario_id integer,
 
@@ -109,6 +109,7 @@ CREATE TABLE public.vehiculo (
 
     placa character varying(7) NOT NULL,
     tipo_vehiculo character varying(30) NOT NULL,
+    modelo character varying(50),
     capacidad_kg real NOT NULL,
     estado_vehiculo character varying(20),
 
@@ -175,6 +176,48 @@ CREATE TABLE public.solicitud (
 
     CONSTRAINT fk_solicitud_carga FOREIGN KEY (carga_id)
         REFERENCES public.carga (id_carga)
+);
+
+-- ENTREGA DE CAFÉ (RF-04 / RF-05)
+CREATE TABLE public.entrega (
+    id_entrega uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    solicitud_id uuid NOT NULL REFERENCES public.solicitud (id_solicitud),
+    caficultor_id integer NOT NULL REFERENCES public.usuario (id_usuario),
+    cantidad_kg numeric(8,2) NOT NULL CHECK (cantidad_kg > 0),
+    fecha_hora_entrega timestamp NOT NULL,
+    observaciones character varying(500),
+    estado_entrega character varying(20) NOT NULL DEFAULT 'pendiente',
+    CONSTRAINT chk_estados_entrega CHECK (
+        estado_entrega IN ('pendiente', 'en camino', 'entregado', 'cancelado')
+    )
+);
+
+-- Historial persistente de cada asignación de entrega, vehículo y conductor.
+CREATE TABLE public.historial_asignacion (
+    id_asignacion uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    entrega_id uuid NOT NULL REFERENCES public.entrega (id_entrega),
+    carga_id uuid NOT NULL REFERENCES public.carga (id_carga),
+    vehiculo_id integer NOT NULL REFERENCES public.vehiculo (id_vehiculo),
+    conductor_id integer NOT NULL REFERENCES public.conductor (id_conductor),
+    coordinador_id integer NOT NULL REFERENCES public.usuario (id_usuario),
+    fecha_hora_asignacion timestamp NOT NULL DEFAULT current_timestamp
+);
+
+-- Trazabilidad de los cambios de estado de una entrega (RF-05).
+-- El usuario se obtiene de la sesión autenticada y no del cliente.
+CREATE TABLE public.historial_estado_entrega (
+    id_historial uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    entrega_id uuid NOT NULL REFERENCES public.entrega (id_entrega) ON DELETE CASCADE,
+    estado_anterior character varying(20) NOT NULL,
+    estado_nuevo character varying(20) NOT NULL,
+    usuario_id integer NOT NULL REFERENCES public.usuario (id_usuario),
+    fecha_hora_cambio timestamp NOT NULL DEFAULT current_timestamp,
+    CONSTRAINT chk_historial_estado_anterior CHECK (
+        estado_anterior IN ('pendiente', 'en camino', 'entregado', 'cancelado')
+    ),
+    CONSTRAINT chk_historial_estado_nuevo CHECK (
+        estado_nuevo IN ('pendiente', 'en camino', 'entregado', 'cancelado')
+    )
 );
 
 -- =========================

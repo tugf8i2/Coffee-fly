@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from sqlalchemy import text
 from app.api.rol_api import router as rol_router
 from app.api.usuario_api import router as usuario_router
 from app.api.conductor_api import router as conductor_router
@@ -9,6 +10,7 @@ from app.api.vehiculo_api import (router as vehiculo_router)
 from app.api.carga_api import (router as carga_router)
 from app.api.solicitud_api import (router as solicitud_router)
 from app.api.historial_eventos_api import (router as historial_eventos_api)
+from app.api.entrega_api import router as entrega_router
 import app.models
 from app.core.database import Base, engine, SessionLocal
 from app.models.usuario_models import Usuario
@@ -27,6 +29,37 @@ app = FastAPI()
 @app.on_event("startup")
 def create_support_tables():
     Base.metadata.create_all(bind=engine)
+    # Compatibilidad con instalaciones que ya tenían RF-04: su restricción solo
+    # aceptaba "pendiente".  La migración conserva las entregas existentes.
+    with engine.begin() as connection:
+        # Las instalaciones previas pueden tener la tabla usuario sin los
+        # datos de ubicación que requiere el perfil de registrador.
+        connection.execute(text("""
+            ALTER TABLE public.usuario
+                ADD COLUMN IF NOT EXISTS departamento character varying(100),
+                ADD COLUMN IF NOT EXISTS municipio character varying(100),
+                ADD COLUMN IF NOT EXISTS vereda character varying(100)
+        """))
+        connection.execute(text("""
+            ALTER TABLE public.conductor
+                ADD COLUMN IF NOT EXISTS foto_licencia text
+        """))
+        connection.execute(text("""
+            ALTER TABLE public.conductor
+                DROP COLUMN IF EXISTS numero_licencia
+        """))
+        connection.execute(text("""
+            ALTER TABLE public.vehiculo
+                ADD COLUMN IF NOT EXISTS modelo character varying(50)
+        """))
+        connection.execute(text("""
+            ALTER TABLE public.entrega
+                DROP CONSTRAINT IF EXISTS entrega_estado_entrega_check,
+                DROP CONSTRAINT IF EXISTS chk_estados_entrega,
+                ADD CONSTRAINT chk_estados_entrega CHECK (
+                    estado_entrega IN ('pendiente', 'en camino', 'entregado', 'cancelado')
+                )
+        """))
     # Bootstrap seguro para instalaciones nuevas: sin un registrador inicial
     # el endpoint protegido de creación de usuarios no puede utilizarse.
     db = SessionLocal()
@@ -118,5 +151,9 @@ app.include_router(
 
 app.include_router(
     historial_eventos_api
+)
+
+app.include_router(
+    entrega_router
 )
 

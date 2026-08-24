@@ -12,6 +12,7 @@ from app.schemas.vehiculo_schemas import (
 from app.services.vehiculo_services import (
     VehiculoService
 )
+from app.core.auth import require_registrador
 
 
 router = APIRouter(
@@ -27,7 +28,8 @@ router = APIRouter(
 def listar_vehiculos(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
@@ -44,7 +46,8 @@ def listar_vehiculos(
 )
 def obtener_vehiculo(
     id_vehiculo: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
@@ -60,7 +63,8 @@ def obtener_vehiculo(
 )
 def crear_vehiculo(
     vehiculo: VehiculoCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
@@ -77,7 +81,8 @@ def crear_vehiculo(
 def actualizar_vehiculo(
     id_vehiculo: int,
     vehiculo: VehiculoUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
@@ -93,7 +98,8 @@ def actualizar_vehiculo(
 )
 def eliminar_vehiculo(
     id_vehiculo: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)

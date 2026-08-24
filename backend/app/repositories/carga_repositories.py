@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.carga_models import Carga
@@ -45,6 +46,14 @@ class CargaRepository:
             .limit(limit)
             .all()
         )
+
+    def get_peso_asignado_vehiculo(self, vehiculo_id: int, excluir_carga_id: UUID | None = None) -> float:
+        consulta = self.db.query(func.coalesce(func.sum(Carga.peso_kg), 0)).filter(
+            Carga.vehiculo_id == vehiculo_id
+        )
+        if excluir_carga_id is not None:
+            consulta = consulta.filter(Carga.id_carga != excluir_carga_id)
+        return float(consulta.scalar() or 0)
 
 
     def create_carga(

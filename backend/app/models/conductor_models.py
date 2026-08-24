@@ -8,8 +8,8 @@ class Conductor(Base):
     __table_args__ = {"schema": "public"}
 
     id_conductor = Column(Integer, primary_key=True)
-    numero_licencia = Column(String(20), nullable=False)
     licencia = Column(String(20), nullable=False)
+    foto_licencia = Column(String, nullable=True)
     usuario_id = Column(Integer,ForeignKey("public.usuario.id_usuario"),nullable=False,unique=True)
 
     # Relación 1 - 1 con Usuario

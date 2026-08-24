@@ -7,5 +7,8 @@ from app.models.ruta_models import Ruta
 from app.models.vehiculo_models import Vehiculo
 from app.models.carga_models import Carga
 from app.models.solicitud_models import Solicitud
+from app.models.entrega_models import Entrega
+from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
+from app.models.historial_asignacion_models import HistorialAsignacion
 from app.models.historial_eventos_models import HistorialEvento
 from app.models.auth_session_models import AuthSession

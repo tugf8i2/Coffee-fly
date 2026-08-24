@@ -66,11 +66,22 @@ class VehiculoService:
         vehiculo: VehiculoCreate
     ):
 
+        datos = vehiculo.model_dump()
+        datos["placa"] = datos["placa"].strip().upper()
+        datos["tipo_vehiculo"] = datos["tipo_vehiculo"].strip()
+        datos["modelo"] = (datos.get("modelo") or "").strip() or None
+        datos["estado_vehiculo"] = datos.get("estado_vehiculo") or "disponible"
+
+        if self.repository.get_vehiculo_by_placa(datos["placa"]):
+            raise HTTPException(status_code=400, detail="La placa ya está registrada")
+        if datos["capacidad_kg"] <= 0:
+            raise HTTPException(status_code=400, detail="La capacidad debe ser mayor que cero")
+        if not datos["modelo"]:
+            raise HTTPException(status_code=400, detail="El modelo del vehículo es obligatorio")
+
         return (
             self.repository
-            .create_vehiculo(
-                vehiculo
-            )
+            .create_vehiculo(VehiculoCreate(**datos))
         )
 
 
@@ -80,11 +91,20 @@ class VehiculoService:
         vehiculo: VehiculoUpdate
     ):
 
+        datos = vehiculo.model_dump(exclude_unset=True)
+        if "placa" in datos:
+            datos["placa"] = datos["placa"].strip().upper()
+            existente = self.repository.get_vehiculo_by_placa(datos["placa"])
+            if existente and existente.id_vehiculo != id_vehiculo:
+                raise HTTPException(status_code=400, detail="La placa ya está registrada")
+        if "capacidad_kg" in datos and datos["capacidad_kg"] <= 0:
+            raise HTTPException(status_code=400, detail="La capacidad debe ser mayor que cero")
+
         actualizado = (
             self.repository
             .update_vehiculo(
                 id_vehiculo,
-                vehiculo
+                VehiculoUpdate(**datos)
             )
         )
 

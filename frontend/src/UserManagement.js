@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL } from './config';
 
 const emptyForm = {
   nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
+  licencia: '', foto_licencia: '', tiene_foto_licencia: false, departamento: '', municipio: '', vereda: '',
 };
 
 const domain = '@coffeeFly.com';
@@ -56,6 +57,19 @@ export default function UserManagement({ go, token, styles }) {
     setForm(next);
   };
 
+  const selectLicensePhoto = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setMessage('Selecciona un archivo de imagen para la licencia.');
+    if (file.size > 3 * 1024 * 1024) return setMessage('La foto de la licencia no puede superar 3 MB.');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((current) => ({ ...current, foto_licencia: reader.result, tiene_foto_licencia: true }));
+      setMessage('Foto de licencia seleccionada correctamente.');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const startEdit = (user) => {
     setEditingId(user.id_usuario);
     setForm({ ...user, contrasena: '' });
@@ -72,8 +86,22 @@ export default function UserManagement({ go, token, styles }) {
     if (!form.nombre_usuario.trim() || !form.apellido.trim()) return setMessage('Nombre y apellido son obligatorios.');
     if (form.telefono_usuario.length !== 10) return setMessage('El teléfono debe tener exactamente 10 dígitos.');
     if (!editingId && form.contrasena.length < 7) return setMessage('La contraseña debe tener mínimo 7 caracteres.');
-    const payload = { ...form };
+    const roleId = Number(form.rol_id);
+    if (![1, 2, 3, 4].includes(roleId)) return setMessage('Selecciona un rol válido entre 1 y 4.');
+    if (roleId === 2 && (!form.licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
+      return setMessage('Para el conductor debes seleccionar el tipo y agregar la foto de la licencia.');
+    }
+    if (roleId === 4 && (!form.departamento.trim() || !form.municipio.trim() || !form.vereda.trim())) {
+      return setMessage('Para el caficultor debes completar departamento, municipio y vereda.');
+    }
+    const payload = { ...form, rol_id: roleId };
     if (editingId && !payload.contrasena) delete payload.contrasena;
+    delete payload.tiene_foto_licencia;
+    if (editingId && !payload.foto_licencia) delete payload.foto_licencia;
+    if (roleId !== 2) {
+      delete payload.licencia;
+      delete payload.foto_licencia;
+    }
     const original = users.find((user) => user.id_usuario === editingId);
     if (editingId && original && original.nombre_usuario === payload.nombre_usuario && original.apellido === payload.apellido) {
       delete payload.correo_usuario;
@@ -143,7 +171,45 @@ export default function UserManagement({ go, token, styles }) {
       <Text style={styles.muted}>Se actualiza automáticamente al cambiar nombre o apellido.</Text>
       {field('Teléfono (10 dígitos)', 'telefono_usuario', { keyboardType: 'phone-pad', maxLength: 10 })}
       {field(editingId ? 'Nueva contraseña (opcional)' : 'Contraseña (mínimo 7 caracteres)', 'contrasena', { secureTextEntry: true })}
-      {field('Rol (1 Coordinador, 2 Conductor, 3 Registrador, 4 Caficultor)', 'rol_id', { keyboardType: 'numeric' })}
+      <Text style={styles.label}>Rol</Text>
+      {Platform.OS === 'web' ? <select
+        value={String(form.rol_id ?? '')}
+        onChange={(event) => updateField('rol_id', event.target.value)}
+        style={{ ...styles.input, width: '100%' }}
+      >
+        <option value="">Selecciona un rol</option>
+        <option value="1">Coordinador</option>
+        <option value="2">Conductor</option>
+        <option value="3">Registrador</option>
+        <option value="4">Caficultor</option>
+      </select> : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {[
+          ['1', 'Coordinador'], ['2', 'Conductor'], ['3', 'Registrador'], ['4', 'Caficultor'],
+        ].map(([id, name]) => <TouchableOpacity key={id} style={[styles.role, Number(form.rol_id) === Number(id) && styles.roleActive]} onPress={() => updateField('rol_id', id)}><Text>{name}</Text></TouchableOpacity>)}
+      </View>}
+      {Number(form.rol_id) === 2 ? <View>
+        <Text style={styles.section}>Datos del conductor</Text>
+        <Text style={styles.label}>Tipo de licencia</Text>
+        {Platform.OS === 'web' ? <select
+          value={form.licencia || ''}
+          onChange={(event) => updateField('licencia', event.target.value)}
+          style={{ ...styles.input, width: '100%' }}
+        >
+          <option value="">Selecciona el tipo de licencia</option>
+          {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <option key={type} value={type}>{type}</option>)}
+        </select> : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <TouchableOpacity key={type} style={[styles.role, form.licencia === type && styles.roleActive]} onPress={() => updateField('licencia', type)}><Text>{type}</Text></TouchableOpacity>)}
+        </View>}
+        <Text style={styles.label}>Foto de la licencia de conducir</Text>
+        {Platform.OS === 'web' ? <input type="file" accept="image/*" onChange={selectLicensePhoto} style={{ marginBottom: 8 }} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}
+        {form.foto_licencia ? <Image source={{ uri: form.foto_licencia }} style={{ width: 180, height: 110, resizeMode: 'contain', alignSelf: 'flex-start' }} /> : form.tiene_foto_licencia ? <Text style={styles.muted}>Ya hay una foto guardada. Selecciona otra para reemplazarla.</Text> : <Text style={styles.muted}>Formatos permitidos: imagen. Tamaño máximo: 3 MB.</Text>}
+      </View> : null}
+      {Number(form.rol_id) === 4 ? <View>
+        <Text style={styles.section}>Datos del caficultor</Text>
+        {field('Departamento', 'departamento', { maxLength: 100 })}
+        {field('Municipio', 'municipio', { maxLength: 100 })}
+        {field('Vereda', 'vereda', { maxLength: 100 })}
+      </View> : null}
       <TouchableOpacity style={styles.primary} onPress={save}><Text style={styles.primaryText}>{editingId ? 'Guardar cambios' : 'Crear usuario'}</Text></TouchableOpacity>
       {editingId ? <TouchableOpacity onPress={cancelEdit}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
