@@ -23,6 +23,9 @@ CREATE TABLE public.usuario (
     correo_usuario character varying(30) NOT NULL,
     telefono_usuario character(10) NOT NULL,
     contrasena character varying(255),
+    habilitado boolean NOT NULL DEFAULT true,
+    intentos_fallidos integer NOT NULL DEFAULT 0,
+    bloqueado_hasta timestamp with time zone,
 
     departamento character varying(100),
     municipio character varying(100),
@@ -137,6 +140,7 @@ CREATE TABLE public.carga (
     vehiculo_id integer,
     cooperativa_id integer,
     ruta_id integer,
+    caficultor_id integer,
 
     estado_sincronizacion character varying(20) DEFAULT 'pendiente' NOT NULL,
     actualizado_en timestamp DEFAULT current_timestamp,
@@ -149,6 +153,9 @@ CREATE TABLE public.carga (
 
     CONSTRAINT fk_carga_ruta FOREIGN KEY (ruta_id)
         REFERENCES public.ruta (id_ruta),
+
+    CONSTRAINT fk_carga_caficultor FOREIGN KEY (caficultor_id)
+        REFERENCES public.usuario (id_usuario),
 
     CONSTRAINT chk_peso_positivo CHECK (peso_kg > 0)
 );
@@ -164,6 +171,7 @@ CREATE TABLE public.solicitud (
 
     caficultor_id integer,
     carga_id uuid,
+    client_request_id uuid,
 
     estado_sincronizacion character varying(20) DEFAULT 'pendiente' NOT NULL,
 
@@ -177,6 +185,8 @@ CREATE TABLE public.solicitud (
     CONSTRAINT fk_solicitud_carga FOREIGN KEY (carga_id)
         REFERENCES public.carga (id_carga)
 );
+CREATE UNIQUE INDEX ux_solicitud_client_request_id
+    ON public.solicitud (client_request_id) WHERE client_request_id IS NOT NULL;
 
 -- ENTREGA DE CAFÉ (RF-04 / RF-05)
 CREATE TABLE public.entrega (
@@ -187,6 +197,10 @@ CREATE TABLE public.entrega (
     fecha_hora_entrega timestamp NOT NULL,
     observaciones character varying(500),
     estado_entrega character varying(20) NOT NULL DEFAULT 'pendiente',
+    actualizado_en timestamp,
+    distancia_recorrida_m double precision NOT NULL DEFAULT 0,
+    CONSTRAINT uq_entrega_solicitud_id UNIQUE (solicitud_id),
+    CONSTRAINT chk_entrega_distancia_recorrida CHECK (distancia_recorrida_m >= 0),
     CONSTRAINT chk_estados_entrega CHECK (
         estado_entrega IN ('pendiente', 'en camino', 'entregado', 'cancelado')
     )
@@ -219,6 +233,41 @@ CREATE TABLE public.historial_estado_entrega (
         estado_nuevo IN ('pendiente', 'en camino', 'entregado', 'cancelado')
     )
 );
+
+-- Sesiones JWT revocables. Solo se almacena el identificador jti, nunca el JWT completo.
+CREATE TABLE public.auth_session (
+    token character varying(64) PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES public.usuario (id_usuario),
+    expires_at timestamp with time zone NOT NULL
+);
+CREATE INDEX ix_auth_session_user_id ON public.auth_session (user_id);
+
+-- Puntos GPS reales capturados por el dispositivo y vinculados a una entrega.
+CREATE TABLE public.seguimiento_ubicacion (
+    id_ubicacion uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    client_point_id uuid,
+    entrega_id uuid NOT NULL REFERENCES public.entrega (id_entrega),
+    vehiculo_id integer NOT NULL REFERENCES public.vehiculo (id_vehiculo),
+    latitud numeric(9,6) NOT NULL,
+    longitud numeric(9,6) NOT NULL,
+    precision_m double precision,
+    velocidad_m_s double precision,
+    rumbo_grados double precision,
+    registrada_en timestamp NOT NULL,
+    recibida_en timestamp,
+    CONSTRAINT chk_seguimiento_coordenadas CHECK (
+        latitud BETWEEN -90 AND 90 AND longitud BETWEEN -180 AND 180
+    ),
+    CONSTRAINT chk_seguimiento_precision CHECK (precision_m IS NULL OR precision_m >= 0),
+    CONSTRAINT chk_seguimiento_velocidad CHECK (velocidad_m_s IS NULL OR velocidad_m_s >= 0),
+    CONSTRAINT chk_seguimiento_rumbo CHECK (rumbo_grados IS NULL OR rumbo_grados BETWEEN 0 AND 360)
+);
+CREATE UNIQUE INDEX ux_seguimiento_client_point_id
+    ON public.seguimiento_ubicacion (client_point_id) WHERE client_point_id IS NOT NULL;
+CREATE INDEX ix_seguimiento_entrega_fecha
+    ON public.seguimiento_ubicacion (entrega_id, registrada_en);
+CREATE INDEX ix_seguimiento_vehiculo_id
+    ON public.seguimiento_ubicacion (vehiculo_id);
 
 -- =========================
 -- HISTORIAL DE EVENTOS (UUID)

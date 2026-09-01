@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, fetchApi } from './config';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
@@ -11,7 +11,7 @@ export default function AssignmentHistory({ go, token, styles }) {
   const load = useCallback(async () => {
     try {
       setError('');
-      const response = await fetch(`${API_BASE_URL}/entregas/historial-asignaciones`, {
+      const response = await fetchApi(`${API_BASE_URL}/entregas/historial-asignaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();

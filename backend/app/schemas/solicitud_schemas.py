@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Literal
 from uuid import UUID
 from datetime import datetime
@@ -49,5 +49,18 @@ class SolicitudResponse(SolicitudBase):
 
     estado_sincronizacion: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SincronizarSolicitudRequest(BaseModel):
+    client_request_id: UUID
+    peso_kg: float = Field(gt=0, le=999999.99)
+    observacion: str = Field(default="", max_length=100)
+    capturada_en: datetime
+
+
+class SincronizarSolicitudResponse(BaseModel):
+    client_request_id: UUID
+    solicitud_id: UUID
+    carga_id: UUID
+    estado: Literal["registrada", "duplicada"]

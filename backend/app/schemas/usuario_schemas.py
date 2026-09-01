@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional
 
 
@@ -81,7 +83,20 @@ class UsuarioResponse(BaseModel):
     vereda: Optional[str] = None
     licencia: Optional[str] = None
     tiene_foto_licencia: bool = False
+    habilitado: bool = True
+    intentos_fallidos: int = 0
+    bloqueado_hasta: Optional[datetime] = None
 
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UbicacionFincaUpdate(BaseModel):
+    latitud: float = Field(ge=-90, le=90)
+    longitud: float = Field(ge=-180, le=180)
+
+
+class UbicacionFincaResponse(BaseModel):
+    latitud: float
+    longitud: float
+    actualizada_en: datetime

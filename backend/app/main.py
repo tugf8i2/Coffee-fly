@@ -1,103 +1,94 @@
-from fastapi import FastAPI
-from sqlalchemy import text
-from app.api.rol_api import router as rol_router
-from app.api.usuario_api import router as usuario_router
-from app.api.conductor_api import router as conductor_router
-from app.api.cooperativa_api import (router as cooperativa_api)
-from app.api.ubicacion_api import (router as ubicacion_router)
-from app.api.ruta_api import (router as ruta_router)
-from app.api.vehiculo_api import (router as vehiculo_router)
-from app.api.carga_api import (router as carga_router)
-from app.api.solicitud_api import (router as solicitud_router)
-from app.api.historial_eventos_api import (router as historial_eventos_api)
-from app.api.entrega_api import router as entrega_router
-import app.models
-from app.core.database import Base, engine, SessionLocal
-from app.models.usuario_models import Usuario
-from app.models.rol_models import Rol
-from app.core.security import hash_password
 import os
+from contextlib import asynccontextmanager
 
-
-from fastapi import FastAPI
-from app.api.login_api import router as login_router
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-app = FastAPI()
+import app.models  # noqa: F401 - registra todos los modelos y relaciones
+from app.api.carga_api import router as carga_router
+from app.api.conductor_api import router as conductor_router
+from app.api.cooperativa_api import router as cooperativa_router
+from app.api.dashboard_api import router as dashboard_router
+from app.api.entrega_api import router as entrega_router
+from app.api.historial_eventos_api import router as historial_eventos_router
+from app.api.login_api import router as login_router
+from app.api.monitoring_api import router as monitoring_router
+from app.api.realtime_api import router as realtime_router
+from app.api.reportes_api import router as reportes_router
+from app.api.rol_api import router as rol_router
+from app.api.ruta_api import router as ruta_router
+from app.api.solicitud_api import router as solicitud_router
+from app.api.ubicacion_api import router as ubicacion_router
+from app.api.usuario_api import router as usuario_router
+from app.api.vehiculo_api import router as vehiculo_router
+from app.core.config import IS_PRODUCTION, allowed_hosts, cors_origin_regex, cors_origins
+from app.core.database import SessionLocal
+from app.core.observability import (
+    database_error_handler,
+    http_error_handler,
+    request_observability_middleware,
+    unexpected_error_handler,
+    validation_error_handler,
+)
+from app.core.security import hash_password
+from app.models.rol_models import Rol
+from app.models.usuario_models import Usuario
 
 
-@app.on_event("startup")
-def create_support_tables():
-    Base.metadata.create_all(bind=engine)
-    # Compatibilidad con instalaciones que ya tenían RF-04: su restricción solo
-    # aceptaba "pendiente".  La migración conserva las entregas existentes.
-    with engine.begin() as connection:
-        # Las instalaciones previas pueden tener la tabla usuario sin los
-        # datos de ubicación que requiere el perfil de registrador.
-        connection.execute(text("""
-            ALTER TABLE public.usuario
-                ADD COLUMN IF NOT EXISTS departamento character varying(100),
-                ADD COLUMN IF NOT EXISTS municipio character varying(100),
-                ADD COLUMN IF NOT EXISTS vereda character varying(100)
-        """))
-        connection.execute(text("""
-            ALTER TABLE public.conductor
-                ADD COLUMN IF NOT EXISTS foto_licencia text
-        """))
-        connection.execute(text("""
-            ALTER TABLE public.conductor
-                DROP COLUMN IF EXISTS numero_licencia
-        """))
-        connection.execute(text("""
-            ALTER TABLE public.vehiculo
-                ADD COLUMN IF NOT EXISTS modelo character varying(50)
-        """))
-        connection.execute(text("""
-            ALTER TABLE public.entrega
-                DROP CONSTRAINT IF EXISTS entrega_estado_entrega_check,
-                DROP CONSTRAINT IF EXISTS chk_estados_entrega,
-                ADD CONSTRAINT chk_estados_entrega CHECK (
-                    estado_entrega IN ('pendiente', 'en camino', 'entregado', 'cancelado')
-                )
-        """))
-    # Bootstrap seguro para instalaciones nuevas: sin un registrador inicial
-    # el endpoint protegido de creación de usuarios no puede utilizarse.
-    db = SessionLocal()
-    try:
-        registrador = db.query(Rol).filter(Rol.descripcion_rol.ilike("registrador")).first()
-        if registrador and not db.query(Usuario).filter(Usuario.rol_id == registrador.id_rol).first():
-            email = os.getenv("BOOTSTRAP_REGISTRADOR_EMAIL", "admin@coffeefly.com").strip().lower()
-            password = os.getenv("BOOTSTRAP_REGISTRADOR_PASSWORD", "Admin123")
-            db.add(Usuario(
-                nombre_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_NOMBRE", "Administrador"),
-                apellido=os.getenv("BOOTSTRAP_REGISTRADOR_APELLIDO", "CoffeeFly"),
-                correo_usuario=email,
-                telefono_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_TELEFONO", "3000000000"),
-                contrasena=hash_password(password),
-                rol_id=registrador.id_rol,
-            ))
-            db.commit()
-    finally:
-        db.close()
+def bootstrap_registrador() -> None:
+    """Crea el primer Registrador únicamente con credenciales del entorno."""
+    with SessionLocal() as db:
+        role = db.query(Rol).filter(Rol.descripcion_rol.ilike("registrador")).first()
+        if role is None or db.query(Usuario).filter(Usuario.rol_id == role.id_rol).first():
+            return
+        email = os.getenv("BOOTSTRAP_REGISTRADOR_EMAIL", "").strip().lower()
+        password = os.getenv("BOOTSTRAP_REGISTRADOR_PASSWORD", "")
+        if not email or not password:
+            return
+        db.add(Usuario(
+            nombre_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_NOMBRE", "Administrador"),
+            apellido=os.getenv("BOOTSTRAP_REGISTRADOR_APELLIDO", "CoffeeFly"),
+            correo_usuario=email,
+            telefono_usuario=os.getenv("BOOTSTRAP_REGISTRADOR_TELEFONO", "3000000000"),
+            contrasena=hash_password(password),
+            rol_id=role.id_rol,
+        ))
+        db.commit()
 
-# 🔥 CORS (aquí mismo, después de crear app)
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    bootstrap_registrador()
+    yield
+
+
+app = FastAPI(
+    title="Coffee Fly API",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+app.middleware("http")(request_observability_middleware)
+app.add_exception_handler(HTTPException, http_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(SQLAlchemyError, database_error_handler)
+app.add_exception_handler(Exception, unexpected_error_handler)
 app.add_middleware(
     CORSMiddleware,
-    # frontend (Vite React) — incluir localhost y 127.0.0.1 y puertos alternativos usados en desarrollo
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-    ],
+    allow_origins=cors_origins(),
+    allow_origin_regex=cors_origin_regex(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
 )
-
-
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts())
 
 
 @app.get("/")
@@ -105,55 +96,34 @@ def home():
     return {"message": "API funcionando"}
 
 
+@app.get("/health/live", include_in_schema=False)
+def health_live():
+    return {"status": "ok"}
 
 
-app.include_router(
-    login_router
-        )
-
-app.include_router(
-    rol_router
-)
-
-app.include_router(
-    usuario_router
-)
-
-app.include_router(
-    conductor_router
-)
-
-app.include_router(
-    cooperativa_api
-)
+@app.get("/health/ready", include_in_schema=False)
+def health_ready():
+    with SessionLocal() as db:
+        db.execute(text("SELECT 1"))
+    return {"status": "ready", "database": "ok"}
 
 
-
-app.include_router(
-    ubicacion_router
-)
-
-app.include_router(
-    ruta_router
-)
-
-app.include_router(
-    vehiculo_router
-)
-
-app.include_router(
-    carga_router
-)
-
-app.include_router(
-    solicitud_router
-)
-
-app.include_router(
-    historial_eventos_api
-)
-
-app.include_router(
-    entrega_router
-)
-
+for router in (
+    login_router,
+    rol_router,
+    usuario_router,
+    conductor_router,
+    cooperativa_router,
+    ubicacion_router,
+    ruta_router,
+    vehiculo_router,
+    carga_router,
+    solicitud_router,
+    historial_eventos_router,
+    entrega_router,
+    reportes_router,
+    dashboard_router,
+    realtime_router,
+    monitoring_router,
+):
+    app.include_router(router)

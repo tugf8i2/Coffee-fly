@@ -14,11 +14,13 @@ from app.schemas.ubicacion_schemas import (
 from app.services.ubicacion_services import (
     UbicacionService
 )
+from app.core.auth import require_roles
 
 
 router = APIRouter(
     prefix="/ubicaciones",
-    tags=["Ubicaciones"]
+    tags=["Ubicaciones"],
+    dependencies=[Depends(require_roles("coordinador"))],
 )
 
 

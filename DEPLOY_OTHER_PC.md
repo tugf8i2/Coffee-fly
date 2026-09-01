@@ -3,7 +3,7 @@
 Este proyecto usa Docker Compose para levantar:
 - PostgreSQL
 - Backend FastAPI
-- Frontend React + Vite servido por Nginx
+- Frontend Expo/React Native Web exportado y servido por Nginx
 
 ## Requisitos previos
 
@@ -32,9 +32,7 @@ Si usas Windows, puedes instalar Docker Desktop.
      build:
        context: ./frontend
        args:
-           VITE_API_URL: http://localhost:8000
-     environment:
-       - VITE_API_URL=http://localhost:8000
+           EXPO_PUBLIC_API_URL: http://localhost:8000
    ```
 
    y reemplaza `localhost` por la IP del host donde corre Docker, por ejemplo:
@@ -43,9 +41,7 @@ Si usas Windows, puedes instalar Docker Desktop.
      build:
        context: ./frontend
        args:
-           VITE_API_URL: http://192.168.1.10:8000
-     environment:
-       - VITE_API_URL=http://192.168.1.10:8000
+           EXPO_PUBLIC_API_URL: http://192.168.1.10:8000
    ```
 
    Nota: `192.168.1.10` debe ser la dirección IP del PC que ejecuta Docker en tu red local.
@@ -85,8 +81,8 @@ Si usas Windows, puedes instalar Docker Desktop.
 ## Si el host se abre en otro PC y no funciona
 
 1. Asegúrate de que los puertos `8080`, `8000` y `5432` estén permitidos en el firewall del PC que ejecuta Docker.
-2. Verifica que `VITE_API_URL` en `docker-compose.yml` use la IP correcta del host y no `localhost`.
-3. Si cambias `VITE_API_URL`, vuelve a reconstruir el frontend:
+2. Verifica que `EXPO_PUBLIC_API_URL` en `.env` use la IP correcta del host y no `localhost`.
+3. Si cambias `EXPO_PUBLIC_API_URL`, vuelve a reconstruir el frontend:
    ```powershell
    docker compose up --build -d frontend
    ```
@@ -101,6 +97,7 @@ Si usas Windows, puedes instalar Docker Desktop.
 - El archivo `backend/BaseDatos.sql` se ejecuta solo la primera vez que el volumen de Postgres se crea.
 - Si quieres reiniciar la base de datos desde cero:
   ```powershell
+  # DESTRUCTIVO: crea primero una copia; elimina todo el volumen PostgreSQL.
   docker compose down -v
   docker compose up --build -d
   ```
@@ -120,6 +117,7 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 - Volver a crear todo desde cero:
   ```powershell
+  # DESTRUCTIVO: no usar para detener normalmente el proyecto.
   docker compose down -v
   docker compose up --build -d
   ```
@@ -127,3 +125,7 @@ Si usas Windows, puedes instalar Docker Desktop.
 ---
 
 Si necesitas, puedo crear también un `README.md` en la raíz con los mismos pasos o un archivo `.env.example` para editar más fácil.
+
+
+
+powershell -ExecutionPolicy Bypass -File C:\Users\SENA\Pictures\Coffee-fly\scripts\start-mobile-tunnel.ps1

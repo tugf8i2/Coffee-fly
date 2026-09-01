@@ -14,11 +14,13 @@ from app.schemas.historial_eventos_schemas import (
 from app.services.historial_eventos_services import (
     HistorialEventoService
 )
+from app.core.auth import require_roles
 
 
 router = APIRouter(
     prefix="/historial-eventos",
-    tags=["Historial Eventos"]
+    tags=["Historial Eventos"],
+    dependencies=[Depends(require_roles("coordinador"))],
 )
 
 

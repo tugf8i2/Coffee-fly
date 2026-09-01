@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, fetchApi } from './config';
+import usePolling from './hooks/usePolling';
+import { fetchDeliveryHistories } from './services/deliveryHistory';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
@@ -18,36 +20,28 @@ export default function DeliveryManagement({ go, token, styles }) {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const [requestsResponse, deliveriesResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/entregas/solicitudes-activas`, { headers }),
-        fetch(`${API_BASE_URL}/entregas/`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/solicitudes-activas`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/`, { headers }),
       ]);
       const [requestsData, deliveriesData] = await Promise.all([requestsResponse.json(), deliveriesResponse.json()]);
       if (!requestsResponse.ok) throw Error(requestsData.detail || 'No se pudieron consultar las solicitudes activas.');
       if (!deliveriesResponse.ok) throw Error(deliveriesData.detail || 'No se pudieron consultar las entregas.');
       setRequests(requestsData);
       setDeliveries(deliveriesData);
-      const historyEntries = await Promise.all(deliveriesData.map(async (delivery) => {
-        const response = await fetch(`${API_BASE_URL}/entregas/${delivery.id_entrega}/historial-estados`, { headers });
-        return [delivery.id_entrega, response.ok ? await response.json() : []];
-      }));
-      setHistory(Object.fromEntries(historyEntries));
+      setHistory(await fetchDeliveryHistories(deliveriesData, token));
     } catch (reason) {
       setError(reason.message);
     }
   }, [token]);
 
-  useEffect(() => {
-    load();
-    const refreshId = setInterval(load, 5000);
-    return () => clearInterval(refreshId);
-  }, [load]);
+  usePolling(load, 15000);
 
   const register = async () => {
     if (!selected) return setError('Selecciona una solicitud activa.');
     setError('');
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE_URL}/entregas/`, {
+      const response = await fetchApi(`${API_BASE_URL}/entregas/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -103,7 +97,7 @@ export default function DeliveryManagement({ go, token, styles }) {
       {history[delivery.id_entrega]?.length ? <View style={styles.history}><Text style={styles.label}>Último cambio</Text><Text>{history[delivery.id_entrega][0].estado_anterior} → {history[delivery.id_entrega][0].estado_nuevo} · {history[delivery.id_entrega][0].usuario_nombre} · {formatDate(history[delivery.id_entrega][0].fecha_hora_cambio)}</Text></View> : <Text style={styles.muted}>Aún no hay cambios de estado.</Text>}
     </View>)}
     {!deliveries.length ? <Text style={styles.muted}>Aún no hay entregas registradas.</Text> : null}
-    <Text style={styles.muted}>El listado se actualiza automáticamente cada 5 segundos.</Text><TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar listado</Text></TouchableOpacity>
+    <Text style={styles.muted}>El listado se actualiza automáticamente cada 15 segundos.</Text><TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar listado</Text></TouchableOpacity>
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

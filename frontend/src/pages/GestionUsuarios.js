@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { API_BASE_URL } from '../config/Api';
+import { API_BASE_URL, fetchApi } from '../config/Api';
+import { accountStatesByUser } from '../services/accountState';
 
 const emptyForm = {
   nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
@@ -29,15 +30,11 @@ export default function GestionUsuarios({ go, token, styles }) {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuarios/`, { headers });
+      const response = await fetchApi(`${API_BASE_URL}/usuarios/`, { headers });
       const list = await response.json();
       if (!response.ok || !Array.isArray(list)) throw Error(list.detail || 'No se pudieron cargar los usuarios');
       setUsers(list);
-      const states = await Promise.all(list.map(async (user) => {
-        const stateResponse = await fetch(`${API_BASE_URL}/usuarios/${user.id_usuario}/estado`, { headers });
-        return [user.id_usuario, stateResponse.ok ? await stateResponse.json() : {}];
-      }));
-      setStatusByUser(Object.fromEntries(states));
+      setStatusByUser(accountStatesByUser(list));
     } catch (error) {
       setMessage(error.message);
     }
@@ -78,7 +75,7 @@ export default function GestionUsuarios({ go, token, styles }) {
     if (editingId && original && original.nombre_usuario === payload.nombre_usuario && original.apellido === payload.apellido) {
       delete payload.correo_usuario;
     }
-    const response = await fetch(
+    const response = await fetchApi(
       editingId ? `${API_BASE_URL}/usuarios/${editingId}` : `${API_BASE_URL}/usuarios/`,
       { method: editingId ? 'PUT' : 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
     );
@@ -91,7 +88,7 @@ export default function GestionUsuarios({ go, token, styles }) {
   };
 
   const changeStatus = async (id, habilitado) => {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}/estado`, {
+    const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}/estado`, {
       method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ habilitado }),
     });
     const result = await response.json();
@@ -100,7 +97,7 @@ export default function GestionUsuarios({ go, token, styles }) {
   };
 
   const remove = async (id) => {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, { method: 'DELETE', headers });
+    const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}`, { method: 'DELETE', headers });
     const result = await response.json();
     setMessage(response.ok ? 'Perfil eliminado.' : (result.detail || 'No se pudo eliminar el perfil.'));
     if (response.ok) loadUsers();

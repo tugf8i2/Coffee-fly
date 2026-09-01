@@ -10,11 +10,13 @@ from app.schemas.rol_schemas import (
 )
 
 from app.services.rol_services import RolService
+from app.core.auth import require_registrador
 
 
 router = APIRouter(
     prefix="/roles",
-    tags=["Roles"]
+    tags=["Roles"],
+    dependencies=[Depends(require_registrador)],
 )
 
 

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.usuario_models import Usuario
 from app.models.auth_session_models import AuthSession
@@ -25,6 +25,7 @@ class UsuarioRepository:
 
         return (
             self.db.query(Usuario)
+            .options(joinedload(Usuario.conductor))
             .filter(
                 Usuario.id_usuario == id_usuario
             )
@@ -40,6 +41,7 @@ class UsuarioRepository:
 
         return (
             self.db.query(Usuario)
+            .options(joinedload(Usuario.conductor))
             .offset(skip)
             .limit(limit)
             .all()
@@ -53,6 +55,7 @@ class UsuarioRepository:
 
         return (
             self.db.query(Usuario)
+            .options(joinedload(Usuario.conductor))
             .filter(
                 Usuario.correo_usuario.ilike(correo_usuario.strip())
             )

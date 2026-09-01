@@ -8,12 +8,15 @@ from app.core.database import get_db
 from app.schemas.solicitud_schemas import (
     SolicitudCreate,
     SolicitudUpdate,
-    SolicitudResponse
+    SolicitudResponse,
+    SincronizarSolicitudRequest,
+    SincronizarSolicitudResponse,
 )
 
 from app.services.solicitud_services import (
     SolicitudService
 )
+from app.services.entrega_services import EntregaService
 from app.core.auth import require_roles
 from app.models.usuario_models import Usuario
 
@@ -56,7 +59,16 @@ def consultar_seguimiento_caficultor(
     db: Session = Depends(get_db),
     caficultor: Usuario = Depends(require_roles("caficultor")),
 ):
-    return SolicitudService(db).obtener_seguimiento_caficultor(caficultor.id_usuario)
+    return EntregaService(db).obtener_mi_seguimiento(caficultor.id_usuario, caficultor)
+
+
+@router.post("/sincronizar", response_model=SincronizarSolicitudResponse)
+def sincronizar_solicitud_offline(
+    datos: SincronizarSolicitudRequest,
+    db: Session = Depends(get_db),
+    caficultor: Usuario = Depends(require_roles("caficultor")),
+):
+    return SolicitudService(db).sincronizar_solicitud(datos, caficultor.id_usuario)
 
 
 @router.get(
@@ -65,13 +77,14 @@ def consultar_seguimiento_caficultor(
 )
 def obtener_solicitud(
     id_solicitud: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = SolicitudService(db)
 
     return service.obtener_solicitud(
-        id_solicitud
+        id_solicitud, usuario
     )
 
 
@@ -92,7 +105,7 @@ def crear_solicitud(
         "estado_solicitud": "pendiente",
     })
 
-    return service.crear_solicitud(solicitud)
+    return service.crear_solicitud(solicitud, caficultor.id_usuario)
 
 
 @router.put(
@@ -102,14 +115,15 @@ def crear_solicitud(
 def actualizar_solicitud(
     id_solicitud: UUID,
     solicitud: SolicitudUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = SolicitudService(db)
 
     return service.actualizar_solicitud(
         id_solicitud,
-        solicitud
+        solicitud, usuario
     )
 
 
@@ -118,11 +132,12 @@ def actualizar_solicitud(
 )
 def eliminar_solicitud(
     id_solicitud: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = SolicitudService(db)
 
     return service.eliminar_solicitud(
-        id_solicitud
+        id_solicitud, usuario
     )

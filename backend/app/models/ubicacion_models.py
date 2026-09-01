@@ -5,12 +5,10 @@ from app.core.database import Base
 
 class Ubicacion(Base):
     __tablename__ = "ubicacion"
-    __table_args__ = {"schema": "public"}
-
     id_ubicacion = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,   
+        default=uuid.uuid4,
         nullable=False
     )
 
@@ -21,10 +19,3 @@ class Ubicacion(Base):
     departamento = Column(String(50), nullable=False)
     ciudad = Column(String(50), nullable=False)
     direccion = Column(Text, nullable=False)
-
-
-
-
-
-
-    

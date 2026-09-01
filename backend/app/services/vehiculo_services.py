@@ -9,6 +9,7 @@ from app.schemas.vehiculo_schemas import (
     VehiculoCreate,
     VehiculoUpdate
 )
+from app.models.conductor_models import Conductor
 
 
 class VehiculoService:
@@ -78,6 +79,12 @@ class VehiculoService:
             raise HTTPException(status_code=400, detail="La capacidad debe ser mayor que cero")
         if not datos["modelo"]:
             raise HTTPException(status_code=400, detail="El modelo del vehículo es obligatorio")
+        if datos.get("conductor_id") is None:
+            raise HTTPException(status_code=400, detail="Debes asignar un conductor al vehículo")
+        if not self.repository.db.query(Conductor).filter(Conductor.id_conductor == datos["conductor_id"]).first():
+            raise HTTPException(status_code=400, detail="El conductor asignado no existe")
+        if datos["estado_vehiculo"] == "en camino":
+            raise HTTPException(status_code=400, detail="Un vehículo solo pasa a 'en camino' al asignarse a una entrega")
 
         return (
             self.repository
@@ -99,6 +106,10 @@ class VehiculoService:
                 raise HTTPException(status_code=400, detail="La placa ya está registrada")
         if "capacidad_kg" in datos and datos["capacidad_kg"] <= 0:
             raise HTTPException(status_code=400, detail="La capacidad debe ser mayor que cero")
+        if "conductor_id" in datos and datos["conductor_id"] is not None and not self.repository.db.query(Conductor).filter(Conductor.id_conductor == datos["conductor_id"]).first():
+            raise HTTPException(status_code=400, detail="El conductor asignado no existe")
+        if datos.get("estado_vehiculo") == "en camino":
+            raise HTTPException(status_code=400, detail="El estado 'en camino' solo se actualiza desde una entrega asignada")
 
         actualizado = (
             self.repository
