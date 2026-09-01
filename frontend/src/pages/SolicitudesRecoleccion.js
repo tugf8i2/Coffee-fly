@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from '../config/Api';
+import { API_BASE_URL, fetchApi } from '../config/Api';
 
 export default function SolicitudesRecoleccion({ go, token, styles }) {
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/solicitudes/`, { headers: { Authorization: `Bearer ${token}` } })
+    fetchApi(`${API_BASE_URL}/solicitudes/`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw Error(data.detail || 'No se pudieron consultar las solicitudes');

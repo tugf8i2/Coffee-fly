@@ -10,11 +10,13 @@ from app.schemas.conductor_schemas import (
 )
 
 from app.services.conductor_services import ConductorService
+from app.core.auth import require_registrador
 
 
 router = APIRouter(
     prefix="/conductores",
-    tags=["Conductores"]
+    tags=["Conductores"],
+    dependencies=[Depends(require_registrador)],
 )
 
 

@@ -12,13 +12,41 @@ from app.schemas.vehiculo_schemas import (
 from app.services.vehiculo_services import (
     VehiculoService
 )
-from app.core.auth import require_registrador
+from app.core.auth import require_registrador, require_roles
+from app.models.conductor_models import Conductor
+from app.models.rol_models import Rol
+from app.models.usuario_models import Usuario
 
 
 router = APIRouter(
     prefix="/vehiculos",
     tags=["Vehiculos"]
 )
+
+
+@router.get("/conductores-disponibles")
+def listar_conductores_para_vehiculo(
+    db: Session = Depends(get_db),
+    _registrador = Depends(require_registrador),
+):
+    return [
+        {"id_conductor": conductor.id_conductor, "nombre": f"{usuario.nombre_usuario} {usuario.apellido}".strip(), "licencia": conductor.licencia}
+        for conductor, usuario in db.query(Conductor, Usuario).join(Usuario, Conductor.usuario_id == Usuario.id_usuario).join(
+            Rol, Usuario.rol_id == Rol.id_rol
+        ).filter(Rol.descripcion_rol.ilike("conductor")).order_by(Usuario.nombre_usuario).all()
+    ]
+
+
+@router.get("/estado", response_model=list[VehiculoResponse])
+def consultar_panel_estado_vehiculos(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _usuario: Usuario = Depends(require_roles("registrador", "coordinador")),
+):
+    """Panel de solo lectura: el coordinador puede identificar todos los
+    vehículos y el registrador conserva las operaciones de administración."""
+    return VehiculoService(db).obtener_vehiculos(skip, limit)
 
 
 @router.get(

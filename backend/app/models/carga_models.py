@@ -6,8 +6,6 @@ import uuid
 
 class Carga(Base):
     __tablename__ = "carga"
-    __table_args__ = {"schema": "public"}
-
     id_carga = Column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -18,13 +16,15 @@ class Carga(Base):
     peso_kg = Column(Numeric(8, 2))
     descripcion = Column(String(100))
 
-    vehiculo_id = Column(Integer, ForeignKey("public.vehiculo.id_vehiculo"))
-    cooperativa_id = Column(Integer, ForeignKey("public.cooperativa.id_cooperativa"))
-    ruta_id = Column(Integer, ForeignKey("public.ruta.id_ruta"))
+    vehiculo_id = Column(Integer, ForeignKey("vehiculo.id_vehiculo"))
+    cooperativa_id = Column(Integer, ForeignKey("cooperativa.id_cooperativa"))
+    ruta_id = Column(Integer, ForeignKey("ruta.id_ruta"))
+    caficultor_id = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=True, index=True)
 
-    estado_sincronizacion = Column(String(20), default="pendiente")
+    estado_sincronizacion = Column(String(20), nullable=False, default="pendiente")
     actualizado_en = Column(DateTime)
 
     vehiculo = relationship("Vehiculo", back_populates="cargas")
     cooperativa = relationship("Cooperativa", back_populates="cargas")
     ruta = relationship("Ruta", back_populates="cargas")
+    caficultor = relationship("Usuario")

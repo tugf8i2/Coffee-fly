@@ -1,6 +1,4 @@
 from uuid import UUID
-from datetime import datetime
-
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -13,6 +11,8 @@ from app.schemas.carga_schemas import (
     CargaUpdate
 )
 from app.models.vehiculo_models import Vehiculo
+from app.models.usuario_models import Usuario
+from app.core.time import utc_now_naive
 
 
 class CargaService:
@@ -26,6 +26,17 @@ class CargaService:
                 db
             )
         )
+
+    @staticmethod
+    def _rol(usuario: Usuario) -> str:
+        return usuario.rol.descripcion_rol.lower() if usuario.rol else ""
+
+    def _autorizar(self, carga, usuario: Usuario):
+        if self._rol(usuario) in {"coordinador", "registrador"}:
+            return carga
+        if self._rol(usuario) == "caficultor" and carga.caficultor_id == usuario.id_usuario:
+            return carga
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta carga")
 
     def _validar_capacidad_vehiculo(self, vehiculo_id: int | None, peso_kg: float, carga_id: UUID | None = None):
         if vehiculo_id is None:
@@ -44,22 +55,18 @@ class CargaService:
 
     def obtener_cargas(
         self,
+        usuario: Usuario,
         skip: int = 0,
         limit: int = 100
     ):
-
-        return (
-            self.repository
-            .get_cargas(
-                skip,
-                limit
-            )
-        )
+        owner_id = usuario.id_usuario if self._rol(usuario) == "caficultor" else None
+        return self.repository.get_cargas(skip, limit, owner_id)
 
 
     def obtener_carga(
         self,
-        id_carga: UUID
+        id_carga: UUID,
+        usuario: Usuario,
     ):
 
         carga = (
@@ -76,22 +83,27 @@ class CargaService:
                 detail="Carga no encontrada"
             )
 
-        return carga
+        return self._autorizar(carga, usuario)
 
 
     def crear_carga(
         self,
-        carga: CargaCreate
+        carga: CargaCreate,
+        caficultor_id: int,
     ):
 
         datos = carga.model_dump()
+        # El caficultor registra el contenido; la asignación logística se hace
+        # después desde el módulo protegido del coordinador.
+        datos.update({"vehiculo_id": None, "cooperativa_id": None, "ruta_id": None})
         if datos["peso_kg"] <= 0:
             raise HTTPException(status_code=400, detail="El peso de la carga debe ser mayor que cero")
         self._validar_capacidad_vehiculo(datos.get("vehiculo_id"), datos["peso_kg"])
         return (
             self.repository
             .create_carga(
-                CargaCreate(**datos)
+                CargaCreate(**datos),
+                caficultor_id,
             )
         )
 
@@ -99,12 +111,14 @@ class CargaService:
     def actualizar_carga(
         self,
         id_carga: UUID,
-        carga: CargaUpdate
+        carga: CargaUpdate,
+        usuario: Usuario,
     ):
 
         carga_existente = self.repository.get_carga(id_carga)
         if carga_existente is None:
             raise HTTPException(status_code=404, detail="Carga no encontrada")
+        self._autorizar(carga_existente, usuario)
 
         datos = (
             carga
@@ -112,6 +126,9 @@ class CargaService:
                 exclude_unset=True
             )
         )
+        if self._rol(usuario) == "caficultor":
+            for field in ("vehiculo_id", "cooperativa_id", "ruta_id", "estado_sincronizacion"):
+                datos.pop(field, None)
 
         peso_final = datos.get("peso_kg", float(carga_existente.peso_kg))
         vehiculo_final = datos.get("vehiculo_id", carga_existente.vehiculo_id)
@@ -123,7 +140,7 @@ class CargaService:
         datos[
             "actualizado_en"
         ] = (
-            datetime.now()
+            utc_now_naive()
         )
 
 
@@ -154,9 +171,13 @@ class CargaService:
 
     def eliminar_carga(
         self,
-        id_carga: UUID
+        id_carga: UUID,
+        usuario: Usuario,
     ):
-
+        existente = self.repository.get_carga(id_carga)
+        if existente is None:
+            raise HTTPException(status_code=404, detail="Carga no encontrada")
+        self._autorizar(existente, usuario)
         eliminada = (
             self.repository
             .delete_carga(

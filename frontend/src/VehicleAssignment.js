@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, fetchApi } from './config';
 
 export default function VehicleAssignment({ go, token, styles }) {
   const [deliveries, setDeliveries] = useState([]);
@@ -15,9 +15,9 @@ export default function VehicleAssignment({ go, token, styles }) {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const [deliveriesResponse, vehiclesResponse, driversResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/entregas/pendientes-asignacion`, { headers }),
-        fetch(`${API_BASE_URL}/entregas/vehiculos-disponibles`, { headers }),
-        fetch(`${API_BASE_URL}/entregas/conductores-disponibles`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/pendientes-asignacion`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/vehiculos-disponibles`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/conductores-disponibles`, { headers }),
       ]);
       const [deliveriesData, vehiclesData, driversData] = await Promise.all([
         deliveriesResponse.json(), vehiclesResponse.json(), driversResponse.json(),
@@ -41,7 +41,7 @@ export default function VehicleAssignment({ go, token, styles }) {
       return setMessage(`La entrega supera las ${(selectedVehicle.capacidad_disponible_kg / 1000).toFixed(2)} t disponibles en el vehículo.`);
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/entregas/${selectedDelivery.id_entrega}/asignar-vehiculo`, {
+      const response = await fetchApi(`${API_BASE_URL}/entregas/${selectedDelivery.id_entrega}/asignar-vehiculo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

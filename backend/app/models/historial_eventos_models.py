@@ -6,17 +6,15 @@ import uuid
 
 class HistorialEvento(Base):
     __tablename__ = "historial_de_eventos"
-    __table_args__ = {"schema": "public"}
-
     id_evento = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
 
 
-    carga_id = Column(UUID(as_uuid=True), ForeignKey("public.carga.id_carga"))
-    descripcion_evento = Column(String(100))
+    carga_id = Column(UUID(as_uuid=True), ForeignKey("carga.id_carga"), nullable=False)
+    descripcion_evento = Column(String(100), nullable=False)
 
-    fecha_hora_evento = Column(DateTime)
-    fecha_hora_sincronizacion = Column(DateTime)
+    fecha_hora_evento = Column(DateTime, nullable=False)
+    fecha_hora_sincronizacion = Column(DateTime, nullable=False)
 
-    ubicacion_id = Column(UUID(as_uuid=True), ForeignKey("public.ubicacion.id_ubicacion"))
-    conductor_id = Column(Integer, ForeignKey("public.conductor.id_conductor"))
-    usuario_id_cambio = Column(Integer, ForeignKey("public.usuario.id_usuario"))
+    ubicacion_id = Column(UUID(as_uuid=True), ForeignKey("ubicacion.id_ubicacion"))
+    conductor_id = Column(Integer, ForeignKey("conductor.id_conductor"))
+    usuario_id_cambio = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)

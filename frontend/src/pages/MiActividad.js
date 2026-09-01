@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { API_BASE_URL } from '../config/Api';
+import { API_BASE_URL, fetchApi } from '../config/Api';
+import usePolling from '../hooks/usePolling';
 
 const states = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelada' };
 
@@ -8,16 +9,16 @@ export default function MiActividad({ go, token, styles }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/solicitudes/mis-solicitudes`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetchApi(`${API_BASE_URL}/solicitudes/mis-solicitudes`, { headers: { Authorization: `Bearer ${token}` } });
       const result = await response.json();
       if (!response.ok) throw Error(result.detail || 'No se pudo cargar tu actividad.');
       setData(result);
     } catch (reason) { setError(reason.message); }
-  };
+  }, [token]);
 
-  useEffect(() => { load(); }, []);
+  usePolling(load, 30000);
   const summary = data?.resumen;
   const requestCard = (request) => <View style={styles.card} key={request.id_solicitud}>
     <Text style={styles.cardTitle}>{states[request.estado_solicitud] || request.estado_solicitud}</Text>
@@ -27,7 +28,7 @@ export default function MiActividad({ go, token, styles }) {
 
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Mi actividad cafetera</Text>
-    <Text style={styles.muted}>Resumen personal de solicitudes y despachos.</Text>
+    <Text style={styles.muted}>Resumen personal de solicitudes y despachos. Se actualiza automáticamente cada 30 segundos.</Text>
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {!data && !error ? <Text style={styles.muted}>Cargando actividad...</Text> : null}
     {summary ? <>

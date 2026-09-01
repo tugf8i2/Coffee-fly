@@ -1,26 +1,30 @@
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
-# 🔐 Configuración de hashing (Argon2 recomendado)
-pwd_context = CryptContext(
-    schemes=["argon2"],
-    deprecated="auto"
+
+_password_hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=4,
+    hash_len=32,
+    salt_len=16,
 )
 
-# -------------------------
-# HASH PASSWORD
-# -------------------------
+
 def hash_password(password: str) -> str:
-    """
-    Convierte una contraseña en hash seguro usando Argon2.
-    """
-    return pwd_context.hash(password)
+    """Genera un hash Argon2id con sal aleatoria; nunca almacena texto plano."""
+    return _password_hasher.hash(password)
 
 
-# -------------------------
-# VERIFY PASSWORD
-# -------------------------
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verifica si una contraseña en texto plano coincide con su hash.
-    """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return _password_hasher.verify(hashed_password, plain_password)
+    except (VerifyMismatchError, VerificationError, InvalidHashError, TypeError):
+        return False
+
+
+def password_hash_needs_upgrade(hashed_password: str) -> bool:
+    try:
+        return _password_hasher.check_needs_rehash(hashed_password)
+    except (InvalidHashError, TypeError):
+        return True

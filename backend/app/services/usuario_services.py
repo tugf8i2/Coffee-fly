@@ -6,7 +6,7 @@ from app.schemas.usuario_schemas import UsuarioCreate, UsuarioUpdate
 from app.core.security import hash_password
 from app.models.usuario_models import Usuario
 from app.models.conductor_models import Conductor
-from app.services.login_services import remove_account_state
+from app.core.time import utc_now_naive
 
 
 class UsuarioService:
@@ -17,10 +17,14 @@ class UsuarioService:
         return [self._con_perfil(usuario) for usuario in self.repository.get_usuarios(skip, limit)]
 
     def obtener_usuario(self, id_usuario: int):
+        usuario = self.obtener_usuario_modelo(id_usuario)
+        return self._con_perfil(usuario)
+
+    def obtener_usuario_modelo(self, id_usuario: int):
         usuario = self.repository.get_usuario(id_usuario)
         if not usuario:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        return self._con_perfil(usuario)
+        return usuario
 
     def obtener_usuario_por_correo(self, correo: str):
         usuario = self.repository.get_usuario_by_correo(correo.strip().lower())
@@ -121,6 +125,25 @@ class UsuarioService:
             raise
         return self._con_perfil(db_usuario)
 
+    def actualizar_ubicacion_finca(self, caficultor_id: int, latitud: float, longitud: float):
+        usuario = self.repository.get_usuario(caficultor_id)
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Caficultor no encontrado")
+        usuario.latitud_finca = latitud
+        usuario.longitud_finca = longitud
+        usuario.ubicacion_finca_actualizada_en = utc_now_naive()
+        try:
+            self.repository.db.commit()
+            self.repository.db.refresh(usuario)
+        except Exception:
+            self.repository.db.rollback()
+            raise
+        return {
+            "latitud": usuario.latitud_finca,
+            "longitud": usuario.longitud_finca,
+            "actualizada_en": usuario.ubicacion_finca_actualizada_en,
+        }
+
     @staticmethod
     def _validar_licencia(licencia: str | None, foto_licencia: str | None):
         if licencia is not None and licencia.strip().upper() not in {"B2", "B3", "C1", "C2", "C3"}:
@@ -141,5 +164,4 @@ class UsuarioService:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
         self.repository.delete_usuario(id_usuario)
-        remove_account_state(id_usuario)
         return {"mensaje": "Usuario eliminado"}

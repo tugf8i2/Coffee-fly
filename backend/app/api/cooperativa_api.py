@@ -12,11 +12,13 @@ from app.schemas.cooperativa_schemas import (
 from app.services.cooperativa_Services import (
     CooperativaService
 )
+from app.core.auth import require_roles
 
 
 router = APIRouter(
     prefix="/cooperativas",
-    tags=["Cooperativas"]
+    tags=["Cooperativas"],
+    dependencies=[Depends(require_roles("registrador", "coordinador"))],
 )
 
 

@@ -31,14 +31,14 @@ router = APIRouter(
 def listar_cargas(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = CargaService(db)
 
     return service.obtener_cargas(
-        skip,
-        limit
+        usuario, skip, limit
     )
 
 
@@ -48,13 +48,14 @@ def listar_cargas(
 )
 def obtener_carga(
     id_carga: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = CargaService(db)
 
     return service.obtener_carga(
-        id_carga
+        id_carga, usuario
     )
 
 
@@ -65,13 +66,13 @@ def obtener_carga(
 def crear_carga(
     carga: CargaCreate,
     db: Session = Depends(get_db),
-    _caficultor: Usuario = Depends(require_roles("caficultor")),
+    caficultor: Usuario = Depends(require_roles("caficultor")),
 ):
 
     service = CargaService(db)
 
     return service.crear_carga(
-        carga
+        carga, caficultor.id_usuario
     )
 
 
@@ -82,14 +83,15 @@ def crear_carga(
 def actualizar_carga(
     id_carga: UUID,
     carga: CargaUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = CargaService(db)
 
     return service.actualizar_carga(
         id_carga,
-        carga
+        carga, usuario
     )
 
 
@@ -98,11 +100,12 @@ def actualizar_carga(
 )
 def eliminar_carga(
     id_carga: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
 
     service = CargaService(db)
 
     return service.eliminar_carga(
-        id_carga
+        id_carga, usuario
     )

@@ -6,9 +6,12 @@ __pycache__/
 .expo/
 frontend/dist/
 frontend/dist-*/
+frontend/.verification-*/
 .env
 *.log
 
 **/.git/
 **/.env
+.runtime/
+artifacts/
 

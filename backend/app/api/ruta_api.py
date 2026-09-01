@@ -12,11 +12,13 @@ from app.schemas.ruta_schemas import (
 from app.services.ruta_services import (
     RutaService
 )
+from app.core.auth import require_roles
 
 
 router = APIRouter(
     prefix="/rutas",
-    tags=["Rutas"]
+    tags=["Rutas"],
+    dependencies=[Depends(require_roles("coordinador"))],
 )
 
 

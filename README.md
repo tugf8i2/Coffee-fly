@@ -76,7 +76,7 @@ Conductor → marca la entrega como "Entregado"
 | RNF-01 | Usabilidad | Registro completo en menos de 3 minutos sin capacitación previa | Alta |
 | RNF-02 | Disponibilidad offline | Operación continua por al menos 8 horas sin conexión; datos seguros hasta 72 horas | Alta |
 | RNF-03 | Rendimiento | Respuesta en menos de 3 segundos para el 95% de las operaciones con hasta 10 usuarios concurrentes | Alta |
-| RNF-04 | Seguridad | HTTPS/TLS, tokens JWT, contraseñas con bcrypt, datos offline cifrados con AES-256 | Alta |
+| RNF-04 | Seguridad | HTTPS/TLS, tokens JWT revocables, contraseñas con Argon2id y datos offline cifrados con AES-256-GCM | Alta |
 | RNF-05 | Escalabilidad | Soporta hasta 500 caficultores, 10.000 entregas históricas y 20 usuarios concurrentes | Media |
 | RNF-06 | Compatibilidad | Android 8.0+, iOS 13+, Chrome / Firefox / Edge; diseño responsivo desde 5" | Alta |
 | RNF-07 | Confiabilidad de datos | Guardado automático e inmediato; recuperación ante cierres inesperados | Alta |
@@ -127,7 +127,7 @@ El sistema sigue una **arquitectura N-Capas**, un patrón de diseño que organiz
 | **2. Services** | Contiene la lógica de negocio: validar solicitudes, iniciar viajes, procesar sincronización offline. |
 | **3. Models** | Define las entidades del sistema y sus relaciones: Usuario, Caficultor, Vehículo, Solicitud, Entrega, GPS, Historial. |
 | **4. Schemas** | Valida los datos de entrada y salida con Pydantic (ej: coordenadas GPS válidas, solicitudes completas). |
-| **5. Repositories** | Abstrae el acceso a datos: comunicación directa con PostgreSQL + PostGIS para guardar ubicaciones, consultar viajes, registrar eventos. |
+| **5. Repositories** | Abstrae el acceso a PostgreSQL para guardar ubicaciones, consultar viajes y registrar eventos. PostGIS queda como evolución documentada cuando existan consultas espaciales complejas. |
 | **6. Utils / Externos** | Funciones auxiliares para fechas, reportes, lógica geográfica, configuración y seguridad. |
 
 El flujo de una petición recorre las capas de arriba hacia abajo: la petición entra por **API/Routers**, pasa a **Services** para aplicar las reglas de negocio, estos usan los **Models** y **Schemas** para validar la información, y finalmente los **Repositories** acceden a la base de datos. Cada capa solo conoce a la capa siguiente, nunca se salta niveles ni depende de capas superiores — esto mantiene el sistema desacoplado y fácil de mantener.
@@ -144,18 +144,18 @@ El transporte de café se realiza en zonas rurales con cobertura limitada. Por e
 
 - La app captura periódicamente **latitud, longitud, fecha/hora y estado del viaje**.
 - Se usan **WebSockets** para transmitir la ubicación automáticamente sin consultas constantes.
-- **PostgreSQL + PostGIS** permite almacenar coordenadas, calcular distancias, analizar rutas, implementar geocercas y generar reportes geográficos.
+- **PostgreSQL** almacena coordenadas y el servicio calcula la distancia incremental con Haversine. PostGIS no es una dependencia actual; se recomienda al incorporar geocercas, búsquedas por proximidad o análisis espacial a escala.
 
 ### Seguridad
 
-Implementación de **HTTPS/TLS**, tokens **JWT**, contraseñas cifradas con **bcrypt** y datos offline protegidos con **cifrado AES-256**.
+Implementación de **HTTPS/TLS**, tokens **JWT** firmados y revocables, contraseñas protegidas con **Argon2id** y cola offline móvil cifrada y autenticada con **AES-256-GCM**.
 
 ### Stack Tecnológico
 
 | Capa | Tecnología | Justificación |
 |---|---|---|
 | **Backend** | Python + FastAPI | Alto rendimiento, manejo de múltiples solicitudes simultáneas, ideal para APIs REST y WebSockets |
-| **Base de datos** | PostgreSQL + PostGIS | Robusta, gratuita, soporta información geográfica para GPS y rutas |
+| **Base de datos** | PostgreSQL | Robusta, transaccional e indexada; PostGIS queda reservado para necesidades espaciales futuras |
 | **Frontend web** | React | Interfaces responsivas, amplia documentación, experiencia previa del equipo |
 | **App móvil** | React Native | Una sola base de código para Android e iOS |
 | **Offline** | SQLite | Almacenamiento local ligero y confiable en dispositivos móviles |
@@ -198,7 +198,10 @@ docker compose up --build -d
 docker compose ps
 docker compose logs -f
 docker compose down
-docker compose down -v
 ```
 
-`docker compose down` conserva los datos. `docker compose down -v` elimina el volumen de PostgreSQL y reinicia la base de datos desde cero.
+`docker compose down` conserva los datos. No agregues `-v` para una parada normal:
+`docker compose down -v` elimina el volumen de PostgreSQL. Úsalo únicamente si
+quieres borrar deliberadamente toda la base y ya tienes una copia de seguridad.
+
+La auditoría técnica, las limitaciones reales del GPS en segundo plano y la matriz de pruebas físicas están en [Docs/AUDITORIA-GPS-ARQUITECTURA.md](Docs/AUDITORIA-GPS-ARQUITECTURA.md).
