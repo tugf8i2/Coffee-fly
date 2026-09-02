@@ -6,6 +6,7 @@ export const APP_SCREEN_KEYS = Object.freeze([
   'farmerDashboard',
   'tracking',
   'users',
+  'cooperatives',
   'vehicles',
   'vehicleStatus',
   'requests',
@@ -28,6 +29,7 @@ export const ROLE_CARDS = Object.freeze({
   ]),
   registrador: Object.freeze([
     ['Usuarios', 'users'],
+    ['Cooperativas y ubicación', 'cooperatives'],
     ['Vehículos y estados', 'vehicles'],
   ]),
   coordinador: Object.freeze([

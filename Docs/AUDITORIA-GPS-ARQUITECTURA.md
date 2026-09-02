@@ -4,7 +4,7 @@ Fecha de revisión: 29 de agosto de 2026.
 
 ## Resultado ejecutivo
 
-Coffee Fly conserva los módulos funcionales RF-01 a RF-15 en una sola entrada canónica (`frontend/src/FullApp.js`). La aplicación usa Expo/React Native para Android, iOS y web, FastAPI para REST y WebSockets, PostgreSQL para persistencia y SQLite cifrado en el dispositivo para la operación offline móvil.
+Coffee Fly conserva los módulos funcionales RF-01 a RF-16 en una sola entrada canónica (`frontend/src/FullApp.js`). La aplicación usa Expo/React Native para Android, iOS y web, FastAPI para REST y WebSockets, PostgreSQL para persistencia y SQLite cifrado en el dispositivo para la operación offline móvil.
 
 La solución ya incluye calidad GPS, cola idempotente, sincronización por lotes, reintentos exponenciales, seguimiento incremental, control de acceso por rol, sesiones revocables, bloqueo de cuentas, observabilidad y migraciones Alembic. Ningún software puede garantizar seguimiento en segundo plano al 100 %: Android/iOS, el fabricante, el usuario o el cierre forzado pueden suspender el proceso.
 

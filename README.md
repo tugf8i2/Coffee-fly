@@ -26,7 +26,7 @@ Este sistema es una **plataforma de gestión logística integral** que digitaliz
 |---|---|
 | **Coordinador** | Revisa solicitudes de recolección, registra entregas vinculadas al caficultor, asigna vehículos y conductores, consulta historial, genera y exporta reportes, y hace seguimiento GPS de los vehículos. |
 | **Conductor** | Consulta las entregas asignadas a su vehículo, actualiza el estado de la carga (Pendiente → En camino → Entregado) y visualiza su ruta y destino en el GPS. |
-| **Registrador** | Crea, edita y elimina cuentas de todos los roles del sistema. Registra, edita y elimina vehículos. |
+| **Registrador** | Crea, edita y elimina cuentas de todos los roles, vehículos y cooperativas con sus ubicaciones. |
 | **Caficultor** | Envía solicitudes de recolección cuando tiene café listo para recoger. Consulta el estado e historial de sus entregas y hace seguimiento GPS del vehículo asignado. |
 
 ---
@@ -68,6 +68,7 @@ Conductor → marca la entrega como "Entregado"
 | RF-13 | Generación de reportes | Coordinador | Media |
 | RF-14 | Exportación de reportes | Coordinador | Baja |
 | RF-15 | Dashboard / Panel de inicio | Todos | Media |
+| RF-16 | Gestión de cooperativas y ubicación | Registrador | Alta |
 
 ### Requisitos No Funcionales
 
@@ -88,7 +89,7 @@ Conductor → marca la entrega como "Entregado"
 El sistema cubre el **registro, control y seguimiento logístico** de las jornadas de acopio de café.
 
 **Incluido:**
-- Gestión de caficultores, solicitudes, entregas, vehículos y usuarios
+- Gestión de caficultores, solicitudes, entregas, vehículos, cooperativas y usuarios
 - Seguimiento de estados con trazabilidad completa
 - Seguimiento GPS en tiempo real con WebSockets
 - Modo offline con sincronización automática (SQLite)

@@ -28,6 +28,7 @@ describe('navegación por roles', () => {
       'farmerDashboard',
       'tracking',
       'users',
+      'cooperatives',
       'requests',
       'vehicles',
       'deliveries',
