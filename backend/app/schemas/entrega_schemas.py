@@ -46,6 +46,19 @@ class EntregaAsignadaResponse(EntregaResponse):
     vehiculo_placa: str
 
 
+class ReportarEventoConductorRequest(BaseModel):
+    tipo_evento: Literal["daño vehicular", "parada baño", "imprevisto nuevo"]
+    detalle: Optional[str] = Field(default=None, max_length=75)
+
+
+class EventoConductorResponse(BaseModel):
+    id_evento: UUID
+    descripcion_evento: str
+    fecha_hora_evento: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SolicitudActivaEntregaResponse(BaseModel):
     id_solicitud: UUID
     caficultor_id: int

@@ -8,6 +8,7 @@ from app.models.carga_models import Carga
 from app.models.conductor_models import Conductor
 from app.models.entrega_models import Entrega
 from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
+from app.models.historial_eventos_models import HistorialEvento
 from app.models.historial_asignacion_models import HistorialAsignacion
 from app.models.solicitud_models import Solicitud
 from app.models.rol_models import Rol
@@ -342,5 +343,17 @@ class EntregaRepository:
         ))
         # La asignación no cambia el estado: el conductor debe reportarlo explícitamente.
         self.db.commit()
+
+    def crear_evento_conductor(self, evento: HistorialEvento) -> HistorialEvento:
+        self.db.add(evento)
+        self.db.commit()
+        self.db.refresh(evento)
+        return evento
+
+    def get_eventos_conductor(self, carga_id: UUID, conductor_id: int):
+        return self.db.query(HistorialEvento).filter(
+            HistorialEvento.carga_id == carga_id,
+            HistorialEvento.conductor_id == conductor_id,
+        ).order_by(HistorialEvento.fecha_hora_evento.desc()).limit(20).all()
         self.db.refresh(entrega)
         return entrega

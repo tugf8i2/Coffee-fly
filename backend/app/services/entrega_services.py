@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.entrega_models import Entrega
+from app.models.historial_eventos_models import HistorialEvento
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.core.time import as_utc_aware, to_utc_naive, utc_now_naive
 from app.core.observability import logger, process_metrics
@@ -374,6 +375,41 @@ class EntregaService:
             }
             for entrega, caficultor, vehiculo in self.repository.get_entregas_asignadas_a_conductor(conductor_id)
         ]
+
+    def _obtener_carga_asignada(self, entrega_id: UUID, conductor_id: int):
+        entrega = self.repository.get_entrega_asignada_a_conductor(entrega_id, conductor_id)
+        if entrega is None:
+            raise HTTPException(status_code=403, detail="Solo puedes reportar eventos de tu entrega asignada")
+        solicitud = self.repository.get_solicitud(entrega.solicitud_id)
+        if solicitud is None or solicitud.carga_id is None:
+            raise HTTPException(status_code=400, detail="La entrega no tiene una carga asociada")
+        return entrega, solicitud.carga_id
+
+    def reportar_evento_conductor(self, entrega_id: UUID, tipo_evento: str, detalle: str | None, usuario_id: int, conductor_id: int):
+        entrega, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
+        if entrega.estado_entrega != "en camino":
+            raise HTTPException(status_code=400, detail="Solo puedes reportar eventos durante un viaje en camino")
+        etiquetas = {
+            "daño vehicular": "Daño vehicular",
+            "parada baño": "Parada para ir al baño",
+            "imprevisto nuevo": "Nuevo imprevisto",
+        }
+        descripcion = etiquetas[tipo_evento]
+        if detalle and detalle.strip():
+            descripcion = f"{descripcion}: {detalle.strip()}"
+        ahora = utc_now_naive()
+        return self.repository.crear_evento_conductor(HistorialEvento(
+            carga_id=carga_id,
+            descripcion_evento=descripcion,
+            fecha_hora_evento=ahora,
+            fecha_hora_sincronizacion=ahora,
+            conductor_id=conductor_id,
+            usuario_id_cambio=usuario_id,
+        ))
+
+    def obtener_eventos_conductor(self, entrega_id: UUID, conductor_id: int):
+        _, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
+        return self.repository.get_eventos_conductor(carga_id, conductor_id)
 
     def actualizar_estado(self, entrega_id: UUID, estado_nuevo: str, usuario_id: int, conductor_id: int, modificado_en=None):
         entrega = self.repository.get_entrega_asignada_a_conductor(

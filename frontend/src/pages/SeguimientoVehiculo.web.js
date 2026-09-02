@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import TrackingMap from '../components/TrackingMap';
+import DriverEventReporter from '../components/DriverEventReporter';
 import { API_BASE_URL, fetchApi } from '../config';
 import usePolling from '../hooks/usePolling';
 import { applyTrackingMessage, connectTrackingSocket } from '../services/trackingRealtime';
@@ -111,6 +112,8 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
           </View>
         </View>
       ) : null}
+
+      {role === 'conductor' && delivery ? <DriverEventReporter deliveryId={delivery} token={token} styles={styles} /> : null}
 
       {tracking ? (
         <View style={styles.card}>
