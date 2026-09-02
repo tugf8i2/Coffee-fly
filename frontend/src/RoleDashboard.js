@@ -16,8 +16,17 @@ export default function RoleDashboard({ user, token, go, styles }) {
       const response = await fetchApi(`${API_BASE_URL}/dashboard/`, { headers: { Authorization: `Bearer ${token}` } });
       const result = await response.json();
       if (!response.ok) throw Error(result.detail || 'No se pudo actualizar el panel.');
-      setData(result); await guardarCacheDashboard(result); setLastSync(await guardarUltimaSincronizacion()); setError('');
-    } catch (reason) { const cached = await obtenerCacheDashboard(); if (cached) setData(cached); const savedAt = await obtenerUltimaSincronizacion(); setLastSync(savedAt); setError(`Sin conexión. Mostrando el último estado sincronizado${savedAt ? ` (${new Date(savedAt).toLocaleString()})` : ''}.`); }
+      setData(result); setError('');
+      try { await guardarCacheDashboard(result); setLastSync(await guardarUltimaSincronizacion()); } catch {}
+    } catch (reason) {
+      const connectionFailure = /conectar|conexión|tardó demasiado/i.test(reason.message);
+      if (!connectionFailure) { setError(reason.message); return; }
+      const cached = await obtenerCacheDashboard();
+      if (cached) setData(cached);
+      const savedAt = await obtenerUltimaSincronizacion();
+      setLastSync(savedAt);
+      setError(`Sin conexión. Mostrando el último estado sincronizado${savedAt ? ` (${new Date(savedAt).toLocaleString()})` : ''}.`);
+    }
   }, [token]);
   usePolling(load, 30000);
   const metrics = data?.metricas || {};

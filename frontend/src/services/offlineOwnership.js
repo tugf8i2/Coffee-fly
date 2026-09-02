@@ -1,5 +1,5 @@
 export function offlineOwnerId(session) {
-  const value = session?.user?.id_usuario;
+  const value = session?.user?.id ?? session?.user?.id_usuario;
   return value == null || value === '' ? null : String(value);
 }
 

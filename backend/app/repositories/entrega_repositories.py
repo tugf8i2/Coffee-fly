@@ -332,7 +332,6 @@ class EntregaRepository:
         carga.peso_kg = entrega.cantidad_kg
         carga.vehiculo_id = vehiculo.id_vehiculo
         vehiculo.conductor_id = conductor.id_conductor
-        vehiculo.estado_vehiculo = "en camino"
         self.db.add(HistorialAsignacion(
             entrega_id=entrega.id_entrega,
             carga_id=carga.id_carga,

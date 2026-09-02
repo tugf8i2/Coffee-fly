@@ -51,7 +51,7 @@ export default function VehicleAssignment({ go, token, styles }) {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo asignar el vehículo.');
-      setMessage(`Vehículo ${selectedVehicle.placa} y conductor ${selectedDriver.nombre_conductor} asignados correctamente.`);
+      setMessage(`Vehículo ${selectedVehicle.placa} y conductor ${selectedDriver.nombre_conductor} asignados. La entrega sigue Pendiente hasta que el conductor inicie el viaje.`);
       setSelectedDelivery(null);
       setSelectedVehicle(null);
       setSelectedDriver(null);
