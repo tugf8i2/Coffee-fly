@@ -24,24 +24,11 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 2. Verifica que el archivo `docker-compose.yml` existe en la raíz del proyecto.
 
-3. Si quieres que el frontend pueda abrirse desde otro PC en la red, edita `docker-compose.yml` y cambia la URL del backend en la sección `frontend.environment`.
+3. Para usarlo únicamente en ese PC no necesitas crear `.env`. Si quieres abrirlo desde otros equipos de la red, crea `.env` con la IP del PC que ejecuta Docker:
 
-   Busca esta parte:
-   ```yaml
-   frontend:
-     build:
-       context: ./frontend
-       args:
-           EXPO_PUBLIC_API_URL: http://localhost:8000
-   ```
-
-   y reemplaza `localhost` por la IP del host donde corre Docker, por ejemplo:
-   ```yaml
-   frontend:
-     build:
-       context: ./frontend
-       args:
-           EXPO_PUBLIC_API_URL: http://192.168.1.10:8000
+   ```env
+   EXPO_PUBLIC_API_URL=http://192.168.1.10:8000
+   CORS_ORIGINS=http://192.168.1.10:8080,http://localhost:8080
    ```
 
    Nota: `192.168.1.10` debe ser la dirección IP del PC que ejecuta Docker en tu red local.
@@ -80,7 +67,7 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 ## Si el host se abre en otro PC y no funciona
 
-1. Asegúrate de que los puertos `8080`, `8000` y `5432` estén permitidos en el firewall del PC que ejecuta Docker.
+1. Asegúrate de que los puertos `8080`, `8000` y `5433` estén permitidos en el firewall del PC que ejecuta Docker.
 2. Verifica que `EXPO_PUBLIC_API_URL` en `.env` use la IP correcta del host y no `localhost`.
 3. Si cambias `EXPO_PUBLIC_API_URL`, vuelve a reconstruir el frontend:
    ```powershell
@@ -90,7 +77,8 @@ Si usas Windows, puedes instalar Docker Desktop.
 ## Notas importantes
 
 - PostgreSQL se expone en `127.0.0.1:5433` para evitar conflictos con instalaciones locales que usan el puerto `5432`.
-  En DBeaver usa host `127.0.0.1`, puerto `5433`, base `coffeefly` y usuario `postgres`.
+  En DBeaver usa host `127.0.0.1`, puerto `5433`, base `coffeefly`, usuario `postgres` y contraseña `1234`.
+- En una instalación nueva, entra con `admin@coffeefly.com` y `Admin123`.
 - Dentro de Docker el backend usa `db:5433`; PostgreSQL mantiene el mismo puerto en todo el sistema.
 - Si en otro equipo `5433` también estuviera ocupado, ejecuta `POSTGRES_HOST_PORT=5434 docker compose up -d`
   y usa ese mismo puerto en DBeaver.
