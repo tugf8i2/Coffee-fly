@@ -5,6 +5,7 @@ import MapView, { Marker, Polyline, UrlTile } from 'react-native-maps';
 
 import VehicleMarker from '../components/VehicleMarker';
 import RoutePreview from '../components/RoutePreview';
+import DriverEventReporter from '../components/DriverEventReporter';
 import { API_BASE_URL, fetchApi } from '../config';
 import { NATIVE_MAP_AVAILABLE, RUNNING_IN_EXPO_GO } from '../config/nativeMaps';
 import usePolling from '../hooks/usePolling';
@@ -338,6 +339,8 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
           ) : null}
         </View>
       ) : null}
+
+      {role === 'conductor' && delivery ? <DriverEventReporter deliveryId={delivery} token={token} styles={styles} /> : null}
 
       {tracking ? (
         <>

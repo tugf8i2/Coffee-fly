@@ -9,7 +9,7 @@ from app.core.auth import require_roles
 from app.core.database import get_db
 from app.core.realtime import tracking_connections
 from app.models.usuario_models import Usuario
-from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConductorDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
+from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConductorDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
 
 
@@ -234,3 +234,34 @@ def obtener_historial_estados(
 ):
     es_conductor = bool(usuario.rol and usuario.rol.descripcion_rol.lower() == "conductor")
     return EntregaService(db).obtener_historial_estados(entrega_id, usuario, es_conductor)
+
+
+@router.get("/{entrega_id}/eventos-conductor", response_model=list[EventoConductorResponse])
+def listar_eventos_conductor(
+    entrega_id: UUID,
+    db: Session = Depends(get_db),
+    conductor: Usuario = Depends(require_roles("conductor")),
+):
+    if conductor.conductor is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="El usuario no tiene un perfil de conductor")
+    return EntregaService(db).obtener_eventos_conductor(entrega_id, conductor.conductor.id_conductor)
+
+
+@router.post("/{entrega_id}/eventos-conductor", response_model=EventoConductorResponse, status_code=201)
+def reportar_evento_conductor(
+    entrega_id: UUID,
+    reporte: ReportarEventoConductorRequest,
+    db: Session = Depends(get_db),
+    conductor: Usuario = Depends(require_roles("conductor")),
+):
+    if conductor.conductor is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="El usuario no tiene un perfil de conductor")
+    return EntregaService(db).reportar_evento_conductor(
+        entrega_id,
+        reporte.tipo_evento,
+        reporte.detalle,
+        conductor.id_usuario,
+        conductor.conductor.id_conductor,
+    )
