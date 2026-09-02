@@ -79,9 +79,7 @@ class VehiculoService:
             raise HTTPException(status_code=400, detail="La capacidad debe ser mayor que cero")
         if not datos["modelo"]:
             raise HTTPException(status_code=400, detail="El modelo del vehículo es obligatorio")
-        if datos.get("conductor_id") is None:
-            raise HTTPException(status_code=400, detail="Debes asignar un conductor al vehículo")
-        if not self.repository.db.query(Conductor).filter(Conductor.id_conductor == datos["conductor_id"]).first():
+        if datos.get("conductor_id") is not None and not self.repository.db.query(Conductor).filter(Conductor.id_conductor == datos["conductor_id"]).first():
             raise HTTPException(status_code=400, detail="El conductor asignado no existe")
         if datos["estado_vehiculo"] == "en camino":
             raise HTTPException(status_code=400, detail="Un vehículo solo pasa a 'en camino' al asignarse a una entrega")

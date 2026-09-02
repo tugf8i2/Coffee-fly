@@ -91,7 +91,7 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 - PostgreSQL se expone en `127.0.0.1:5433` para evitar conflictos con instalaciones locales que usan el puerto `5432`.
   En DBeaver usa host `127.0.0.1`, puerto `5433`, base `coffeefly` y usuario `postgres`.
-- Dentro de Docker los servicios siguen usando `db:5432`; no cambies esa dirección.
+- Dentro de Docker el backend usa `db:5433`; PostgreSQL mantiene el mismo puerto en todo el sistema.
 - Si en otro equipo `5433` también estuviera ocupado, ejecuta `POSTGRES_HOST_PORT=5434 docker compose up -d`
   y usa ese mismo puerto en DBeaver.
 - El archivo `backend/BaseDatos.sql` se ejecuta solo la primera vez que el volumen de Postgres se crea.
