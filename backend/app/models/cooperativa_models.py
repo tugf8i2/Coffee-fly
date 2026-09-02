@@ -5,7 +5,7 @@ from app.core.database import Base
 class Cooperativa(Base):
     __tablename__ = "cooperativa"
     id_cooperativa = Column(Integer, primary_key=True)
-    nombre = Column(String(50))
+    nombre = Column(String(50), nullable=False)
     telefono = Column(String(10), nullable=False)
     correo = Column(String(50), nullable=False)
 

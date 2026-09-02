@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import AssignedDeliveries from './AssignedDeliveries';
 import AssignmentHistory from './AssignmentHistory';
+import CooperativeManagement from './CooperativeManagement';
 import DeliveryHistory from './DeliveryHistory';
 import DeliveryManagement from './DeliveryManagement';
 import AppErrorBoundary from './components/AppErrorBoundary';
@@ -162,6 +163,7 @@ export default function FullApp() {
     farmerDashboard: <MiActividad {...common} />,
     tracking: <SeguimientoVehiculo {...common} />,
     users: <UserManagement {...common} />,
+    cooperatives: <CooperativeManagement {...common} />,
     vehicles: <VehicleManagement {...common} />,
     vehicleStatus: <VehicleStatus {...common} />,
     requests: <SolicitudesRecoleccion {...common} />,

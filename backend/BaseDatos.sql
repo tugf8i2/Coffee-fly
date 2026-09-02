@@ -77,7 +77,7 @@ CREATE TABLE public.ubicacion (
 CREATE TABLE public.cooperativa (
     id_cooperativa SERIAL PRIMARY KEY,
 
-    nombre character varying(50),
+    nombre character varying(50) NOT NULL,
     telefono character(10) NOT NULL,
     correo character varying(50) NOT NULL,
 
