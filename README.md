@@ -183,14 +183,18 @@ La versión funcional actual se encuentra en `frontend/` y utiliza React Native 
 ### Levantar el proyecto
 
 ```powershell
-Copy-Item .env.example .env
 docker compose up --build -d
 ```
+
+No es obligatorio crear `.env` para desarrollo local. En una base nueva se crea
+el Registrador `admin@coffeefly.com` con contraseña `Admin123`. Cambia estas
+credenciales y `JWT_SECRET_KEY` antes de publicar el sistema en producción.
 
 - Frontend web: `http://localhost:8080`
 - API: `http://localhost:8000`
 - Documentación API: `http://localhost:8000/docs`
 - PostgreSQL para clientes externos: `127.0.0.1:5433`
+- DBeaver: usuario `postgres`, contraseña `1234`, base `coffeefly`
 
 ### Comandos Docker
 

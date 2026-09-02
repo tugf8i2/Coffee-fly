@@ -31,9 +31,10 @@ services:
     environment:
       ENV: development
       # Credenciales del registrador inicial (solo se usa si la BD no tiene registradores).
-      BOOTSTRAP_REGISTRADOR_EMAIL: ${BOOTSTRAP_REGISTRADOR_EMAIL:-}
-      BOOTSTRAP_REGISTRADOR_PASSWORD: ${BOOTSTRAP_REGISTRADOR_PASSWORD:-}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY es obligatoria}
+      BOOTSTRAP_REGISTRADOR_EMAIL: ${BOOTSTRAP_REGISTRADOR_EMAIL:-admin@coffeefly.com}
+      BOOTSTRAP_REGISTRADOR_PASSWORD: ${BOOTSTRAP_REGISTRADOR_PASSWORD:-Admin123}
+      # Valores listos para desarrollo local; producción debe sobrescribirlos en .env.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-coffee-fly-development-only-jwt-secret-2026-change-production}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-720}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
