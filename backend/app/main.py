@@ -1,5 +1,7 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
+from contextlib import suppress
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -37,6 +39,22 @@ from app.core.observability import (
 from app.core.security import hash_password
 from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
+from app.models.historial_eventos_models import HistorialEvento
+from app.core.time import utc_now_naive
+
+
+async def cleanup_expired_events() -> None:
+    while True:
+        try:
+            with SessionLocal() as db:
+                db.query(HistorialEvento).filter(
+                    HistorialEvento.expira_en <= utc_now_naive()
+                ).delete(synchronize_session=False)
+                db.commit()
+        except SQLAlchemyError:
+            # La siguiente ejecución reintenta; una limpieza fallida no detiene la API.
+            pass
+        await asyncio.sleep(6 * 60 * 60)
 
 
 def bootstrap_registrador() -> None:
@@ -63,7 +81,13 @@ def bootstrap_registrador() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     bootstrap_registrador()
-    yield
+    cleanup_task = asyncio.create_task(cleanup_expired_events())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
 
 
 app = FastAPI(

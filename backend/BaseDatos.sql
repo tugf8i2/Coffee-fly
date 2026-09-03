@@ -276,10 +276,13 @@ CREATE TABLE public.historial_de_eventos (
     id_evento uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
 
     carga_id uuid NOT NULL,
-    descripcion_evento character varying(100) NOT NULL,
+    entrega_id uuid,
+    tipo_evento character varying(30) NOT NULL,
+    descripcion_evento character varying(300) NOT NULL,
 
     fecha_hora_evento timestamp NOT NULL,
     fecha_hora_sincronizacion timestamp NOT NULL,
+    expira_en timestamp NOT NULL,
 
     ubicacion_id uuid,
     conductor_id integer,
@@ -291,12 +294,21 @@ CREATE TABLE public.historial_de_eventos (
     CONSTRAINT fk_historial_carga FOREIGN KEY (carga_id)
         REFERENCES public.carga (id_carga),
 
+    CONSTRAINT fk_historial_entrega FOREIGN KEY (entrega_id)
+        REFERENCES public.entrega (id_entrega),
+
     CONSTRAINT fk_historial_conductor FOREIGN KEY (conductor_id)
         REFERENCES public.conductor (id_conductor),
 
     CONSTRAINT fk_historial_usuario_cambio FOREIGN KEY (usuario_id_cambio)
         REFERENCES public.usuario (id_usuario)
 );
+CREATE INDEX ix_historial_eventos_entrega_fecha
+    ON public.historial_de_eventos (entrega_id, fecha_hora_evento);
+CREATE INDEX ix_historial_eventos_tipo
+    ON public.historial_de_eventos (tipo_evento);
+CREATE INDEX ix_historial_eventos_expira
+    ON public.historial_de_eventos (expira_en);
 
 -- =========================
 -- INSERT ROLES

@@ -9,6 +9,7 @@ from app.models.entrega_models import Entrega
 from app.models.historial_eventos_models import HistorialEvento
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.core.time import as_utc_aware, to_utc_naive, utc_now_naive
+from app.core.config import EVENT_RETENTION_DAYS
 from app.core.observability import logger, process_metrics
 from app.repositories.entrega_repositories import EntregaRepository
 from app.schemas.entrega_schemas import EntregaCreate, RegistrarUbicacionRequest, SincronizarUbicacionesRequest
@@ -390,6 +391,11 @@ class EntregaService:
         if entrega.estado_entrega != "en camino":
             raise HTTPException(status_code=400, detail="Solo puedes reportar eventos durante un viaje en camino")
         etiquetas = {
+            "inicio del viaje": "Inicio del viaje",
+            "retraso": "Retraso",
+            "llegada": "Llegada al punto de recolección",
+            "inconveniente": "Inconveniente",
+            "entrega realizada": "Entrega realizada",
             "daño vehicular": "Daño vehicular",
             "parada baño": "Parada para ir al baño",
             "imprevisto nuevo": "Nuevo imprevisto",
@@ -400,31 +406,41 @@ class EntregaService:
         ahora = utc_now_naive()
         return self.repository.crear_evento_conductor(HistorialEvento(
             carga_id=carga_id,
+            entrega_id=entrega_id,
+            tipo_evento=tipo_evento,
             descripcion_evento=descripcion,
             fecha_hora_evento=ahora,
             fecha_hora_sincronizacion=ahora,
             conductor_id=conductor_id,
             usuario_id_cambio=usuario_id,
+            expira_en=ahora + timedelta(days=EVENT_RETENTION_DAYS),
         ))
 
     def obtener_eventos_conductor(self, entrega_id: UUID, conductor_id: int):
         _, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
-        return self.repository.get_eventos_conductor(carga_id, conductor_id)
+        return self.repository.get_eventos_conductor(carga_id, conductor_id, utc_now_naive())
 
-    def obtener_notificaciones_eventos(self, usuario):
+    def obtener_notificaciones_eventos(self, usuario, entrega_id=None, estado=None, tipo_evento=None):
         es_caficultor = bool(usuario.rol and usuario.rol.descripcion_rol.lower() == "caficultor")
         return [{
             "id_evento": evento.id_evento,
+            "tipo_evento": evento.tipo_evento,
             "descripcion_evento": evento.descripcion_evento,
             "fecha_hora_evento": evento.fecha_hora_evento,
+            "expira_en": evento.expira_en,
             "entrega_id": entrega.id_entrega,
             "carga_id": carga.id_carga,
             "carga_peso_kg": float(carga.peso_kg or 0),
             "caficultor_nombre": f"{caficultor.nombre_usuario} {caficultor.apellido}".strip(),
+            "estado_recoleccion": entrega.estado_entrega,
             "vehiculo_placa": vehiculo.placa if vehiculo else None,
             "conductor_nombre": f"{conductor.nombre_usuario} {conductor.apellido}".strip(),
         } for evento, carga, entrega, vehiculo, conductor, caficultor in self.repository.get_notificaciones_eventos(
-            usuario.id_usuario if es_caficultor else None
+            utc_now_naive(),
+            usuario.id_usuario if es_caficultor else None,
+            entrega_id,
+            estado,
+            tipo_evento,
         )]
 
     def eliminar_evento(self, evento_id: UUID):

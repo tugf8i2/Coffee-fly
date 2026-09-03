@@ -122,10 +122,13 @@ def obtener_historial_estados_lote(
 
 @router.get("/eventos/notificaciones", response_model=list[NotificacionEventoResponse])
 def listar_notificaciones_eventos(
+    entrega_id: UUID | None = None,
+    estado: Literal["pendiente", "en camino", "entregado", "cancelado"] | None = None,
+    tipo_evento: Literal["inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada", "daño vehicular", "parada baño", "imprevisto nuevo"] | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
-    return EntregaService(db).obtener_notificaciones_eventos(usuario)
+    return EntregaService(db).obtener_notificaciones_eventos(usuario, entrega_id, estado, tipo_evento)
 
 
 @router.delete("/eventos/{evento_id}")

@@ -47,14 +47,16 @@ class EntregaAsignadaResponse(EntregaResponse):
 
 
 class ReportarEventoConductorRequest(BaseModel):
-    tipo_evento: Literal["daño vehicular", "parada baño", "imprevisto nuevo"]
-    detalle: Optional[str] = Field(default=None, max_length=75)
+    tipo_evento: Literal["inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada", "daño vehicular", "parada baño", "imprevisto nuevo"]
+    detalle: Optional[str] = Field(default=None, max_length=250)
 
 
 class EventoConductorResponse(BaseModel):
     id_evento: UUID
+    tipo_evento: str
     descripcion_evento: str
     fecha_hora_evento: datetime
+    expira_en: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,6 +66,7 @@ class NotificacionEventoResponse(EventoConductorResponse):
     carga_id: UUID
     carga_peso_kg: float
     caficultor_nombre: str
+    estado_recoleccion: str
     vehiculo_placa: Optional[str] = None
     conductor_nombre: str
 

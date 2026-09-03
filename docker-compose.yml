@@ -36,6 +36,7 @@ services:
       # Valores listos para desarrollo local; producción debe sobrescribirlos en .env.
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-coffee-fly-development-only-jwt-secret-2026-change-production}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-720}
+      EVENT_RETENTION_DAYS: ${EVENT_RETENTION_DAYS:-30}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
       DATABASE_URL: postgresql://postgres:1234@db:5433/coffeefly

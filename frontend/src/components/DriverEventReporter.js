@@ -4,6 +4,11 @@ import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../config';
 
 const options = [
+  ['inicio del viaje', 'Inicio del viaje'],
+  ['retraso', 'Retraso'],
+  ['llegada', 'Llegada al punto de recolección'],
+  ['inconveniente', 'Inconveniente'],
+  ['entrega realizada', 'Entrega realizada'],
   ['daño vehicular', 'Daño vehicular'],
   ['parada baño', 'Parada para ir al baño'],
   ['imprevisto nuevo', 'Nuevo imprevisto'],
@@ -61,11 +66,15 @@ export default function DriverEventReporter({ deliveryId, token, styles }) {
     </View> : null}
     {selected ? <>
       <Text style={styles.label}>Detalle opcional</Text>
-      <TextInput style={[styles.input, styles.textArea]} value={detail} onChangeText={setDetail} maxLength={75} multiline placeholder="Describe brevemente lo ocurrido" />
+      <TextInput style={[styles.input, styles.textArea]} value={detail} onChangeText={setDetail} maxLength={250} multiline placeholder="Describe brevemente lo ocurrido" />
       <TouchableOpacity style={[styles.primary, saving && { opacity: 0.6 }]} disabled={saving} onPress={report}><Text style={styles.primaryText}>{saving ? 'Notificando…' : 'Notificar evento'}</Text></TouchableOpacity>
     </> : null}
     <Text style={styles.label}>Historial reciente</Text>
-    {events.map((event) => <Text key={event.id_evento}>{event.descripcion_evento} · {new Date(event.fecha_hora_evento).toLocaleString()}</Text>)}
+    {events.map((event) => <View key={event.id_evento} style={{ borderLeftWidth: 3, borderLeftColor: '#6A994E', paddingLeft: 9, marginBottom: 6 }}>
+      <Text style={styles.label}>{event.tipo_evento}</Text>
+      <Text>{event.descripcion_evento}</Text>
+      <Text style={styles.muted}>{new Date(event.fecha_hora_evento).toLocaleString()}</Text>
+    </View>)}
     {!events.length ? <Text style={styles.muted}>No has notificado eventos en esta entrega.</Text> : null}
   </View>;
 }
