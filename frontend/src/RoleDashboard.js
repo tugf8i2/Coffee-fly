@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from './config';
+import EventMessageInbox from './components/EventMessageInbox';
 import { ROLE_CARDS } from './navigationConfig';
 import usePolling from './hooks/usePolling';
 import { guardarCacheDashboard, guardarUltimaSincronizacion, obtenerCacheDashboard, obtenerUltimaSincronizacion } from './services/offline';
@@ -34,6 +35,7 @@ export default function RoleDashboard({ user, token, go, styles }) {
     <Text style={styles.title}>Panel del {role || 'usuario'}</Text>
     <Text style={styles.muted}>Hola, {user?.nombre}. Resumen actualizado de tus operaciones.</Text>
     {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.success}>Actualizado: {data?.actualizado_en ? new Date(data.actualizado_en).toLocaleString() : 'ahora'}</Text>}
+    {['coordinador', 'caficultor'].includes(role) ? <EventMessageInbox token={token} styles={styles} /> : null}
     {Object.entries(metrics).map(([key, value]) => <View key={key} style={styles.metric}><Text style={styles.metricLabel}>{key.replaceAll('_', ' ')}</Text><Text style={styles.metricValue}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}
     <Text style={styles.section}>Accesos directos</Text>
     {(ROLE_CARDS[role] || []).map(([label, screen]) => <TouchableOpacity key={screen} style={styles.card} onPress={() => go(screen)}><Text style={styles.cardTitle}>{label}</Text><Text style={styles.cardLink}>Abrir módulo</Text></TouchableOpacity>)}

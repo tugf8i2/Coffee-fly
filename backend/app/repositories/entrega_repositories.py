@@ -355,5 +355,26 @@ class EntregaRepository:
             HistorialEvento.carga_id == carga_id,
             HistorialEvento.conductor_id == conductor_id,
         ).order_by(HistorialEvento.fecha_hora_evento.desc()).limit(20).all()
+
+    def get_notificaciones_eventos(self, caficultor_id: int | None = None):
+        conductor_usuario = aliased(Usuario)
+        query = self.db.query(
+            HistorialEvento, Entrega, Vehiculo, conductor_usuario
+        ).join(
+            Carga, HistorialEvento.carga_id == Carga.id_carga
+        ).join(
+            Solicitud, Solicitud.carga_id == Carga.id_carga
+        ).join(
+            Entrega, Entrega.solicitud_id == Solicitud.id_solicitud
+        ).outerjoin(
+            Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
+        ).join(
+            Conductor, HistorialEvento.conductor_id == Conductor.id_conductor
+        ).join(
+            conductor_usuario, Conductor.usuario_id == conductor_usuario.id_usuario
+        )
+        if caficultor_id is not None:
+            query = query.filter(Entrega.caficultor_id == caficultor_id)
+        return query.order_by(HistorialEvento.fecha_hora_evento.desc()).limit(50).all()
         self.db.refresh(entrega)
         return entrega

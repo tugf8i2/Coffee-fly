@@ -9,7 +9,7 @@ from app.core.auth import require_roles
 from app.core.database import get_db
 from app.core.realtime import tracking_connections
 from app.models.usuario_models import Usuario
-from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConductorDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
+from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConductorDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
 
 
@@ -118,6 +118,14 @@ def obtener_historial_estados_lote(
 ):
     es_conductor = bool(usuario.rol and usuario.rol.descripcion_rol.lower() == "conductor")
     return EntregaService(db).obtener_historial_estados_lote(entrega_id, usuario, es_conductor)
+
+
+@router.get("/eventos/notificaciones", response_model=list[NotificacionEventoResponse])
+def listar_notificaciones_eventos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
+):
+    return EntregaService(db).obtener_notificaciones_eventos(usuario)
 
 
 @router.post("/{entrega_id}/asignar-vehiculo", response_model=EntregaResponse)
