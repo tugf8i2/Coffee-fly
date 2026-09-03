@@ -61,6 +61,9 @@ class EventoConductorResponse(BaseModel):
 
 class NotificacionEventoResponse(EventoConductorResponse):
     entrega_id: UUID
+    carga_id: UUID
+    carga_peso_kg: float
+    caficultor_nombre: str
     vehiculo_placa: Optional[str] = None
     conductor_nombre: str
 

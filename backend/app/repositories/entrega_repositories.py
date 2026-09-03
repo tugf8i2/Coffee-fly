@@ -343,6 +343,8 @@ class EntregaRepository:
         ))
         # La asignación no cambia el estado: el conductor debe reportarlo explícitamente.
         self.db.commit()
+        self.db.refresh(entrega)
+        return entrega
 
     def crear_evento_conductor(self, evento: HistorialEvento) -> HistorialEvento:
         self.db.add(evento)
@@ -358,8 +360,9 @@ class EntregaRepository:
 
     def get_notificaciones_eventos(self, caficultor_id: int | None = None):
         conductor_usuario = aliased(Usuario)
+        caficultor_usuario = aliased(Usuario)
         query = self.db.query(
-            HistorialEvento, Entrega, Vehiculo, conductor_usuario
+            HistorialEvento, Carga, Entrega, Vehiculo, conductor_usuario, caficultor_usuario
         ).join(
             Carga, HistorialEvento.carga_id == Carga.id_carga
         ).join(
@@ -372,9 +375,17 @@ class EntregaRepository:
             Conductor, HistorialEvento.conductor_id == Conductor.id_conductor
         ).join(
             conductor_usuario, Conductor.usuario_id == conductor_usuario.id_usuario
+        ).join(
+            caficultor_usuario, Entrega.caficultor_id == caficultor_usuario.id_usuario
         )
         if caficultor_id is not None:
             query = query.filter(Entrega.caficultor_id == caficultor_id)
         return query.order_by(HistorialEvento.fecha_hora_evento.desc()).limit(50).all()
-        self.db.refresh(entrega)
-        return entrega
+
+    def eliminar_evento(self, evento_id: UUID) -> bool:
+        evento = self.db.query(HistorialEvento).filter(HistorialEvento.id_evento == evento_id).first()
+        if evento is None:
+            return False
+        self.db.delete(evento)
+        self.db.commit()
+        return True

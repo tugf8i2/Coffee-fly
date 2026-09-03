@@ -128,6 +128,15 @@ def listar_notificaciones_eventos(
     return EntregaService(db).obtener_notificaciones_eventos(usuario)
 
 
+@router.delete("/eventos/{evento_id}")
+def eliminar_notificacion_evento(
+    evento_id: UUID,
+    db: Session = Depends(get_db),
+    _coordinador: Usuario = Depends(require_roles("coordinador")),
+):
+    return EntregaService(db).eliminar_evento(evento_id)
+
+
 @router.post("/{entrega_id}/asignar-vehiculo", response_model=EntregaResponse)
 def asignar_vehiculo(
     entrega_id: str,
