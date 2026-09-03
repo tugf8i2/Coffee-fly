@@ -69,6 +69,7 @@ Conductor → marca la entrega como "Entregado"
 | RF-14 | Exportación de reportes | Coordinador | Baja |
 | RF-15 | Dashboard / Panel de inicio | Todos | Media |
 | RF-16 | Gestión de cooperativas y ubicación | Registrador | Alta |
+| RF-17 | Historial temporal de eventos del trayecto | Conductor / Coordinador / Caficultor | Alta |
 
 ### Requisitos No Funcionales
 
@@ -92,6 +93,7 @@ El sistema cubre el **registro, control y seguimiento logístico** de las jornad
 - Gestión de caficultores, solicitudes, entregas, vehículos, cooperativas y usuarios
 - Seguimiento de estados con trazabilidad completa
 - Seguimiento GPS en tiempo real con WebSockets
+- Mensajes de novedades por recolección con retención configurable y acceso por rol
 - Modo offline con sincronización automática (SQLite)
 - Generación y exportación de reportes básicos
 
@@ -190,6 +192,8 @@ docker compose up --build -d
 No es obligatorio crear `.env` para desarrollo local. En una base nueva se crea
 el Registrador `admin@coffeefly.com` con contraseña `Admin123`. Cambia estas
 credenciales y `JWT_SECRET_KEY` antes de publicar el sistema en producción.
+Los eventos de trayecto se eliminan automáticamente después de 30 días. El período
+puede cambiarse con `EVENT_RETENTION_DAYS`.
 
 - Frontend web: `http://localhost:8080`
 - API: `http://localhost:8000`

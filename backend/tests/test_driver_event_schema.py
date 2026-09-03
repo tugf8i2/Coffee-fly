@@ -13,6 +13,12 @@ class DriverEventSchemaTests(unittest.TestCase):
         )
         self.assertEqual(report.detalle, "Llanta pinchada")
 
+    def test_accepts_operational_milestones(self):
+        for event_type in ("inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada"):
+            with self.subTest(event_type=event_type):
+                report = ReportarEventoConductorRequest(tipo_evento=event_type)
+                self.assertEqual(report.tipo_evento, event_type)
+
     def test_rejects_unknown_event(self):
         with self.assertRaises(ValidationError):
             ReportarEventoConductorRequest(tipo_evento="otro")

@@ -352,13 +352,21 @@ class EntregaRepository:
         self.db.refresh(evento)
         return evento
 
-    def get_eventos_conductor(self, carga_id: UUID, conductor_id: int):
+    def get_eventos_conductor(self, carga_id: UUID, conductor_id: int, ahora: datetime):
         return self.db.query(HistorialEvento).filter(
             HistorialEvento.carga_id == carga_id,
             HistorialEvento.conductor_id == conductor_id,
+            HistorialEvento.expira_en > ahora,
         ).order_by(HistorialEvento.fecha_hora_evento.desc()).limit(20).all()
 
-    def get_notificaciones_eventos(self, caficultor_id: int | None = None):
+    def get_notificaciones_eventos(
+        self,
+        ahora: datetime,
+        caficultor_id: int | None = None,
+        entrega_id: UUID | None = None,
+        estado: str | None = None,
+        tipo_evento: str | None = None,
+    ):
         conductor_usuario = aliased(Usuario)
         caficultor_usuario = aliased(Usuario)
         query = self.db.query(
@@ -377,9 +385,15 @@ class EntregaRepository:
             conductor_usuario, Conductor.usuario_id == conductor_usuario.id_usuario
         ).join(
             caficultor_usuario, Entrega.caficultor_id == caficultor_usuario.id_usuario
-        )
+        ).filter(HistorialEvento.expira_en > ahora)
         if caficultor_id is not None:
             query = query.filter(Entrega.caficultor_id == caficultor_id)
+        if entrega_id is not None:
+            query = query.filter(Entrega.id_entrega == entrega_id)
+        if estado is not None:
+            query = query.filter(Entrega.estado_entrega == estado)
+        if tipo_evento is not None:
+            query = query.filter(HistorialEvento.tipo_evento == tipo_evento)
         return query.order_by(HistorialEvento.fecha_hora_evento.desc()).limit(50).all()
 
     def eliminar_evento(self, evento_id: UUID) -> bool:
@@ -389,3 +403,10 @@ class EntregaRepository:
         self.db.delete(evento)
         self.db.commit()
         return True
+
+    def eliminar_eventos_expirados(self, ahora: datetime) -> int:
+        eliminados = self.db.query(HistorialEvento).filter(
+            HistorialEvento.expira_en <= ahora
+        ).delete(synchronize_session=False)
+        self.db.commit()
+        return eliminados
