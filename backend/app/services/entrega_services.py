@@ -411,6 +411,19 @@ class EntregaService:
         _, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
         return self.repository.get_eventos_conductor(carga_id, conductor_id)
 
+    def obtener_notificaciones_eventos(self, usuario):
+        es_caficultor = bool(usuario.rol and usuario.rol.descripcion_rol.lower() == "caficultor")
+        return [{
+            "id_evento": evento.id_evento,
+            "descripcion_evento": evento.descripcion_evento,
+            "fecha_hora_evento": evento.fecha_hora_evento,
+            "entrega_id": entrega.id_entrega,
+            "vehiculo_placa": vehiculo.placa if vehiculo else None,
+            "conductor_nombre": f"{conductor.nombre_usuario} {conductor.apellido}".strip(),
+        } for evento, entrega, vehiculo, conductor in self.repository.get_notificaciones_eventos(
+            usuario.id_usuario if es_caficultor else None
+        )]
+
     def actualizar_estado(self, entrega_id: UUID, estado_nuevo: str, usuario_id: int, conductor_id: int, modificado_en=None):
         entrega = self.repository.get_entrega_asignada_a_conductor(
             entrega_id, conductor_id, for_update=True

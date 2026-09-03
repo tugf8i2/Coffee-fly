@@ -59,6 +59,12 @@ class EventoConductorResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class NotificacionEventoResponse(EventoConductorResponse):
+    entrega_id: UUID
+    vehiculo_placa: Optional[str] = None
+    conductor_nombre: str
+
+
 class SolicitudActivaEntregaResponse(BaseModel):
     id_solicitud: UUID
     caficultor_id: int
