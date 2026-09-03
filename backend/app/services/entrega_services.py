@@ -418,11 +418,19 @@ class EntregaService:
             "descripcion_evento": evento.descripcion_evento,
             "fecha_hora_evento": evento.fecha_hora_evento,
             "entrega_id": entrega.id_entrega,
+            "carga_id": carga.id_carga,
+            "carga_peso_kg": float(carga.peso_kg or 0),
+            "caficultor_nombre": f"{caficultor.nombre_usuario} {caficultor.apellido}".strip(),
             "vehiculo_placa": vehiculo.placa if vehiculo else None,
             "conductor_nombre": f"{conductor.nombre_usuario} {conductor.apellido}".strip(),
-        } for evento, entrega, vehiculo, conductor in self.repository.get_notificaciones_eventos(
+        } for evento, carga, entrega, vehiculo, conductor, caficultor in self.repository.get_notificaciones_eventos(
             usuario.id_usuario if es_caficultor else None
         )]
+
+    def eliminar_evento(self, evento_id: UUID):
+        if not self.repository.eliminar_evento(evento_id):
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        return {"mensaje": "Evento eliminado"}
 
     def actualizar_estado(self, entrega_id: UUID, estado_nuevo: str, usuario_id: int, conductor_id: int, modificado_en=None):
         entrega = self.repository.get_entrega_asignada_a_conductor(
