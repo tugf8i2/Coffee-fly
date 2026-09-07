@@ -1,3 +1,4 @@
+import FeedbackMessage from '../components/FeedbackMessage';
 import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
@@ -33,7 +34,7 @@ export default function IniciarSesion({ onLogin, styles }) {
       setLoading(false);
     }
   };
-  return <View style={styles.page}>
+  return <View style={styles.page}><View style={[styles.formCard, { marginTop: 24 }]}>
     <Text style={styles.title}>Bienvenido</Text>
     <CampoFormulario
       label="Correo electrónico"
@@ -50,13 +51,14 @@ export default function IniciarSesion({ onLogin, styles }) {
       value={password}
       onChangeText={setPassword}
       secureTextEntry
+      maxLength={20}
       styles={styles}
       textContentType="password"
       onSubmitEditing={submit}
     />
-    {error ? <Text style={styles.error}>{error}</Text> : null}
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
     <TouchableOpacity style={[styles.primary, loading && { opacity: 0.6 }]} onPress={submit} disabled={loading}>
       <Text style={styles.primaryText}>{loading ? 'Iniciando sesión…' : 'Iniciar sesión'}</Text>
     </TouchableOpacity>
-  </View>;
+  </View></View>;
 }

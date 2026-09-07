@@ -1,4 +1,4 @@
-from sqlalchemy import UUID, Column, DateTime, Numeric, String, Integer, ForeignKey
+from sqlalchemy import UUID, Column, DateTime, Numeric, String, Integer, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,6 +14,10 @@ class Carga(Base):
     )
 
     peso_kg = Column(Numeric(8, 2))
+    peso_bulto_kg = Column(Numeric(8, 2), nullable=True)
+    cantidad_bultos = Column(Integer, nullable=True)
+    peso_extra_kg = Column(Numeric(8, 2), nullable=True, default=0)
+    grupos_bultos = Column(JSON, nullable=True)
     descripcion = Column(String(100))
 
     vehiculo_id = Column(Integer, ForeignKey("vehiculo.id_vehiculo"))

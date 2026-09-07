@@ -1,3 +1,4 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -11,7 +12,9 @@ export default function VehicleManagement({ go, token, styles }) {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessageText] = useState('');
+  const [messageType, setMessageType] = useState('info');
+  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
   const [saving, setSaving] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -48,7 +51,7 @@ export default function VehicleManagement({ go, token, styles }) {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo guardar el vehículo.');
-      setMessage(editing ? 'Vehículo actualizado correctamente.' : `Vehículo ${data.placa} registrado correctamente.`);
+      setMessage(editing ? 'Vehículo actualizado correctamente.' : `Vehículo ${data.placa} registrado correctamente.`, 'success');
       setForm(empty);
       setEditing(null);
       await load();
@@ -69,7 +72,7 @@ export default function VehicleManagement({ go, token, styles }) {
       const response = await fetchApi(`${API_BASE_URL}/vehiculos/${vehicle.id_vehiculo}`, { method: 'DELETE', headers });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo eliminar el vehículo.');
-      setMessage(`Vehículo ${vehicle.placa} eliminado.`);
+      setMessage(`Vehículo ${vehicle.placa} eliminado.`, 'success');
       await load();
     } catch (error) { setMessage(error.message); }
   };
@@ -77,8 +80,8 @@ export default function VehicleManagement({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>{editing ? 'Editar vehículo' : 'Registro de vehículos'}</Text>
     <Text style={styles.muted}>El registrador crea vehículos. El coordinador asigna vehículo y conductor; solo el conductor inicia el viaje.</Text>
-    {message ? <Text style={styles.error}>{message}</Text> : null}
-    <View style={styles.card}>
+    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
+    <View style={styles.formCard}>
       <Text style={styles.label}>Placa</Text>
       <TextInput style={styles.input} value={form.placa} onChangeText={(value) => set('placa', value)} maxLength={7} autoCapitalize="characters" placeholder="ABC123" />
       <Text style={styles.label}>Tipo de vehículo</Text>
@@ -95,14 +98,14 @@ export default function VehicleManagement({ go, token, styles }) {
       {editing ? <TouchableOpacity onPress={() => { setEditing(null); setForm(empty); }}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Vehículos registrados</Text>
-    {vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
+    <View style={styles.grid}>{vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
       <Text style={styles.cardTitle}>{vehicle.placa} · {vehicle.tipo_vehiculo}</Text>
       <Text>Modelo: {vehicle.modelo || 'Sin modelo'}</Text>
       <Text>Capacidad: {vehicle.capacidad_kg / 1000} t</Text>
       <Text>Estado: {vehicle.estado_vehiculo}</Text>
       <TouchableOpacity style={styles.primary} onPress={() => edit(vehicle)}><Text style={styles.primaryText}>Editar vehículo</Text></TouchableOpacity>
       <TouchableOpacity onPress={() => remove(vehicle)}><Text style={styles.error}>Eliminar vehículo</Text></TouchableOpacity>
-    </View>)}
+    </View>)}</View>
     {!vehicles.length ? <Text style={styles.muted}>No hay vehículos registrados.</Text> : null}
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;

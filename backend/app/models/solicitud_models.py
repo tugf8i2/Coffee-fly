@@ -33,3 +33,23 @@ class Solicitud(Base):
 
     caficultor = relationship("Usuario")
     carga = relationship("Carga")
+
+    @property
+    def peso_total_kg(self):
+        return self.carga.peso_kg if self.carga else None
+
+    @property
+    def peso_bulto_kg(self):
+        return self.carga.peso_bulto_kg if self.carga else None
+
+    @property
+    def cantidad_bultos(self):
+        return self.carga.cantidad_bultos if self.carga else None
+
+    @property
+    def peso_extra_kg(self):
+        return self.carga.peso_extra_kg if self.carga else None
+
+    @property
+    def grupos_bultos(self):
+        return self.carga.grupos_bultos if self.carga else None

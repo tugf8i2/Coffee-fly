@@ -1,7 +1,9 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from './config';
+import { weight } from './services/loadPresentation';
 import usePolling from './hooks/usePolling';
 
 const labels = { disponible: 'Disponible', 'en camino': 'En camino', 'en mantenimiento': 'En mantenimiento' };
@@ -21,12 +23,12 @@ export default function VehicleStatus({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Estado de vehículos</Text>
     <Text style={styles.muted}>Panel actualizado automáticamente cada 15 segundos.</Text>
-    {message ? <Text style={styles.error}>{message}</Text> : null}
-    {vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
+    {message ? <FeedbackMessage type="error">{message}</FeedbackMessage> : null}
+    <View style={styles.grid}>{vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
       <Text style={styles.cardTitle}>{vehicle.placa} · {vehicle.tipo_vehiculo}</Text>
-      <Text>Capacidad: {vehicle.capacidad_kg} kg</Text>
+      <Text>Capacidad: {weight(vehicle.capacidad_kg)}</Text>
       <Text style={styles.muted}>Estado: {labels[vehicle.estado_vehiculo] || vehicle.estado_vehiculo}</Text>
-    </View>)}
+    </View>)}</View>
     {!vehicles.length ? <Text style={styles.muted}>No hay vehículos registrados.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar panel</Text></TouchableOpacity>
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>

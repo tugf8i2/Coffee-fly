@@ -1,3 +1,4 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -40,15 +41,15 @@ export default function OperationalMonitoring({ go, token, styles }) {
     <Text style={styles.title}>Monitoreo operativo</Text>
     <Text style={styles.muted}>Mapa general y estado GPS de las entregas en camino. Se actualiza cada 15 segundos; el detalle usa canal en vivo.</Text>
     {loading && !summary ? <Text style={styles.muted}>Consultando…</Text> : null}
-    {error ? <Text style={styles.error}>{error}</Text> : null}
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
     {summary ? <>
-      <View style={styles.metric}><Text style={styles.metricLabel}>Vehículos en camino</Text><Text style={styles.metricValue}>{summary.vehiculos_en_camino}</Text></View>
+      <View style={styles.grid}><View style={styles.metric}><Text style={styles.metricLabel}>Vehículos en camino</Text><Text style={styles.metricValue}>{summary.vehiculos_en_camino}</Text></View>
       <View style={styles.metric}><Text style={styles.metricLabel}>GPS actualizado</Text><Text style={styles.metricValue}>{summary.vehiculos_actualizados}</Text></View>
-      <View style={styles.metric}><Text style={styles.metricLabel}>GPS atrasado o ausente</Text><Text style={styles.metricValue}>{summary.vehiculos_desactualizados + summary.vehiculos_sin_ubicacion}</Text></View>
+      <View style={styles.metric}><Text style={styles.metricLabel}>GPS atrasado o ausente</Text><Text style={styles.metricValue}>{summary.vehiculos_desactualizados + summary.vehiculos_sin_ubicacion}</Text></View></View>
       <Text style={styles.section}>Mapa de flota</Text>
-      <FleetMap vehicles={summary.vehiculos} />
+      <View style={styles.mapPanel}><FleetMap vehicles={summary.vehiculos} /></View>
       <Text style={styles.section}>Vehículos</Text>
-      {summary.vehiculos.length === 0 ? <Text style={styles.muted}>No hay entregas en camino.</Text> : summary.vehiculos.map((vehicle) => <View key={vehicle.entrega_id} style={styles.card}>
+      {summary.vehiculos.length === 0 ? <Text style={styles.muted}>No hay entregas en camino.</Text> : <View style={styles.grid}>{summary.vehiculos.map((vehicle) => <View key={vehicle.entrega_id} style={styles.card}>
         <Text style={styles.cardTitle}>{vehicle.placa}</Text>
         <Text>{labels[vehicle.estado_gps] || vehicle.estado_gps}</Text>
         <Text style={styles.muted}>{vehicle.segundos_sin_actualizar == null ? 'Aún no reporta ubicación' : `Último reporte hace ${vehicle.segundos_sin_actualizar} s`}</Text>
@@ -57,9 +58,9 @@ export default function OperationalMonitoring({ go, token, styles }) {
           {vehicle.precision_m != null ? ` · precisión ${Math.round(vehicle.precision_m)} m` : ''}
           {vehicle.velocidad_m_s != null ? ` · ${(vehicle.velocidad_m_s * 3.6).toFixed(1)} km/h` : ''}
         </Text> : null}
-      </View>)}
+      </View>)}</View>}
       <Text style={styles.section}>Diagnóstico del proceso</Text>
-      <View style={styles.card}>
+      <View style={styles.fullCard}>
         <Text>Puntos GPS guardados: {counters.gps_points_saved || 0}</Text>
         <Text>Puntos duplicados: {counters.gps_points_duplicate || 0}</Text>
         <Text>Puntos rechazados: {counters.gps_points_rejected || 0}</Text>

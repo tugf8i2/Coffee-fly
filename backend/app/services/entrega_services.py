@@ -280,6 +280,10 @@ class EntregaService:
                 "caficultor_nombre": f"{usuario.nombre_usuario} {usuario.apellido}".strip(),
                 "fecha_hora_solicitud": solicitud.fecha_hora_solicitud,
                 "cantidad_solicitada_kg": float(carga.peso_kg) if carga and carga.peso_kg is not None else 0,
+                "peso_bulto_kg": float(carga.peso_bulto_kg) if carga and carga.peso_bulto_kg is not None else None,
+                "cantidad_bultos": carga.cantidad_bultos if carga else None,
+                "peso_extra_kg": float(carga.peso_extra_kg or 0) if carga else 0,
+                "grupos_bultos": carga.grupos_bultos if carga else None,
             }
             for solicitud, usuario, carga in registros
         ]

@@ -1,3 +1,4 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -116,8 +117,8 @@ export default function CooperativeManagement({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>{editing ? 'Editar cooperativa' : 'Administrar cooperativas'}</Text>
     <Text style={styles.muted}>Registra los datos de contacto y el punto exacto donde opera cada cooperativa.</Text>
-    {message ? <Text style={hasError ? styles.error : styles.success}>{message}</Text> : null}
-    <View style={styles.card}>
+    {message ? <FeedbackMessage type={hasError ? "error" : "success"}>{message}</FeedbackMessage> : null}
+    <View style={styles.formCard}>
       <Text style={styles.label}>Nombre</Text>
       <TextInput style={styles.input} value={form.nombre} onChangeText={(value) => set('nombre', value)} maxLength={50} placeholder="Cooperativa cafetera" />
       <Text style={styles.label}>Teléfono</Text>
@@ -140,7 +141,7 @@ export default function CooperativeManagement({ go, token, styles }) {
       {editing ? <TouchableOpacity onPress={() => { setEditing(null); setForm(empty); notify('Edición cancelada.'); }}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Cooperativas registradas</Text>
-    {cooperatives.map((cooperative) => <View key={cooperative.id_cooperativa} style={styles.card}>
+    <View style={styles.grid}>{cooperatives.map((cooperative) => <View key={cooperative.id_cooperativa} style={styles.card}>
       <Text style={styles.cardTitle}>{cooperative.nombre}</Text>
       <Text>{cooperative.telefono} · {cooperative.correo}</Text>
       <Text>{cooperative.ubicacion.direccion}, {cooperative.ubicacion.ciudad}, {cooperative.ubicacion.departamento}</Text>
@@ -151,7 +152,7 @@ export default function CooperativeManagement({ go, token, styles }) {
         <TouchableOpacity onPress={() => remove(cooperative)}><Text style={styles.error}>Sí, eliminar</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => setPendingDelete(null)}><Text style={styles.link}>Cancelar</Text></TouchableOpacity>
       </View> : <TouchableOpacity onPress={() => setPendingDelete(cooperative.id_cooperativa)}><Text style={styles.error}>Eliminar cooperativa</Text></TouchableOpacity>}
-    </View>)}
+    </View>)}</View>
     {!cooperatives.length ? <Text style={styles.muted}>No hay cooperativas registradas.</Text> : null}
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;

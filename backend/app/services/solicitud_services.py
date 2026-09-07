@@ -77,6 +77,10 @@ class SolicitudService:
                 "fecha_hora_solicitud": solicitud.fecha_hora_solicitud,
                 "estado_sincronizacion": solicitud.estado_sincronizacion,
                 "peso_kg": float(carga.peso_kg) if carga and carga.peso_kg is not None else 0,
+                "peso_bulto_kg": float(carga.peso_bulto_kg) if carga and carga.peso_bulto_kg is not None else None,
+                "cantidad_bultos": carga.cantidad_bultos if carga else None,
+                "peso_extra_kg": float(carga.peso_extra_kg or 0) if carga else 0,
+                "grupos_bultos": carga.grupos_bultos if carga else None,
                 "observacion": carga.descripcion if carga else None,
             }
             for solicitud, carga in registros
@@ -149,7 +153,11 @@ class SolicitudService:
         if captured_at.tzinfo is not None:
             captured_at = captured_at.astimezone(timezone.utc).replace(tzinfo=None)
         carga = Carga(
-            peso_kg=datos.peso_kg,
+            peso_kg=datos.peso_total_kg,
+            peso_bulto_kg=datos.peso_bulto_kg,
+            cantidad_bultos=datos.cantidad_bultos,
+            peso_extra_kg=datos.peso_extra_kg,
+            grupos_bultos=datos.grupos_bultos,
             descripcion=datos.observacion.strip(),
             caficultor_id=caficultor_id,
             estado_sincronizacion="sincronizado",

@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import CampoFormulario from './components/CampoFormulario';
+import { isValidPassword, PASSWORD_HELP } from './services/passwordPolicy';
+import FeedbackMessage from './components/FeedbackMessage';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from './config';
@@ -25,8 +28,15 @@ export default function UserManagement({ go, token, styles }) {
   const [statusByUser, setStatusByUser] = useState({});
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState('');
+  const pageRef = useRef(null);
+  const [message, setMessageText] = useState('');
+  const [messageType, setMessageType] = useState('info');
+  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
+  useEffect(() => {
+    if (message) pageRef.current?.scrollTo({ y: 0, animated: false });
+  }, [message]);
 
+  const [saving, setSaving] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
   const loadUsers = async () => {
@@ -62,7 +72,7 @@ export default function UserManagement({ go, token, styles }) {
     const reader = new FileReader();
     reader.onload = () => {
       setForm((current) => ({ ...current, foto_licencia: reader.result, tiene_foto_licencia: true }));
-      setMessage('Foto de licencia seleccionada correctamente.');
+      setMessage('Foto de licencia seleccionada correctamente.', 'success');
     };
     reader.readAsDataURL(file);
   };
@@ -70,7 +80,7 @@ export default function UserManagement({ go, token, styles }) {
   const startEdit = (user) => {
     setEditingId(user.id_usuario);
     setForm({ ...user, contrasena: '' });
-    setMessage(`Editando el perfil de ${user.nombre_usuario}.`);
+    setMessage(`Editando el perfil de ${user.nombre_usuario}.`, 'info');
   };
 
   const cancelEdit = () => {
@@ -80,55 +90,70 @@ export default function UserManagement({ go, token, styles }) {
   };
 
   const save = async () => {
-    if (!form.nombre_usuario.trim() || !form.apellido.trim()) return setMessage('Nombre y apellido son obligatorios.');
-    if (form.telefono_usuario.length !== 10) return setMessage('El teléfono debe tener exactamente 10 dígitos.');
-    if (!editingId && form.contrasena.length < 7) return setMessage('La contraseña debe tener mínimo 7 caracteres.');
-    const roleId = Number(form.rol_id);
-    if (![1, 2, 3, 4].includes(roleId)) return setMessage('Selecciona un rol válido entre 1 y 4.');
-    if (roleId === 2 && (!form.licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
-      return setMessage('Para el conductor debes seleccionar el tipo y agregar la foto de la licencia.');
-    }
-    if (roleId === 4 && (!form.departamento.trim() || !form.municipio.trim() || !form.vereda.trim())) {
-      return setMessage('Para el caficultor debes completar departamento, municipio y vereda.');
-    }
-    const payload = { ...form, rol_id: roleId };
-    if (editingId && !payload.contrasena) delete payload.contrasena;
-    delete payload.tiene_foto_licencia;
-    if (editingId && !payload.foto_licencia) delete payload.foto_licencia;
-    if (roleId !== 2) {
-      delete payload.licencia;
-      delete payload.foto_licencia;
-    }
-    const original = users.find((user) => user.id_usuario === editingId);
-    if (editingId && original && original.nombre_usuario === payload.nombre_usuario && original.apellido === payload.apellido) {
-      delete payload.correo_usuario;
-    }
-    const response = await fetchApi(
-      editingId ? `${API_BASE_URL}/usuarios/${editingId}` : `${API_BASE_URL}/usuarios/`,
-      { method: editingId ? 'PUT' : 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
-    );
-    const result = await response.json();
-    if (!response.ok) return setMessage(result.detail?.[0]?.msg || result.detail || 'No se pudo guardar el perfil.');
-    setMessage(editingId ? 'Perfil actualizado correctamente.' : 'Usuario creado correctamente.');
-    setEditingId(null);
-    setForm(emptyForm);
-    loadUsers();
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (!form.nombre_usuario.trim() || !form.apellido.trim()) return setMessage('Nombre y apellido son obligatorios.');
+      if (!/^\d{10}$/.test(form.telefono_usuario)) return setMessage('El teléfono debe tener exactamente 10 dígitos.');
+      if ((!editingId || form.contrasena) && !isValidPassword(form.contrasena)) return setMessage(PASSWORD_HELP);
+      const roleId = Number(form.rol_id);
+      if (![1, 2, 3, 4].includes(roleId)) return setMessage('Selecciona un rol válido entre 1 y 4.');
+      if (roleId === 2 && (!form.licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
+        return setMessage('Para el conductor debes seleccionar el tipo y agregar la foto de la licencia.');
+      }
+      if (roleId === 4 && (!form.departamento.trim() || !form.municipio.trim() || !form.vereda.trim())) {
+        return setMessage('Para el caficultor debes completar departamento, municipio y vereda.');
+      }
+      const payload = { ...form, rol_id: roleId };
+      if (editingId && !payload.contrasena) delete payload.contrasena;
+      delete payload.tiene_foto_licencia;
+      if (editingId && !payload.foto_licencia) delete payload.foto_licencia;
+      if (roleId !== 2) {
+        delete payload.licencia;
+        delete payload.foto_licencia;
+      }
+      const original = users.find((user) => user.id_usuario === editingId);
+      if (editingId && original && original.nombre_usuario === payload.nombre_usuario && original.apellido === payload.apellido) {
+        delete payload.correo_usuario;
+      }
+      const response = await fetchApi(
+        editingId ? `${API_BASE_URL}/usuarios/${editingId}` : `${API_BASE_URL}/usuarios/`,
+        { method: editingId ? 'PUT' : 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+      );
+      const result = await response.json();
+      if (!response.ok) return setMessage(result.detail?.[0]?.msg || result.detail || 'No se pudo guardar el perfil.');
+      setMessage(editingId ? 'Perfil actualizado correctamente.' : 'Usuario creado correctamente.', 'success');
+      setEditingId(null);
+      setForm(emptyForm);
+      loadUsers();
+    } catch (error) { setMessage(error.message || 'No se pudo completar la operación.'); }
+    finally { setSaving(false); }
   };
 
   const changeStatus = async (id, habilitado) => {
-    const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}/estado`, {
-      method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ habilitado }),
-    });
-    const result = await response.json();
-    setMessage(response.ok ? result.mensaje : (result.detail || 'No se pudo cambiar el estado.'));
-    if (response.ok) loadUsers();
+    if (saving) return;
+    setSaving(true);
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}/estado`, {
+        method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ habilitado }),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? result.mensaje : (result.detail || 'No se pudo cambiar el estado.'), response.ok ? 'success' : 'error');
+      if (response.ok) loadUsers();
+    } catch (error) { setMessage(error.message || 'No se pudo completar la operación.'); }
+    finally { setSaving(false); }
   };
 
   const remove = async (id) => {
-    const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}`, { method: 'DELETE', headers });
-    const result = await response.json();
-    setMessage(response.ok ? 'Perfil eliminado.' : (result.detail || 'No se pudo eliminar el perfil.'));
-    if (response.ok) loadUsers();
+    if (saving) return;
+    setSaving(true);
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}`, { method: 'DELETE', headers });
+      const result = await response.json();
+      setMessage(response.ok ? 'Perfil eliminado.' : (result.detail || 'No se pudo eliminar el perfil.'), response.ok ? 'success' : 'error');
+      if (response.ok) loadUsers();
+    } catch (error) { setMessage(error.message || 'No se pudo completar la operación.'); }
+    finally { setSaving(false); }
   };
 
   const confirmRemove = (user) => {
@@ -151,23 +176,21 @@ export default function UserManagement({ go, token, styles }) {
     );
   };
 
-  const field = (label, key, options = {}) => <View key={key}>
-    <Text style={styles.label}>{label}</Text>
-    <TextInput style={styles.input} value={String(form[key] ?? '')} onChangeText={(value) => updateField(key, value)} {...options} />
-  </View>;
+  const field = (label, key, options = {}) => <CampoFormulario key={key === 'contrasena' ? `${key}-${editingId}` : key} label={label} styles={styles} value={String(form[key] ?? '')} onChangeText={(value) => updateField(key, value)} {...options} />;
 
-  return <ScrollView contentContainerStyle={styles.page}>
+  return <ScrollView ref={pageRef} contentContainerStyle={styles.page}>
     <Text style={styles.title}>{editingId ? 'Editar perfil de usuario' : 'Administrar perfiles'}</Text>
     <Text style={styles.muted}>Selecciona “Editar perfil” en un usuario para cargar sus datos aquí.</Text>
-    {message ? <Text style={styles.error}>{message}</Text> : null}
-    <View style={styles.card}>
+    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
+    <View style={styles.formCard}>
       {field('Nombre', 'nombre_usuario')}
       {field('Apellido', 'apellido')}
       <Text style={styles.label}>Correo institucional</Text>
       <TextInput style={styles.input} value={form.correo_usuario} editable={false} />
       <Text style={styles.muted}>Se actualiza automáticamente al cambiar nombre o apellido.</Text>
       {field('Teléfono (10 dígitos)', 'telefono_usuario', { keyboardType: 'phone-pad', maxLength: 10 })}
-      {field(editingId ? 'Nueva contraseña (opcional)' : 'Contraseña (mínimo 7 caracteres)', 'contrasena', { secureTextEntry: true })}
+      {field(editingId ? 'Nueva contraseña (opcional)' : 'Contraseña (7 a 20 caracteres)', 'contrasena', { secureTextEntry: true, textContentType: 'newPassword', maxLength: 20 })}
+      <Text style={styles.muted}>{PASSWORD_HELP}{editingId ? ' Deja el campo vacío para conservar la contraseña actual.' : ''}</Text>
       <Text style={styles.label}>Rol</Text>
       {Platform.OS === 'web' ? <select
         value={String(form.rol_id ?? '')}
@@ -207,11 +230,11 @@ export default function UserManagement({ go, token, styles }) {
         {field('Municipio', 'municipio', { maxLength: 100 })}
         {field('Vereda', 'vereda', { maxLength: 100 })}
       </View> : null}
-      <TouchableOpacity style={styles.primary} onPress={save}><Text style={styles.primaryText}>{editingId ? 'Guardar cambios' : 'Crear usuario'}</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.primary} disabled={saving} onPress={save}><Text style={styles.primaryText}>{editingId ? 'Guardar cambios' : 'Crear usuario'}</Text></TouchableOpacity>
       {editingId ? <TouchableOpacity onPress={cancelEdit}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Usuarios registrados</Text>
-    {users.map((user) => {
+    <View style={styles.grid}>{users.map((user) => {
       const state = statusByUser[user.id_usuario] || {};
       const label = state.habilitado === false ? 'Perfil deshabilitado' : state.bloqueado_temporalmente ? 'Bloqueado por intentos fallidos' : 'Perfil habilitado';
       return <View style={styles.card} key={user.id_usuario}>
@@ -221,7 +244,7 @@ export default function UserManagement({ go, token, styles }) {
         <TouchableOpacity onPress={() => changeStatus(user.id_usuario, state.habilitado === false)}><Text style={styles.link}>{state.habilitado === false ? 'Habilitar y desbloquear' : 'Deshabilitar perfil'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => confirmRemove(user)}><Text style={styles.error}>Eliminar perfil</Text></TouchableOpacity>
       </View>;
-    })}
+    })}</View>
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

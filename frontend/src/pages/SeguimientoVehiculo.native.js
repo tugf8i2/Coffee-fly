@@ -1,3 +1,4 @@
+import FeedbackMessage from '../components/FeedbackMessage';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
@@ -37,7 +38,9 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [tracking, setTracking] = useState(null);
   const [route, setRoute] = useState(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessageText] = useState('');
+  const [messageType, setMessageType] = useState('info');
+  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
   const [gpsState, setGpsState] = useState(null);
   const [realtimeState, setRealtimeState] = useState('disconnected');
   const role = String(user?.rol || '').toLowerCase();
@@ -116,11 +119,11 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
     if (!(await estaEnLinea())) {
       if (saved) {
         setRoute(saved);
-        setMessage('Sin internet: mostrando la ruta vial guardada en este celular.');
+        setMessage('Sin internet: mostrando la ruta vial guardada en este celular.', 'warning');
         return;
       }
       setRoute({ puntos: [origin, destination], instrucciones: [] });
-      setMessage('Sin internet y sin una ruta guardada: se muestra la dirección directa al destino.');
+      setMessage('Sin internet y sin una ruta guardada: se muestra la dirección directa al destino.', 'warning');
       return;
     }
     try {
@@ -148,7 +151,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
       };
       if (JSON.stringify(next).length <= 1024 * 1024) await guardarRutaEntrega(delivery, next);
       setRoute(next);
-      setMessage('Ruta vial cargada y guardada para usarla también sin internet.');
+      setMessage('Ruta vial cargada y guardada para usarla también sin internet.', 'success');
     } catch (error) {
       if (saved) {
         setRoute(saved);
@@ -226,7 +229,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
     if (!tracking) return setMessage('Espera a que termine de cargar la entrega antes de iniciar el GPS.');
     if (!destination) return setMessage('La finca debe tener coordenadas antes de iniciar el viaje.');
     try {
-      setMessage('Buscando una ubicación GPS precisa…');
+      setMessage('Buscando una ubicación GPS precisa…', 'info');
       const current = await obtainCurrentPosition();
       logGpsStage('lectura_inicial_obtenida', { hasAccuracy: current?.coords?.accuracy != null });
       const origin = toCoordinate(current.coords.latitude, current.coords.longitude);
@@ -257,9 +260,9 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
         const batteryWarning = mode.batteryOptimization
           ? ' Android tiene optimización de batería activa; usa “Sin restricciones” para mayor continuidad.'
           : '';
-        setMessage(`GPS activo en segundo plano.${batteryWarning}`);
+        setMessage(`GPS activo en segundo plano.${batteryWarning}`, 'success');
       } else {
-        setMessage(mode.message);
+        setMessage(mode.message, 'warning');
       }
     } catch (error) {
       setMessage(error.message);
@@ -270,7 +273,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
     try {
       await detenerRastreoSegundoPlano();
       await refreshGpsState();
-      setMessage('GPS detenido y sesión de rastreo cerrada.');
+      setMessage('GPS detenido y sesión de rastreo cerrada.', 'success');
     } catch (error) {
       setMessage(error.message);
     }
@@ -304,10 +307,10 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
       <Text style={styles.muted}>
         El GPS ajusta la frecuencia según movimiento y batería, descarta lecturas inválidas y conserva puntos sin Internet.
       </Text>
-      {message ? <Text style={styles.error}>{message}</Text> : null}
+      {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
 
       {role === 'coordinador' && activeDeliveries.length > 1 ? (
-        <View style={styles.card}>
+        <View style={styles.fullCard}>
           <Text style={styles.label}>Vehículo en seguimiento</Text>
           <View style={styles.statusActions}>
             {activeDeliveries.map((item) => (
@@ -346,7 +349,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
         <>
           {NATIVE_MAP_AVAILABLE ? (
             <>
-              <View style={[styles.card, { height: 300, padding: 0, overflow: 'hidden' }]}>
+              <View style={[styles.mapPanel, { height: 300, padding: 0 }]}>
                 <MapView style={{ flex: 1 }} mapType="none" initialRegion={initialRegion}>
                   <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
                   {vehicle ? <VehicleMarker coordinate={vehicle} title={tracking.vehiculo_placa} description="Ubicación del vehículo" /> : null}
@@ -359,7 +362,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
               </Text>
             </>
           ) : (
-            <View style={styles.card}>
+            <View style={styles.fullCard}>
               <Text style={styles.cardTitle}>Seguimiento GPS activo sin mapa integrado</Text>
               <Text>
                 Este APK no tiene configurada una clave de Google Maps para Android. La ubicación, la ruta,
@@ -371,7 +374,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
               <RoutePreview route={displayedRoute} vehicle={vehicle} destination={destination} />
             </View>
           )}
-          <View style={styles.card}>
+          <View style={styles.fullCard}>
             <Text style={styles.cardTitle}>{tracking.vehiculo_placa} · {tracking.estado_entrega}</Text>
             <Text>Estado de ubicación: {locationFreshness}</Text>
             <Text>Distancia recorrida: {((tracking.distancia_recorrida_m || 0) / 1000).toFixed(2)} km</Text>
@@ -389,7 +392,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
             ) : <Text style={styles.muted}>Todavía no hay posición del vehículo.</Text>}
           </View>
           {role === 'conductor' && route?.instrucciones?.length ? (
-            <View style={styles.card}>
+            <View style={styles.fullCard}>
               <Text style={styles.cardTitle}>Indicaciones de ruta</Text>
               {route.instrucciones.map((instruction, index) => (
                 <Text key={`${instruction}-${index}`}>{index + 1}. {instruction}</Text>

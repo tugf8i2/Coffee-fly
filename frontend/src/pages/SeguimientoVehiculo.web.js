@@ -1,3 +1,4 @@
+import FeedbackMessage from '../components/FeedbackMessage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -91,10 +92,10 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
       <Text style={styles.muted}>
         Estado: {realtimeLabel(realtimeState)}. El sistema recupera el estado cada 30 segundos si se interrumpe el canal en vivo.
       </Text>
-      {message ? <Text style={styles.error}>{message}</Text> : null}
+      {message ? <FeedbackMessage type="error">{message}</FeedbackMessage> : null}
 
       {role === 'coordinador' && activeDeliveries.length > 1 ? (
-        <View style={styles.card}>
+        <View style={styles.fullCard}>
           <Text style={styles.label}>Vehículo en seguimiento</Text>
           <View style={styles.statusActions}>
             {activeDeliveries.map((item) => (
@@ -116,7 +117,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
       {role === 'conductor' && delivery ? <DriverEventReporter deliveryId={delivery} token={token} styles={styles} /> : null}
 
       {tracking ? (
-        <View style={styles.card}>
+        <View style={styles.fullCard}>
           <Text style={styles.cardTitle}>{tracking.vehiculo_placa} · {tracking.estado_entrega}</Text>
           {tracking.destino ? <Text>Destino: {tracking.destino}</Text> : null}
           <Text>Ruta visible: {points.length} de {tracking.total_puntos || points.length} punto(s)</Text>

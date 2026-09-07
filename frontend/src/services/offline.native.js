@@ -247,7 +247,7 @@ async function enviarOperacion(tipo, payload, token) {
       headers,
       body: JSON.stringify({
         client_request_id: payload.client_request_id,
-        peso_kg: payload.kg,
+          ...(payload.grupos_bultos ? { grupos_bultos: payload.grupos_bultos } : payload.peso_bulto_kg ? { peso_bulto_kg: payload.peso_bulto_kg, cantidad_bultos: payload.cantidad_bultos, peso_extra_kg: payload.peso_extra_kg || 0 } : { peso_kg: payload.kg }),
         observacion: payload.observacion || '',
         capturada_en: payload.fecha,
       }),

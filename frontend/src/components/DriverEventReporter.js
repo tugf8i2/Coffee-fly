@@ -1,3 +1,4 @@
+import FeedbackMessage from './FeedbackMessage';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -56,8 +57,8 @@ export default function DriverEventReporter({ deliveryId, token, styles }) {
   return <View style={styles.card}>
     <Text style={styles.cardTitle}>Notificar evento del viaje</Text>
     <Text style={styles.muted}>Reporta una novedad mientras recorres la ruta.</Text>
-    {error ? <Text style={styles.error}>{error}</Text> : null}
-    {message ? <Text style={styles.success}>{message}</Text> : null}
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
+    {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
     <TouchableOpacity style={styles.statusButton} onPress={() => setMenuOpen((open) => !open)}>
       <Text style={styles.statusButtonText}>{selectedLabel || 'Seleccionar tipo de evento'} ▾</Text>
     </TouchableOpacity>

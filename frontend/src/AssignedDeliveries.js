@@ -1,9 +1,11 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from './config';
 import usePolling from './hooks/usePolling';
 import { detenerRastreoSegundoPlano } from './services/backgroundLocation';
 import { fetchDeliveryHistories } from './services/deliveryHistory';
+import { weight } from './services/loadPresentation';
 import { enviarOSolicitarEnCola, sincronizarPendientes } from './services/offline';
 
 const labels = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelado' };
@@ -13,6 +15,7 @@ export default function AssignedDeliveries({ go, token, styles }) {
   const [deliveries, setDeliveries] = useState([]);
   const [history, setHistory] = useState({});
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -32,6 +35,7 @@ export default function AssignedDeliveries({ go, token, styles }) {
     setError(''); setMessage('');
     try {
       const result = await enviarOSolicitarEnCola('estado_entrega', { entrega_id: delivery.id_entrega, estado_entrega, fecha: new Date().toISOString() }, token);
+      setMessageType(result.offline ? 'warning' : 'success');
       setMessage(result.offline
         ? `Sin conexión: el cambio a ${labels[estado_entrega]} quedó guardado y se sincronizará automáticamente.`
         : `Entrega actualizada a ${labels[estado_entrega]}.`);
@@ -43,10 +47,10 @@ export default function AssignedDeliveries({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Mis entregas asignadas</Text>
     <Text style={styles.muted}>Los cambios se guardan sin conexión y se sincronizan automáticamente al recuperar internet. Una entrega cancelada queda bloqueada.</Text>
-    {error ? <Text style={styles.error}>{error}</Text> : null}
-    {message ? <Text style={styles.success}>{message}</Text> : null}
-    {deliveries.map((delivery) => <View key={delivery.id_entrega} style={styles.card}>
-      <Text style={styles.cardTitle}>{delivery.caficultor_nombre} · {delivery.cantidad_kg} kg</Text>
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
+    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
+    <View style={styles.grid}>{deliveries.map((delivery) => <View key={delivery.id_entrega} style={styles.card}>
+      <Text style={styles.cardTitle}>{delivery.caficultor_nombre}</Text><Text>Peso: {weight(delivery.cantidad_kg)}</Text>
       <Text>Vehículo: {delivery.vehiculo_placa}</Text>
       <Text>Estado actual: {labels[delivery.estado_entrega]}</Text>
       <Text>Registrada: {formatDate(delivery.fecha_hora_entrega)}</Text>
@@ -54,9 +58,9 @@ export default function AssignedDeliveries({ go, token, styles }) {
         {Object.entries(labels).filter(([value]) => (delivery.estado_entrega === 'pendiente' ? ['en camino', 'cancelado'] : delivery.estado_entrega === 'en camino' ? ['entregado', 'cancelado'] : []).includes(value)).map(([value, label]) => <TouchableOpacity key={value} style={styles.statusButton} onPress={() => changeStatus(delivery, value)}><Text style={styles.statusButtonText}>{label}</Text></TouchableOpacity>)}
       </View> : <Text style={styles.error}>Esta entrega fue cancelada y no puede modificarse.</Text>}
       {history[delivery.id_entrega]?.length ? <View style={styles.history}><Text style={styles.label}>Trazabilidad</Text>{history[delivery.id_entrega].map((item) => <Text key={item.id_historial}>{labels[item.estado_anterior]} → {labels[item.estado_nuevo]} · {item.usuario_nombre} · {formatDate(item.fecha_hora_cambio)}</Text>)}</View> : <Text style={styles.muted}>Sin cambios de estado registrados.</Text>}
-    </View>)}
+    </View>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>No tienes entregas asignadas.</Text> : null}
-    <TouchableOpacity style={styles.primary} onPress={async () => { const resultado = await sincronizarPendientes(token); setMessage(resultado.sincronizadas ? `${resultado.sincronizadas} cambio(s) sincronizado(s).` : 'No hay cambios pendientes para sincronizar.'); await load(); }}><Text style={styles.primaryText}>Sincronizar y actualizar</Text></TouchableOpacity>
+    <TouchableOpacity style={styles.primary} onPress={async () => { setError(''); setMessage(''); try { const resultado = await sincronizarPendientes(token); setMessageType(resultado.estado === 'synced' ? 'success' : 'warning'); setMessage(resultado.sincronizadas ? `${resultado.sincronizadas} cambio(s) sincronizado(s).` : resultado.estado === 'synced' ? 'No hay cambios pendientes para sincronizar.' : 'Hay cambios pendientes. Revisa la conexión e intenta sincronizar nuevamente.'); await load(); } catch (reason) { setError(reason.message); } }}><Text style={styles.primaryText}>Sincronizar y actualizar</Text></TouchableOpacity>
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }
