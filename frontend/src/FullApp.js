@@ -1,3 +1,4 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useEffect, useState } from 'react';
 import { SafeAreaView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -74,7 +75,9 @@ async function validateSavedSession(saved) {
 export default function FullApp() {
   const [screen, setScreen] = useState('login');
   const [user, setUser] = useState(null);
-  const [syncMessage, setSyncMessage] = useState('');
+  const [syncMessage, setSyncMessageText] = useState('');
+  const [syncMessageType, setSyncMessageType] = useState('info');
+  const setSyncMessage = (text, type = 'info') => { setSyncMessageText(text); setSyncMessageType(type); };
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const [syncStatus, setSyncStatus] = useState('idle');
   const [restoring, setRestoring] = useState(true);
@@ -86,7 +89,7 @@ export default function FullApp() {
         result.duplicados ? `${result.duplicados} duplicado(s) confirmado(s)` : '',
         result.conflictos ? `${result.conflictos} conflicto(s)` : '',
         result.descartadas ? `${result.descartadas} punto(s) inválido(s) conservado(s) para diagnóstico` : '',
-      ].filter(Boolean).join(' · '));
+      ].filter(Boolean).join(' · '), result.conflictos || result.descartadas ? 'warning' : 'success');
     }
   };
   const synchronizeSession = async (token) => {
@@ -95,7 +98,7 @@ export default function FullApp() {
       showSyncResult(await sincronizarPendientes(token));
     } catch (error) {
       setSyncStatus('pending');
-      setSyncMessage(`No fue posible sincronizar todavía: ${error.message}`);
+      setSyncMessage(`No fue posible sincronizar todavía: ${error.message}`, 'warning');
     }
   };
   const login = async (nextUser, token) => {
@@ -150,7 +153,7 @@ export default function FullApp() {
     sessionToken = '';
     setUser(null);
     setScreen('login');
-    setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.');
+    setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
   const common = { go: setScreen, token: sessionToken, styles, user };
   const displayedConnection = connectionLabel(connectionStatus);
@@ -181,7 +184,7 @@ export default function FullApp() {
     {user ? <View style={styles.connectionBanner}>
       <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
     </View> : null}
-    {syncMessage ? <Text style={styles.success}>{syncMessage}</Text> : null}
+    {syncMessage ? <FeedbackMessage type={syncMessageType}>{syncMessage}</FeedbackMessage> : null}
     <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
       {screens[screen] || screens.dashboard}
     </AppErrorBoundary>

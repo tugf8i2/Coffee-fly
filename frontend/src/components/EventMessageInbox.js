@@ -1,7 +1,9 @@
+import FeedbackMessage from './FeedbackMessage';
 import { useCallback, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../config';
+import { weight } from '../services/loadPresentation';
 import usePolling from '../hooks/usePolling';
 
 export default function EventMessageInbox({ token, styles, role }) {
@@ -54,7 +56,7 @@ export default function EventMessageInbox({ token, styles, role }) {
         <View style={{ width: 76, height: 5, borderRadius: 3, backgroundColor: '#526451', alignSelf: 'center', marginBottom: 6 }} />
         <Text style={styles.cardTitle}>Centro de mensajes</Text>
         <Text style={styles.muted}>Novedades enviadas por los conductores</Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
         <Text style={styles.label}>Filtrar por recolección</Text>
         <TouchableOpacity style={styles.statusButton} onPress={() => setCollectionMenuOpen((current) => !current)}>
           <Text style={styles.statusButtonText}>{selectedCollection ? `${selectedCollection.caficultor_nombre} · ${selectedCollection.carga_id.slice(0, 8)}` : 'Todas las recolecciones'} ▾</Text>
@@ -71,7 +73,7 @@ export default function EventMessageInbox({ token, styles, role }) {
           <Text style={styles.label}>{message.tipo_evento.toUpperCase()}</Text>
           <Text>{message.descripcion_evento}</Text>
           <Text style={{ fontWeight: '700' }}>Carga de: {message.caficultor_nombre}</Text>
-          <Text>Peso de carga: {message.carga_peso_kg.toLocaleString('es-CO')} kg</Text>
+          <Text>Peso de carga: {weight(message.carga_peso_kg)}</Text>
           <Text style={styles.muted}>Carga: {message.carga_id.slice(0, 8)}</Text>
           <Text>Estado: {message.estado_recoleccion}</Text>
           <Text>Conductor: {message.conductor_nombre}</Text>

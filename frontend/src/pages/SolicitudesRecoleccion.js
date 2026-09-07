@@ -1,6 +1,8 @@
+import FeedbackMessage from '../components/FeedbackMessage';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../config/Api';
+import { bagSummary, tonnes } from '../services/loadPresentation';
 
 export default function SolicitudesRecoleccion({ go, token, styles }) {
   const [requests, setRequests] = useState([]);
@@ -19,12 +21,14 @@ export default function SolicitudesRecoleccion({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Solicitudes de recolección</Text>
     <Text style={styles.muted}>Solicitudes creadas por los caficultores.</Text>
-    {error ? <Text style={styles.error}>{error}</Text> : null}
-    {requests.map((request) => <View style={styles.card} key={request.id_solicitud}>
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
+    <View style={styles.grid}>{requests.map((request) => <View style={styles.card} key={request.id_solicitud}>
       <Text style={styles.cardTitle}>Estado: {request.estado_solicitud}</Text>
       <Text>Caficultor: {request.caficultor_id}</Text>
+      <Text style={styles.totalValue}>{tonnes(request.peso_total_kg)}</Text>
+      {bagSummary(request) ? <Text>{bagSummary(request)}</Text> : null}
       <Text>Fecha: {new Date(request.fecha_hora_solicitud).toLocaleString()}</Text>
-    </View>)}
+    </View>)}</View>
     {!error && !requests.length ? <Text style={styles.muted}>No hay solicitudes registradas.</Text> : null}
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;

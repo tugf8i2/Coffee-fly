@@ -1,3 +1,4 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -34,11 +35,11 @@ export default function RoleDashboard({ user, token, go, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Panel del {role || 'usuario'}</Text>
     <Text style={styles.muted}>Hola, {user?.nombre}. Resumen actualizado de tus operaciones.</Text>
-    {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.success}>Actualizado: {data?.actualizado_en ? new Date(data.actualizado_en).toLocaleString() : 'ahora'}</Text>}
+    {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : <Text style={styles.success}>Actualizado: {data?.actualizado_en ? new Date(data.actualizado_en).toLocaleString() : 'ahora'}</Text>}
     {['coordinador', 'caficultor'].includes(role) ? <EventMessageInbox token={token} styles={styles} role={role} /> : null}
-    {Object.entries(metrics).map(([key, value]) => <View key={key} style={styles.metric}><Text style={styles.metricLabel}>{key.replaceAll('_', ' ')}</Text><Text style={styles.metricValue}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}
+    <View style={styles.grid}>{Object.entries(metrics).map(([key, value]) => <View key={key} style={styles.metric}><Text style={styles.metricLabel}>{key.replaceAll('_', ' ')}</Text><Text style={styles.metricValue}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}</View>
     <Text style={styles.section}>Accesos directos</Text>
-    {(ROLE_CARDS[role] || []).map(([label, screen]) => <TouchableOpacity key={screen} style={styles.card} onPress={() => go(screen)}><Text style={styles.cardTitle}>{label}</Text><Text style={styles.cardLink}>Abrir módulo</Text></TouchableOpacity>)}
+    <View style={styles.grid}>{(ROLE_CARDS[role] || []).map(([label, screen]) => <TouchableOpacity key={screen} style={styles.card} onPress={() => go(screen)}><Text style={styles.cardTitle}>{label}</Text><Text style={styles.cardLink}>Abrir módulo</Text></TouchableOpacity>)}</View>
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar panel</Text></TouchableOpacity>
   </ScrollView>;
 }

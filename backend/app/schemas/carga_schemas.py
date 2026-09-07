@@ -6,6 +6,10 @@ from datetime import datetime
 
 class CargaBase(BaseModel):
     peso_kg: float
+    peso_bulto_kg: Optional[float] = None
+    cantidad_bultos: Optional[int] = None
+    peso_extra_kg: Optional[float] = None
+    grupos_bultos: Optional[list[dict]] = None
     descripcion: Optional[str] = None
 
     vehiculo_id: Optional[int] = None
@@ -19,6 +23,10 @@ class CargaCreate(CargaBase):
 
 class CargaUpdate(BaseModel):
     peso_kg: Optional[float] = None
+    peso_bulto_kg: Optional[float] = None
+    cantidad_bultos: Optional[int] = None
+    peso_extra_kg: Optional[float] = None
+    grupos_bultos: Optional[list[dict]] = None
     descripcion: Optional[str] = None
 
     vehiculo_id: Optional[int] = None

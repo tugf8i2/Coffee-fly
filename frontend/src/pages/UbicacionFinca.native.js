@@ -1,3 +1,4 @@
+import FeedbackMessage from '../components/FeedbackMessage';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
@@ -6,7 +7,9 @@ import { enviarOSolicitarEnCola, guardarUbicacionFincaLocal, obtenerUbicacionFin
 
 export default function UbicacionFinca({ go, token, styles }) {
   const [position, setPosition] = useState(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessageText] = useState('');
+  const [messageType, setMessageType] = useState('info');
+  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
   useEffect(() => { obtenerUbicacionFincaLocal().then(setPosition); }, []);
   const guardar = async () => {
     try {
@@ -19,14 +22,14 @@ export default function UbicacionFinca({ go, token, styles }) {
       const result = await enviarOSolicitarEnCola('ubicacion_finca', payload, token);
       setMessage(result.offline
         ? 'Ubicación guardada en este celular. Se sincronizará cuando recuperes internet.'
-        : 'Ubicación de la finca guardada. El conductor podrá verla antes de iniciar el viaje.');
+        : 'Ubicación de la finca guardada. El conductor podrá verla antes de iniciar el viaje.', result.offline ? 'warning' : 'success');
     } catch (error) { setMessage(error.message); }
   };
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Ubicación de mi finca</Text>
     <Text style={styles.muted}>Párate en el punto donde debe llegar el vehículo y guarda la ubicación. Funciona con GPS; sin internet queda almacenada localmente para sincronizarse después.</Text>
     {position ? <View style={styles.card}><Text style={styles.cardTitle}>Destino capturado</Text><Text>Latitud: {position.latitud.toFixed(6)}</Text><Text>Longitud: {position.longitud.toFixed(6)}</Text></View> : null}
-    {message ? <Text style={styles.success}>{message}</Text> : null}
+    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <TouchableOpacity style={styles.primary} onPress={guardar}><Text style={styles.primaryText}>Guardar mi ubicación actual</Text></TouchableOpacity>
     <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;

@@ -77,6 +77,10 @@ class SolicitudActivaEntregaResponse(BaseModel):
     caficultor_nombre: str
     fecha_hora_solicitud: datetime
     cantidad_solicitada_kg: float
+    peso_bulto_kg: Optional[float] = None
+    cantidad_bultos: Optional[int] = None
+    peso_extra_kg: float = 0
+    grupos_bultos: Optional[list[dict]] = None
 
 
 class AsignarVehiculoRequest(BaseModel):

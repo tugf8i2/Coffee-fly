@@ -1,6 +1,8 @@
+import FeedbackMessage from './components/FeedbackMessage';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from './config';
+import { tonnes, weight } from './services/loadPresentation';
 
 export default function VehicleAssignment({ go, token, styles }) {
   const [deliveries, setDeliveries] = useState([]);
@@ -9,7 +11,9 @@ export default function VehicleAssignment({ go, token, styles }) {
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessageText] = useState('');
+  const [messageType, setMessageType] = useState('info');
+  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
 
   const load = useCallback(async () => {
     try {
@@ -51,7 +55,7 @@ export default function VehicleAssignment({ go, token, styles }) {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo asignar el vehículo.');
-      setMessage(`Vehículo ${selectedVehicle.placa} y conductor ${selectedDriver.nombre_conductor} asignados. La entrega sigue Pendiente hasta que el conductor inicie el viaje.`);
+      setMessage(`Vehículo ${selectedVehicle.placa} y conductor ${selectedDriver.nombre_conductor} asignados. La entrega sigue Pendiente hasta que el conductor inicie el viaje.`, 'success');
       setSelectedDelivery(null);
       setSelectedVehicle(null);
       setSelectedDriver(null);
@@ -66,16 +70,16 @@ export default function VehicleAssignment({ go, token, styles }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Asignación de vehículo y conductor</Text>
     <Text style={styles.muted}>Selecciona una entrega, luego un vehículo y finalmente el conductor. La carga acumulada nunca puede superar la capacidad del vehículo.</Text>
-    {message ? <Text style={styles.error}>{message}</Text> : null}
+    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <Text style={styles.section}>Entregas pendientes</Text>
-    {deliveries.map((delivery) => <TouchableOpacity key={delivery.id_entrega} style={[styles.card, selectedDelivery?.id_entrega === delivery.id_entrega && styles.cardSelected]} onPress={() => setSelectedDelivery(delivery)}>
+    <View style={styles.grid}>{deliveries.map((delivery) => <TouchableOpacity key={delivery.id_entrega} style={[styles.card, selectedDelivery?.id_entrega === delivery.id_entrega && styles.cardSelected]} onPress={() => setSelectedDelivery(delivery)}>
       <Text style={styles.cardTitle}>{delivery.caficultor_nombre}</Text>
-      <Text>Carga: {delivery.cantidad_kg} kg · {(delivery.cantidad_kg / 1000).toFixed(3)} t</Text>
+      <Text>Carga: {weight(delivery.cantidad_kg)}</Text>
       <Text>Entrega: {new Date(delivery.fecha_hora_entrega).toLocaleString()}</Text>
-    </TouchableOpacity>)}
+    </TouchableOpacity>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>No hay entregas pendientes de asignación.</Text> : null}
     <Text style={styles.section}>1. Asignar vehículo</Text>
-    {compatibleVehicles.map((vehicle) => <TouchableOpacity key={vehicle.id_vehiculo} style={[styles.card, selectedVehicle?.id_vehiculo === vehicle.id_vehiculo && styles.cardSelected]} onPress={() => {
+    <View style={styles.grid}>{compatibleVehicles.map((vehicle) => <TouchableOpacity key={vehicle.id_vehiculo} style={[styles.card, selectedVehicle?.id_vehiculo === vehicle.id_vehiculo && styles.cardSelected]} onPress={() => {
       setSelectedVehicle(vehicle);
       setSelectedDriver(null);
     }}>
@@ -85,12 +89,12 @@ export default function VehicleAssignment({ go, token, styles }) {
       <Text>Carga asignada: {vehicle.carga_actual_kg / 1000} t</Text>
       <Text style={styles.muted}>Disponible: {vehicle.capacidad_disponible_kg / 1000} t</Text>
       {selectedDelivery && selectedDelivery.cantidad_kg > vehicle.capacidad_disponible_kg ? <Text style={styles.error}>No tiene capacidad para esta entrega.</Text> : null}
-    </TouchableOpacity>)}
+    </TouchableOpacity>)}</View>
     {selectedDelivery && !compatibleVehicles.length ? <Text style={styles.error}>No hay vehículos con capacidad suficiente para esta carga.</Text> : null}
     {!selectedDelivery && !vehicles.length ? <Text style={styles.muted}>No hay vehículos disponibles.</Text> : null}
     {selectedVehicle ? <>
       <Text style={styles.section}>2. Asignar conductor</Text>
-      {drivers.map((driver, index) => <TouchableOpacity key={driver.id_conductor || `incomplete-${index}`} style={[styles.card, selectedDriver?.id_conductor === driver.id_conductor && styles.cardSelected]} onPress={() => {
+      <View style={styles.grid}>{drivers.map((driver, index) => <TouchableOpacity key={driver.id_conductor || `incomplete-${index}`} style={[styles.card, selectedDriver?.id_conductor === driver.id_conductor && styles.cardSelected]} onPress={() => {
         if (!driver.id_conductor || !driver.tiene_foto_licencia) {
           setMessage(`${driver.nombre_conductor} necesita completar el tipo y la foto de licencia en Administración de usuarios antes de asignarlo.`);
           return;
@@ -99,7 +103,7 @@ export default function VehicleAssignment({ go, token, styles }) {
       }}>
         <Text style={styles.cardTitle}>{driver.nombre_conductor}</Text>
         {driver.id_conductor && driver.tiene_foto_licencia ? <Text>Licencia: {driver.licencia} · Foto verificada</Text> : <Text style={styles.error}>Perfil de conductor incompleto: faltan tipo o foto de licencia.</Text>}
-      </TouchableOpacity>)}
+      </TouchableOpacity>)}</View>
       {!drivers.length ? <Text style={styles.muted}>No hay conductores registrados para asignar.</Text> : null}
     </> : null}
     <TouchableOpacity style={styles.primary} onPress={assign}><Text style={styles.primaryText}>Asignar vehículo</Text></TouchableOpacity>

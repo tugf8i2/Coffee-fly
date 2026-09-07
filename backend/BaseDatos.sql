@@ -135,6 +135,10 @@ CREATE TABLE public.carga (
     id_carga uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
 
     peso_kg numeric(8,2),
+    peso_bulto_kg numeric(8,2),
+    cantidad_bultos integer,
+    peso_extra_kg numeric(8,2) DEFAULT 0,
+    grupos_bultos jsonb,
     descripcion character varying(100),
 
     vehiculo_id integer,

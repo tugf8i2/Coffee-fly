@@ -9,7 +9,14 @@ class UsuarioBase(BaseModel):
     apellido: str = Field(max_length=30)
     correo_usuario: EmailStr = Field(max_length=30)
     telefono_usuario: str = Field(min_length=10, max_length=10)
-    contrasena: str = Field(min_length=7, max_length=128)
+    contrasena: str = Field(min_length=7, max_length=20)
+
+    @field_validator("contrasena")
+    @classmethod
+    def validar_contrasena(cls, value):
+        if value is None or not any(c.isupper() for c in value) or not any(c.islower() for c in value):
+            raise ValueError("La contraseña debe tener entre 7 y 20 caracteres, una mayúscula y una minúscula")
+        return value
 
     @field_validator("correo_usuario")
     @classmethod
@@ -44,7 +51,14 @@ class UsuarioUpdate(BaseModel):
     apellido: Optional[str] = Field(default=None, max_length=30)
     correo_usuario: Optional[EmailStr] = Field(default=None, max_length=30)
     telefono_usuario: Optional[str] = Field(default=None, min_length=10, max_length=10)
-    contrasena: Optional[str] = Field(default=None, min_length=7, max_length=128)
+    contrasena: Optional[str] = Field(default=None, min_length=7, max_length=20)
+
+    @field_validator("contrasena")
+    @classmethod
+    def validar_contrasena(cls, value):
+        if value is None or not any(c.isupper() for c in value) or not any(c.islower() for c in value):
+            raise ValueError("La contraseña debe tener entre 7 y 20 caracteres, una mayúscula y una minúscula")
+        return value
 
     @field_validator("correo_usuario")
     @classmethod
