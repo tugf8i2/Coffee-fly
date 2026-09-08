@@ -4,10 +4,11 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion/ClienteApi';
 import usePolling from '../../ganchos/usarSondeo';
 import { bagSummary, tonnes, weight } from '../../servicios/presentacionCarga';
+import { styles } from './MiActividad.styles';
 
 const states = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelada' };
 
-export default function MiActividad({ go, token, styles }) {
+export default function MiActividad({ go, token }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
@@ -49,6 +50,5 @@ export default function MiActividad({ go, token, styles }) {
       {data.historial_despachos.length ? <View style={styles.grid}>{data.historial_despachos.map(requestCard)}</View> : <Text style={styles.muted}>Aún no tienes despachos entregados.</Text>}
     </> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar resumen</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

@@ -112,16 +112,33 @@ class EntregaRepository:
             Solicitud.estado_solicitud.in_(["pendiente", "en camino"]),
         ).first()
 
+    def get_solicitud_disponible(self, solicitud_id: UUID) -> Solicitud | None:
+        return self.db.query(Solicitud).join(Carga, Solicitud.carga_id == Carga.id_carga).filter(
+            Solicitud.id_solicitud == solicitud_id,
+            *self._filtros_solicitud_disponible(),
+        ).first()
+
+    def _filtros_solicitud_disponible(self):
+        solicitud_registrada = aliased(Solicitud)
+        carga_registrada = self.db.query(Entrega.id_entrega).join(
+            solicitud_registrada, Entrega.solicitud_id == solicitud_registrada.id_solicitud
+        ).filter(solicitud_registrada.carga_id == Solicitud.carga_id).exists()
+        return (
+            Solicitud.estado_solicitud == "pendiente",
+            Carga.vehiculo_id.is_(None),
+            ~carga_registrada,
+        )
+
     def get_solicitud(self, solicitud_id: UUID) -> Solicitud | None:
         return self.db.query(Solicitud).filter(Solicitud.id_solicitud == solicitud_id).first()
 
     def get_solicitudes_activas(self):
         return self.db.query(Solicitud, Usuario, Carga).join(
             Usuario, Solicitud.caficultor_id == Usuario.id_usuario
-        ).outerjoin(
+        ).join(
             Carga, Solicitud.carga_id == Carga.id_carga
         ).filter(
-            Solicitud.estado_solicitud.in_(["pendiente", "en camino"])
+            *self._filtros_solicitud_disponible(),
         ).order_by(Solicitud.fecha_hora_solicitud.asc()).all()
 
     def create_entrega(self, entrega: Entrega) -> Entrega:

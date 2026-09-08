@@ -6,6 +6,7 @@ import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, 
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { accountStatesByUser } from '../../servicios/estadoCuenta';
+import { styles } from './GestionUsuarios.styles';
 
 const emptyForm = {
   nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
@@ -29,7 +30,7 @@ function generatedEmail(nombre, apellido) {
   return firstName ? `${firstName.slice(0, maxFirstName)}.${lastName.slice(-3)}${domain}` : '';
 }
 
-export default function GestionUsuarios({ go, token, styles }) {
+export default function GestionUsuarios({ go, token }) {
   const [users, setUsers] = useState([]);
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusByUser, setStatusByUser] = useState({});
@@ -206,14 +207,14 @@ export default function GestionUsuarios({ go, token, styles }) {
       {Platform.OS === 'web' ? <select
         value={String(form.rol_id ?? '')}
         onChange={(event) => updateField('rol_id', event.target.value)}
-        style={{ ...styles.input, width: '100%' }}
+        style={{ ...styles.input, ...styles.fullWidthInput }}
       >
         <option value="">Selecciona un rol</option>
         <option value="1">Coordinador</option>
         <option value="2">Conductor</option>
         <option value="3">Registrador</option>
         <option value="4">Caficultor</option>
-      </select> : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      </select> : <View style={styles.options}>
         {[
           ['1', 'Coordinador'], ['2', 'Conductor'], ['3', 'Registrador'], ['4', 'Caficultor'],
         ].map(([id, name]) => <TouchableOpacity key={id} style={[styles.role, Number(form.rol_id) === Number(id) && styles.roleActive]} onPress={() => updateField('rol_id', id)}><Text>{name}</Text></TouchableOpacity>)}
@@ -224,16 +225,16 @@ export default function GestionUsuarios({ go, token, styles }) {
         {Platform.OS === 'web' ? <select
           value={form.licencia || ''}
           onChange={(event) => updateField('licencia', event.target.value)}
-          style={{ ...styles.input, width: '100%' }}
+          style={{ ...styles.input, ...styles.fullWidthInput }}
         >
           <option value="">Selecciona el tipo de licencia</option>
           {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <option key={type} value={type}>{type}</option>)}
-        </select> : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        </select> : <View style={styles.options}>
           {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <TouchableOpacity key={type} style={[styles.role, form.licencia === type && styles.roleActive]} onPress={() => updateField('licencia', type)}><Text>{type}</Text></TouchableOpacity>)}
         </View>}
         <Text style={styles.label}>Foto de la licencia de conducir</Text>
-        {Platform.OS === 'web' ? <input type="file" accept="image/*" onChange={selectLicensePhoto} style={{ marginBottom: 8 }} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}
-        {form.foto_licencia ? <Image source={{ uri: form.foto_licencia }} style={{ width: 180, height: 110, resizeMode: 'contain', alignSelf: 'flex-start' }} /> : form.tiene_foto_licencia ? <Text style={styles.muted}>Ya hay una foto guardada. Selecciona otra para reemplazarla.</Text> : <Text style={styles.muted}>Formatos permitidos: imagen. Tamaño máximo: 3 MB.</Text>}
+        {Platform.OS === 'web' ? <input type="file" accept="image/*" onChange={selectLicensePhoto} style={styles.fileInput} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}
+        {form.foto_licencia ? <Image source={{ uri: form.foto_licencia }} style={styles.licensePreview} /> : form.tiene_foto_licencia ? <Text style={styles.muted}>Ya hay una foto guardada. Selecciona otra para reemplazarla.</Text> : <Text style={styles.muted}>Formatos permitidos: imagen. Tamaño máximo: 3 MB.</Text>}
       </View> : null}
       {Number(form.rol_id) === 4 ? <View>
         <Text style={styles.section}>Datos del caficultor</Text>
@@ -268,6 +269,5 @@ export default function GestionUsuarios({ go, token, styles }) {
       </View>;
     })}</View>
     {!filteredUsers.length ? <Text style={styles.muted}>No hay usuarios registrados con este rol.</Text> : null}
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

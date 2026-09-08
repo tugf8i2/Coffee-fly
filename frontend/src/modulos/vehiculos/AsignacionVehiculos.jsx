@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { tonnes, weight } from '../../servicios/presentacionCarga';
+import { styles } from './AsignacionVehiculos.styles';
 
-export default function AsignacionVehiculos({ go, token, styles }) {
+export default function AsignacionVehiculos({ go, token }) {
   const [deliveries, setDeliveries] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -121,6 +122,5 @@ export default function AsignacionVehiculos({ go, token, styles }) {
     </TouchableOpacity>)}</View>
     {!cooperatives.length ? <Text style={styles.error}>No hay cooperativas con ubicación registradas. El registrador debe crear una antes de asignar la entrega.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={assign}><Text style={styles.primaryText}>Asignar vehículo</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

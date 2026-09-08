@@ -4,10 +4,11 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
+import { styles } from './HistorialEntregas.styles';
 
 const statuses = ['todos', 'pendiente', 'en camino', 'entregado', 'cancelado'];
 
-export default function HistorialEntregas({ token, go, styles }) {
+export default function HistorialEntregas({ token, go }) {
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const [farmer, setFarmer] = useState(''); const [vehicle, setVehicle] = useState('');
   const [status, setStatus] = useState('todos'); const [page, setPage] = useState(1);
@@ -44,6 +45,5 @@ export default function HistorialEntregas({ token, go, styles }) {
     <View style={styles.grid}>{result.items.map((item) => <View key={item.id_entrega} style={styles.card}><Text style={styles.cardTitle}>{item.caficultor_nombre}</Text><Text>Peso: {weight(item.cantidad_kg)}</Text><Text>Estado: {item.estado_entrega}</Text><Text>Vehículo: {item.vehiculo_placa || 'Sin asignar'}</Text><Text>Fecha: {new Date(item.fecha_hora_entrega).toLocaleString()}</Text>{item.observaciones ? <Text>Observaciones: {item.observaciones}</Text> : null}</View>)}</View>
     {!result.items.length ? <Text style={styles.muted}>No hay entregas que coincidan con estos filtros.</Text> : null}
     <View style={styles.statusActions}><TouchableOpacity style={styles.statusButton} disabled={page <= 1} onPress={() => load(page - 1)}><Text style={styles.statusButtonText}>Anterior</Text></TouchableOpacity><Text style={styles.label}>Página {page} de {pages}</Text><TouchableOpacity style={styles.statusButton} disabled={page >= pages} onPress={() => load(page + 1)}><Text style={styles.statusButtonText}>Siguiente</Text></TouchableOpacity></View>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

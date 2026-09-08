@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Text, View } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 const DEFAULT_CENTER = { latitude: 4.5709, longitude: -74.2973 };
 
@@ -29,14 +29,18 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
-        mapType="none"
+        mapType="standard"
         initialRegion={{ ...center, latitudeDelta: selected ? 0.025 : 8, longitudeDelta: selected ? 0.025 : 8 }}
         onPress={(event) => onSelect?.(event.nativeEvent.coordinate)}
+        loadingEnabled
+        showsCompass
+        showsScale
+        toolbarEnabled
+        zoomControlEnabled
       >
-        <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} />
         {selected ? <Marker coordinate={selected} draggable onDragEnd={(event) => onSelect?.(event.nativeEvent.coordinate)} title="Ubicación de la cooperativa" /> : null}
       </MapView>
     </View>
-    <Text style={{ color: '#526451', fontSize: 12 }}>Mapa y datos cartográficos © colaboradores de OpenStreetMap.</Text>
+    <Text style={{ color: '#526451', fontSize: 12 }}>Toca o arrastra el marcador para ajustar el punto exacto.</Text>
   </View>;
 }

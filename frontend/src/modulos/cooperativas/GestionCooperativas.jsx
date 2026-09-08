@@ -5,6 +5,7 @@ import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'r
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import CooperativeLocationPicker from '../../componentes/mapas/SelectorUbicacionCooperativa';
+import { styles } from './GestionCooperativas.styles';
 
 const empty = {
   nombre: '', telefono: '', correo: '', departamento: '', ciudad: '', direccion: '', latitude: '', longitude: '',
@@ -40,7 +41,7 @@ function addressFromNominatim(result = {}) {
   };
 }
 
-export default function GestionCooperativas({ go, token, styles }) {
+export default function GestionCooperativas({ go, token }) {
   const [cooperatives, setCooperatives] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
@@ -217,7 +218,7 @@ export default function GestionCooperativas({ go, token, styles }) {
       <TextInput style={styles.input} value={form.latitude} onChangeText={(value) => set('latitude', value.replace(/[^0-9.-]/g, ''))} keyboardType="numbers-and-punctuation" placeholder="1.8537" />
       <Text style={styles.label}>Longitud</Text>
       <TextInput style={styles.input} value={form.longitude} onChangeText={(value) => set('longitude', value.replace(/[^0-9.-]/g, ''))} keyboardType="numbers-and-punctuation" placeholder="-76.0507" />
-      <TouchableOpacity style={[styles.primary, saving && { opacity: 0.6 }]} disabled={saving} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar cooperativa'}</Text></TouchableOpacity>
+      <TouchableOpacity style={[styles.primary, saving && styles.saving]} disabled={saving} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar cooperativa'}</Text></TouchableOpacity>
       {editing ? <TouchableOpacity onPress={() => { setEditing(null); setForm(empty); setShowMap(false); notify('Edición cancelada.'); }}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Cooperativas registradas</Text>
@@ -234,6 +235,5 @@ export default function GestionCooperativas({ go, token, styles }) {
       </View> : <TouchableOpacity onPress={() => setPendingDelete(cooperative.id_cooperativa)}><Text style={styles.error}>Eliminar cooperativa</Text></TouchableOpacity>}
     </View>)}</View>
     {!cooperatives.length ? <Text style={styles.muted}>No hay cooperativas registradas.</Text> : null}
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

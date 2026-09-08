@@ -2,7 +2,7 @@ import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion'
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
-import MapView, { Marker, Polyline, UrlTile } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import VehicleMarker from '../../componentes/mapas/MarcadorVehiculo';
 import RoutePreview from '../../componentes/mapas/VistaPreviaRuta';
@@ -18,6 +18,7 @@ import {
 } from '../../servicios/ubicacionSegundoPlano';
 import { canStartTrackingFromGpsResult } from '../../servicios/calidadGps';
 import { estaEnLinea, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
+import { styles } from './SeguimientoVehiculo.styles';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { realtimeLabel, trackingModeLabel } from '../../servicios/presentacionSeguimiento';
 
@@ -43,7 +44,7 @@ const asInstruction = (step) => {
   return parts.filter(Boolean).join(' ').replace(/^./, (letter) => letter.toUpperCase());
 };
 
-export default function SeguimientoVehiculo({ go, token, styles, user }) {
+export default function SeguimientoVehiculo({ go, token, user }) {
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [tracking, setTracking] = useState(null);
@@ -421,9 +422,20 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
         <>
           {NATIVE_MAP_AVAILABLE ? (
             <>
-              <View style={[styles.mapPanel, { height: 300, padding: 0 }]}>
-                <MapView key={`${delivery}-${tracking.etapa_viaje}`} style={{ flex: 1 }} mapType="none" initialRegion={initialRegion}>
-                  <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
+              <View style={[styles.mapPanel, styles.mapPanelCompact]}>
+                <MapView
+                  key={`${delivery}-${tracking.etapa_viaje}`}
+                  style={styles.mapCanvas}
+                  mapType="standard"
+                  initialRegion={initialRegion}
+                  loadingEnabled
+                  showsCompass
+                  showsScale
+                  showsUserLocation={role === 'conductor'}
+                  showsMyLocationButton={role === 'conductor'}
+                  toolbarEnabled
+                  zoomControlEnabled
+                >
                   {vehicle ? <VehicleMarker coordinate={vehicle} title={tracking.vehiculo_placa} description="Ubicación del vehículo" /> : null}
                   {pickup ? <Marker coordinate={pickup} title="Finca del caficultor" description={tracking.recoleccion || 'Punto de recolección'} pinColor={tracking.carga_recogida_en ? '#757575' : '#b42318'} /> : null}
                   {cooperative ? <Marker coordinate={cooperative} title={tracking.cooperativa_nombre || 'Cooperativa'} description={tracking.cooperativa_destino || 'Destino final'} pinColor="#2e7d32" /> : null}
@@ -431,7 +443,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
                 </MapView>
               </View>
               <Text style={styles.muted}>
-                Mapa © colaboradores de OpenStreetMap. Sin red se conserva la línea; las imágenes base pueden no cargar.
+                Puedes acercar, mover y orientar el mapa. Sin red se conserva la línea del recorrido; el mapa base puede requerir conexión.
               </Text>
             </>
           ) : (
@@ -476,7 +488,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
             <View style={styles.fullCard}>
               <Text style={styles.cardTitle}>Confirmar recogida de la carga</Text>
               <Text style={styles.muted}>El botón se habilita al estar dentro de {tracking.radio_confirmacion_m || 250} m de la finca con una ubicación GPS reciente.</Text>
-              <TouchableOpacity style={[styles.primary, (!canConfirmPickup || confirmingPickup) && { opacity: 0.55 }]} disabled={!canConfirmPickup || confirmingPickup} onPress={confirmPickup}>
+              <TouchableOpacity style={[styles.primary, (!canConfirmPickup || confirmingPickup) && styles.unavailable]} disabled={!canConfirmPickup || confirmingPickup} onPress={confirmPickup}>
                 <Text style={styles.primaryText}>{confirmingPickup ? 'Confirmando carga…' : canConfirmPickup ? 'Confirmar que ya tengo la carga' : 'Acércate al punto de recolección'}</Text>
               </TouchableOpacity>
             </View>
@@ -490,7 +502,7 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
             <Text style={styles.statusButtonText}>Ver y guardar ruta</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.primary, (!tracking || !destination) && { opacity: 0.55 }]}
+            style={[styles.primary, (!tracking || !destination) && styles.unavailable]}
             onPress={startGps}
             disabled={!tracking || !destination}
           >
@@ -509,9 +521,6 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
       ) : null}
       <TouchableOpacity style={styles.primary} onPress={load}>
         <Text style={styles.primaryText}>Actualizar ubicación</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => go('dashboard')}>
-        <Text style={styles.link}>Volver al dashboard</Text>
       </TouchableOpacity>
     </ScrollView>
   );

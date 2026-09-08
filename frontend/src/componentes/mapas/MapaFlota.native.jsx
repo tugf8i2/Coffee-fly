@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Text, View } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 import { NATIVE_MAP_AVAILABLE } from '../../configuracion/mapasNativos';
 
@@ -61,10 +61,14 @@ export default function MapaFlota({ vehicles = [] }) {
     <MapView
       ref={mapRef}
       style={{ flex: 1 }}
-      mapType="none"
+      mapType="standard"
       initialRegion={{ ...initial, latitudeDelta: 0.08, longitudeDelta: 0.08 }}
+      loadingEnabled
+      showsCompass
+      showsScale
+      toolbarEnabled
+      zoomControlEnabled
     >
-      <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} />
       {visible.map((vehicle) => <Marker
         key={vehicle.entrega_id}
         coordinate={{ latitude: Number(vehicle.latitud), longitude: Number(vehicle.longitud) }}

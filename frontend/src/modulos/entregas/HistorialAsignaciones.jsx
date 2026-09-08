@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
+import { styles } from './HistorialAsignaciones.styles';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
-export default function HistorialAsignaciones({ go, token, styles }) {
+export default function HistorialAsignaciones({ go, token }) {
   const [assignments, setAssignments] = useState([]);
   const [error, setError] = useState('');
 
@@ -39,6 +40,5 @@ export default function HistorialAsignaciones({ go, token, styles }) {
     </View>)}</View>
     {!assignments.length && !error ? <Text style={styles.muted}>Aún no hay asignaciones registradas.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar historial</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

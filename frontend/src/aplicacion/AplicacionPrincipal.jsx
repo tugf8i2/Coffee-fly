@@ -11,12 +11,14 @@ import DeliveryHistory from '../modulos/entregas/HistorialEntregas';
 import DeliveryManagement from '../modulos/entregas/RegistrarRecoleccionCafe';
 import AppErrorBoundary from '../componentes/comunes/LimiteErrorAplicacion';
 import Encabezado from '../componentes/comunes/Encabezado';
+import FondoCafeAnimado from '../componentes/comunes/FondoCafeAnimado';
 import IniciarSesion from '../modulos/autenticacion/IniciarSesion';
 import MiActividad from '../modulos/caficultor/MiActividad';
 import OperationalMonitoring from '../modulos/seguimiento/MonitoreoOperativo';
 import Reports from '../modulos/reportes/Reportes';
 import RoleDashboard from '../modulos/panel/PanelPorRol';
 import SeguimientoVehiculo from '../modulos/seguimiento/SeguimientoVehiculo';
+import ServicioCliente from '../modulos/soporte/ServicioCliente';
 import SolicitarRecoleccion from '../modulos/caficultor/SolicitarRecoleccion';
 import UbicacionFinca from '../modulos/caficultor/UbicacionFinca';
 import UserManagement from '../modulos/usuarios/GestionUsuarios';
@@ -155,11 +157,11 @@ export default function AplicacionPrincipal() {
     setScreen('login');
     setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
-  const common = { go: setScreen, token: sessionToken, styles, user };
+  const common = { go: setScreen, token: sessionToken, user };
   const displayedConnection = connectionLabel(connectionStatus);
   const displayedSynchronization = synchronizationLabel(connectionStatus, syncStatus);
   const screens = {
-    login: <IniciarSesion onLogin={login} styles={styles} />,
+    login: <IniciarSesion onLogin={login} />,
     dashboard: <RoleDashboard {...common} />,
     request: <SolicitarRecoleccion {...common} />,
     farmLocation: <UbicacionFinca {...common} />,
@@ -176,20 +178,26 @@ export default function AplicacionPrincipal() {
     deliveryHistory: <DeliveryHistory {...common} />,
     reports: <Reports {...common} />,
     monitoring: <OperationalMonitoring {...common} />,
+    support: <ServicioCliente {...common} />,
   };
   if (restoring) return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}><Text style={styles.muted}>Restaurando sesión segura…</Text></SafeAreaView>
   </SafeAreaProvider>;
   return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}>
-      <Encabezado user={user} onLogout={logout} />
+      <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} />
       {user ? <View style={styles.connectionBanner}>
         <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
       </View> : null}
       {syncMessage ? <FeedbackMessage type={syncMessageType}>{syncMessage}</FeedbackMessage> : null}
-      <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
-        {screens[screen] || screens.dashboard}
-      </AppErrorBoundary>
+      <View style={styles.screenStage}>
+        {user ? <FondoCafeAnimado /> : null}
+        <View style={styles.screenContent}>
+          <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
+            {screens[screen] || screens.dashboard}
+          </AppErrorBoundary>
+        </View>
+      </View>
       <StatusBar style="light" />
     </SafeAreaView>
   </SafeAreaProvider>;

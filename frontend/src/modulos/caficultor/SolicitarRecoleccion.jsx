@@ -6,10 +6,11 @@ import * as Crypto from 'expo-crypto';
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
 import { enviarOSolicitarEnCola } from '../../servicios/sinConexion';
 import { calculateBagGroupsKg, tonnes } from '../../servicios/presentacionCarga';
+import { styles } from './SolicitarRecoleccion.styles';
 
 const emptyGroup = () => ({ id: Crypto.randomUUID(), peso_bulto_kg: '', cantidad_bultos: '' });
 
-export default function SolicitarRecoleccion({ go, token, styles }) {
+export default function SolicitarRecoleccion({ go, token }) {
   const [groups, setGroups] = useState([emptyGroup()]);
   const [obs, setObs] = useState('');
   const [message, setMessageText] = useState('');
@@ -47,6 +48,5 @@ export default function SolicitarRecoleccion({ go, token, styles }) {
       <TouchableOpacity style={styles.primary} onPress={submit}><Text style={styles.primaryText}>Enviar solicitud</Text></TouchableOpacity>
     </View>
     <FeedbackMessage type={messageType}>{message}</FeedbackMessage>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver</Text></TouchableOpacity>
   </View></ScrollView>;
 }

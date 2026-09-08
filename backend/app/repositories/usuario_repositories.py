@@ -6,6 +6,7 @@ from app.models.conductor_models import Conductor
 from app.models.vehiculo_models import Vehiculo
 from app.models.solicitud_models import Solicitud
 from app.models.historial_eventos_models import HistorialEvento
+from app.models.mensaje_soporte_models import MensajeSoporte
 from app.schemas.usuario_schemas import (
     UsuarioCreate,
     UsuarioUpdate
@@ -120,6 +121,9 @@ class UsuarioRepository:
             )
             self.db.query(HistorialEvento).filter(HistorialEvento.usuario_id_cambio == id_usuario).delete(
                 synchronize_session=False
+            )
+            self.db.query(MensajeSoporte).filter(MensajeSoporte.remitente_id == id_usuario).update(
+                {MensajeSoporte.remitente_id: None}, synchronize_session=False
             )
             conductor = self.db.query(Conductor).filter(Conductor.usuario_id == id_usuario).first()
             if conductor:

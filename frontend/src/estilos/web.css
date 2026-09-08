@@ -9,8 +9,57 @@ body {
   background: #dce8b4;
   color: #23372a;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  color: #23372a;
+  background: #a7c957;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+[role="button"] {
+  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+}
+
+button:not(:disabled):hover,
+[role="button"]:not([aria-disabled="true"]):hover {
+  filter: brightness(0.97);
+  transform: translateY(-1px);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(56, 102, 65, 0.3) !important;
+  outline-offset: 2px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #526451;
+  opacity: 0.82;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

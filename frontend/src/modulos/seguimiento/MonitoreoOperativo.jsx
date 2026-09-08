@@ -5,6 +5,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import FleetMap from '../../componentes/mapas/MapaFlota';
 import usePolling from '../../ganchos/usarSondeo';
+import { styles } from './MonitoreoOperativo.styles';
 
 const labels = {
   actualizado: 'GPS actualizado',
@@ -12,7 +13,7 @@ const labels = {
   sin_ubicacion: 'Sin ubicación GPS',
 };
 
-export default function MonitoreoOperativo({ go, token, styles }) {
+export default function MonitoreoOperativo({ go, token }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,5 @@ export default function MonitoreoOperativo({ go, token, styles }) {
       <Text style={styles.muted}>Generado: {new Date(summary.generado_en).toLocaleString()}</Text>
     </> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al panel</Text></TouchableOpacity>
   </ScrollView>;
 }

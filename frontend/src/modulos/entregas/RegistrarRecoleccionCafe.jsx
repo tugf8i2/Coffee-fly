@@ -5,10 +5,11 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import { fetchDeliveryHistories } from '../../servicios/historialEntregas';
 import { bagSummary, tonnes, weight } from '../../servicios/presentacionCarga';
+import { styles } from './RegistrarRecoleccionCafe.styles';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
-export default function RegistrarRecoleccionCafe({ go, token, styles }) {
+export default function RegistrarRecoleccionCafe({ go, token }) {
   const [requests, setRequests] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -29,6 +30,9 @@ export default function RegistrarRecoleccionCafe({ go, token, styles }) {
       if (!requestsResponse.ok) throw Error(requestsData.detail || 'No se pudieron consultar las solicitudes activas.');
       if (!deliveriesResponse.ok) throw Error(deliveriesData.detail || 'No se pudieron consultar las entregas.');
       setRequests(requestsData);
+      setSelected((current) => current
+        ? requestsData.find((request) => request.id_solicitud === current.id_solicitud) || null
+        : null);
       setDeliveries(deliveriesData);
       setHistory(await fetchDeliveryHistories(deliveriesData, token));
     } catch (reason) {
@@ -108,6 +112,5 @@ export default function RegistrarRecoleccionCafe({ go, token, styles }) {
     </View>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>Aún no hay recolecciones registradas.</Text> : null}
     <Text style={styles.muted}>El listado se actualiza automáticamente cada 15 segundos.</Text><TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar listado</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }
