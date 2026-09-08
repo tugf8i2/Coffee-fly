@@ -1,4 +1,4 @@
-import { lineBetween, projectCoordinates, sampleCoordinates } from '../src/components/routePreviewMath';
+import { lineBetween, projectCoordinates, sampleCoordinates } from '../src/utilidades/calculosRuta';
 
 describe('offline route preview geometry', () => {
   test('downsamples a long route while preserving its endpoints', () => {

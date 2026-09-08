@@ -6,12 +6,12 @@ services:
       # Nombre de la BD usado localmente: 'coffeefly'
       POSTGRES_DB: coffeefly
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "1234"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
     ports:
       # El 5432 del equipo ya lo usa otra instalación de PostgreSQL.
       # PostgreSQL usa 5433 tanto dentro como fuera de Docker.
       # Puedes cambiarlo sin tocar este archivo con POSTGRES_HOST_PORT.
-      - "${POSTGRES_HOST_PORT:-5433}:5433"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5433"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Inicializar la base con el script SQL si no existe
@@ -21,6 +21,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build: ./backend
@@ -29,7 +30,7 @@ services:
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
     environment:
-      ENV: development
+      ENV: ${ENV:-development}
       # Credenciales del registrador inicial (solo se usa si la BD no tiene registradores).
       BOOTSTRAP_REGISTRADOR_EMAIL: ${BOOTSTRAP_REGISTRADOR_EMAIL:-admin@coffeefly.com}
       BOOTSTRAP_REGISTRADOR_PASSWORD: ${BOOTSTRAP_REGISTRADOR_PASSWORD:-Admin123}
@@ -38,22 +39,37 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-720}
       EVENT_RETENTION_DAYS: ${EVENT_RETENTION_DAYS:-30}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
-      DATABASE_URL: postgresql://postgres:1234@db:5433/coffeefly
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-1234}@db:5433/coffeefly
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       args:
-          # Para que el navegador que carga los archivos estáticos pueda alcanzar el backend
-          EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
+          # /api usa el mismo host del navegador y Nginx lo dirige a FastAPI.
+          EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-/api}
     ports:
-      - "8080:80"
+      - "${FRONTEND_HOST_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health | grep -q ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
 
 volumes:
   postgres_data:

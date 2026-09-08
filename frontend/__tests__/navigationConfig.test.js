@@ -6,7 +6,7 @@ const {
   ROLE_CARDS,
   findNavigationErrors,
   navigationTargets,
-} = require('../src/navigationConfig');
+} = require('../src/configuracion/navegacion');
 
 describe('navegación por roles', () => {
   test('cada acceso visible apunta a una pantalla registrada', () => {
@@ -22,24 +22,29 @@ describe('navegación por roles', () => {
     });
   });
 
-  test('conserva los módulos originales y los operativos agregados', () => {
+  test('conserva los módulos vigentes y elimina solicitudes del coordinador', () => {
     expect(navigationTargets()).toEqual(expect.arrayContaining([
       'request',
       'farmerDashboard',
       'tracking',
       'users',
       'cooperatives',
-      'requests',
       'vehicles',
       'deliveries',
       'vehicleAssignment',
       'reports',
       'monitoring',
     ]));
+    expect(ROLE_CARDS.coordinador).not.toEqual(expect.arrayContaining([
+      expect.arrayContaining(['Solicitudes', 'requests']),
+    ]));
+    expect(ROLE_CARDS.coordinador).toEqual(expect.arrayContaining([
+      ['Registrar recolección de café', 'deliveries'],
+    ]));
   });
 
-  test('FullApp implementa todas las pantallas declaradas', () => {
-    const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'FullApp.js'), 'utf8');
+  test('AplicacionPrincipal implementa todas las pantallas declaradas', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'aplicacion', 'AplicacionPrincipal.jsx'), 'utf8');
     APP_SCREEN_KEYS.forEach((screen) => {
       expect(source).toMatch(new RegExp(`\\b${screen}\\s*:`));
     });

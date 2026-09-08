@@ -3,7 +3,7 @@ import {
   belongsToOwner,
   offlineOwnerId,
   ownedStorageKey,
-} from '../src/services/offlineOwnership';
+} from '../src/servicios/propietarioSinConexion';
 
 describe('aislamiento de datos offline por usuario', () => {
   test('obtiene una identidad estable desde la sesión autenticada', () => {

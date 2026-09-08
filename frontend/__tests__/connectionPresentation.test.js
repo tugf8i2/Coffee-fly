@@ -1,4 +1,4 @@
-import { connectionLabel, synchronizationLabel } from '../src/services/connectionPresentation';
+import { connectionLabel, synchronizationLabel } from '../src/servicios/presentacionConexion';
 
 describe('connection status presentation', () => {
   test('distinguishes loss of Internet from an unavailable API', () => {

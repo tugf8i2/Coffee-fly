@@ -1,4 +1,4 @@
-import { isValidPassword } from '../src/services/passwordPolicy';
+import { isValidPassword } from '../src/servicios/politicaContrasena';
 
 test.each(['Abcdefg', 'Admin123', 'Árboles', 'Aa' + 'x'.repeat(18)])('acepta contraseña válida %s', (password) => {
   expect(isValidPassword(password)).toBe(true);

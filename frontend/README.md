@@ -1,6 +1,16 @@
 # Coffee Fly — Expo Go y web
 
 Aplicación React Native (Expo) que usa el mismo backend FastAPI.
+El proyecto está actualizado a Expo SDK 57, compatible con la versión actual
+de Expo Go. Si Metro estaba abierto durante una actualización, ciérralo y
+reinícialo con `npx expo start --go --clear`.
+
+La organización del código, la función de cada carpeta y las reglas para crear
+nuevos archivos están explicadas en [ESTRUCTURA_FRONTEND.md](./ESTRUCTURA_FRONTEND.md).
+La explicación detallada de los 33 componentes React está en
+[DOCUMENTACION-COMPONENTES-FRONTEND.md](../Docs/DOCUMENTACION-COMPONENTES-FRONTEND.md).
+La referencia completa de los 68 archivos que forman `frontend/src` está en
+[DOCUMENTACION-COMPLETA-FRONTEND-SRC.md](../Docs/DOCUMENTACION-COMPLETA-FRONTEND-SRC.md).
 
 1. Instala **Expo Go** desde la tienda del celular.
 2. Desde la raíz del proyecto ejecuta el script indicado abajo.

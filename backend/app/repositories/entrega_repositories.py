@@ -5,6 +5,7 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session, aliased
 
 from app.models.carga_models import Carga
+from app.models.cooperativa_models import Cooperativa
 from app.models.conductor_models import Conductor
 from app.models.entrega_models import Entrega
 from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
@@ -99,6 +100,11 @@ class EntregaRepository:
         total = query.count()
         recientes = query.order_by(SeguimientoUbicacion.registrada_en.desc()).limit(limit).all()
         return list(reversed(recientes)), total
+
+    def get_ultimo_punto_ruta(self, entrega_id: UUID):
+        return self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.entrega_id == entrega_id
+        ).order_by(SeguimientoUbicacion.registrada_en.desc()).first()
 
     def get_solicitud_activa(self, solicitud_id: UUID) -> Solicitud | None:
         return self.db.query(Solicitud).filter(
@@ -287,6 +293,9 @@ class EntregaRepository:
             func.lower(Rol.descripcion_rol) == "conductor"
         ).order_by(Usuario.nombre_usuario, Usuario.apellido).all()
 
+    def get_cooperativas_disponibles(self):
+        return self.db.query(Cooperativa).order_by(Cooperativa.nombre).all()
+
     def get_conductor(self, conductor_id: int, for_update: bool = False) -> Conductor | None:
         query = self.db.query(Conductor).filter(Conductor.id_conductor == conductor_id)
         if for_update:
@@ -328,10 +337,11 @@ class EntregaRepository:
             Entrega.estado_entrega.in_(["pendiente", "en camino"]),
         ).first() is not None
 
-    def asignar_vehiculo(self, entrega: Entrega, vehiculo: Vehiculo, conductor: Conductor, solicitud: Solicitud, carga: Carga, coordinador_id: int):
+    def asignar_vehiculo(self, entrega: Entrega, vehiculo: Vehiculo, conductor: Conductor, cooperativa: Cooperativa, solicitud: Solicitud, carga: Carga, coordinador_id: int):
         # La carga representa el peso real que se transportará en esta entrega.
         carga.peso_kg = entrega.cantidad_kg
         carga.vehiculo_id = vehiculo.id_vehiculo
+        carga.cooperativa_id = cooperativa.id_cooperativa
         vehiculo.conductor_id = conductor.id_conductor
         self.db.add(HistorialAsignacion(
             entrega_id=entrega.id_entrega,

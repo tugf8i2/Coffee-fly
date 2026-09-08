@@ -202,6 +202,7 @@ CREATE TABLE public.entrega (
     observaciones character varying(500),
     estado_entrega character varying(20) NOT NULL DEFAULT 'pendiente',
     actualizado_en timestamp,
+    carga_recogida_en timestamp,
     distancia_recorrida_m double precision NOT NULL DEFAULT 0,
     CONSTRAINT uq_entrega_solicitud_id UNIQUE (solicitud_id),
     CONSTRAINT chk_entrega_distancia_recorrida CHECK (distancia_recorrida_m >= 0),

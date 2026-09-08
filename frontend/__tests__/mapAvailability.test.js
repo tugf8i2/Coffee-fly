@@ -1,4 +1,4 @@
-import { isNativeMapAvailable } from '../src/config/mapAvailability';
+import { isNativeMapAvailable } from '../src/configuracion/disponibilidadMapa';
 
 describe('native map availability', () => {
   it('blocks the Android native map when no Google Maps key is configured', () => {

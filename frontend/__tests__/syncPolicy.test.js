@@ -1,4 +1,4 @@
-import { classifySyncFailure, retryDelaySeconds } from '../src/services/syncPolicy';
+import { classifySyncFailure, retryDelaySeconds } from '../src/servicios/politicaSincronizacion';
 
 describe('política de sincronización', () => {
   test('aplica espera exponencial con un máximo de quince minutos', () => {
