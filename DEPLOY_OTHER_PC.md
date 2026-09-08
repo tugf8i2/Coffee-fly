@@ -8,11 +8,16 @@ Este proyecto usa Docker Compose para levantar:
 ## Requisitos previos
 
 En el PC donde vas a ejecutar todo necesitas:
-- Docker instalado
-- Docker Compose disponible
-- Acceso a la carpeta del proyecto `coffee_fly_dios`
+- Docker Desktop actualizado (Windows/macOS) o Docker Engine con el complemento
+  Docker Compose v2 (Linux).
+- Contenedores Linux habilitados. En Windows, Docker Desktop usa WSL 2 y la
+  virtualización del equipo debe estar activa.
+- Al menos 4 GB de RAM disponibles y espacio libre para las imágenes y la base.
+- Acceso a la carpeta del proyecto.
 
-Si usas Windows, puedes instalar Docker Desktop.
+No necesitas instalar Node.js, Python, Nginx ni PostgreSQL en el nuevo PC: sus
+versiones están declaradas en Docker y las dependencias de aplicación están
+bloqueadas en `frontend/package-lock.json` y `backend/requirements.lock.txt`.
 
 ## Pasos para ejecutar en otro PC
 
@@ -22,9 +27,20 @@ Si usas Windows, puedes instalar Docker Desktop.
    cd coffee_fly_dios
    ```
 
-2. Verifica que el archivo `docker-compose.yml` existe en la raíz del proyecto.
+2. Verifica que `docker-compose.yml`, `frontend/package-lock.json` y
+   `backend/requirements.lock.txt` existan.
 
 3. Copia `.env.example` como `.env` y cambia las contraseñas y la clave JWT. Para la versión web conserva `EXPO_PUBLIC_API_URL=/api`: Nginx dirigirá las peticiones al backend sin depender de la IP de la casa o del servidor.
+
+   En PowerShell:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   En Linux/macOS:
+   ```bash
+   cp .env.example .env
+   ```
 
    ```env
    EXPO_PUBLIC_API_URL=/api
@@ -44,7 +60,14 @@ Si usas Windows, puedes instalar Docker Desktop.
    powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
    ```
 
-   En Linux/macOS puedes usar `docker compose up --build -d` y comprobar `http://127.0.0.1:8080/health`.
+   En Linux/macOS puedes usar:
+   ```bash
+   docker compose config --quiet
+   docker compose pull
+   docker compose build --pull
+   docker compose up -d
+   curl --fail http://127.0.0.1:8080/health
+   ```
 
 5. Revisa que los servicios estén corriendo:
    ```powershell
@@ -73,7 +96,10 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 ## Si el host se abre en otro PC y no funciona
 
-1. Asegúrate de que los puertos `8080`, `8000` y `5433` estén permitidos en el firewall del PC que ejecuta Docker.
+1. Para acceder desde otro equipo, permite `8080` en el firewall del PC que
+   ejecuta Docker. Abre `8000` solo si también necesitas acceder directamente a
+   la API. PostgreSQL (`5433`) está enlazado únicamente a `127.0.0.1` y no se
+   expone a la red local.
 2. Verifica que `EXPO_PUBLIC_API_URL=/api`; no uses `localhost:8000` en el export web.
 3. Comprueba el estado y los logs:
    ```powershell
@@ -86,7 +112,8 @@ Si usas Windows, puedes instalar Docker Desktop.
 - PostgreSQL se expone en `127.0.0.1:5433` para evitar conflictos con instalaciones locales que usan el puerto `5432`.
   En DBeaver usa host `127.0.0.1`, puerto `5433`, base `coffeefly`, usuario `postgres` y contraseña `1234`.
 - En una instalación nueva, entra con `admin@coffeefly.com` y `Admin123`.
-- Dentro de Docker el backend usa `db:5433`; PostgreSQL mantiene el mismo puerto en todo el sistema.
+- Dentro de Docker el backend usa `db:5432`, el puerto estándar de PostgreSQL.
+  `5433` es únicamente el puerto publicado en el PC para herramientas como DBeaver.
 - Si en otro equipo `5433` también estuviera ocupado, ejecuta `POSTGRES_HOST_PORT=5434 docker compose up -d`
   y usa ese mismo puerto en DBeaver.
 - El archivo `backend/BaseDatos.sql` se ejecuta solo la primera vez que el volumen de Postgres se crea.
@@ -97,6 +124,9 @@ Si usas Windows, puedes instalar Docker Desktop.
   docker compose up --build -d
   ```
 - El frontend se sirve en `http://<HOST_IP>:8080` y el backend en `http://<HOST_IP>:8000`.
+- Las imágenes fijadas actualmente son PostgreSQL 16.15, Python 3.11.16,
+  Node.js 22.23.2 y Nginx 1.30.4. No cambies PostgreSQL a otra versión mayor sin
+  hacer antes una migración o una exportación/importación de la base.
 
 ## Comandos útiles
 
@@ -117,10 +147,11 @@ Si usas Windows, puedes instalar Docker Desktop.
   docker compose up --build -d
   ```
 
+- Descargar parches de las imágenes fijadas y reconstruir sin reutilizar capas:
+  ```powershell
+  docker compose pull
+  docker compose build --pull --no-cache
+  docker compose up -d
+  ```
+
 ---
-
-Si necesitas, puedo crear también un `README.md` en la raíz con los mismos pasos o un archivo `.env.example` para editar más fácil.
-
-
-
-powershell -ExecutionPolicy Bypass -File C:\Users\SENA\Pictures\Coffee-fly\scripts\start-mobile-tunnel.ps1

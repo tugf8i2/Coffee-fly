@@ -192,6 +192,11 @@ La versión funcional actual se encuentra en `frontend/` y utiliza React Native 
 docker compose up --build -d
 ```
 
+Las imágenes y dependencias están fijadas para que una instalación nueva sea
+repetible. Copia primero `.env.example` como `.env`; no es necesario instalar
+Python, Node.js, PostgreSQL ni Nginx en el equipo anfitrión. La guía completa
+está en `DEPLOY_OTHER_PC.md`.
+
 No es obligatorio crear `.env` para desarrollo local. En una base nueva se crea
 el Registrador `admin@coffeefly.com` con contraseña `Admin123`. Cambia estas
 credenciales y `JWT_SECRET_KEY` antes de publicar el sistema en producción.
