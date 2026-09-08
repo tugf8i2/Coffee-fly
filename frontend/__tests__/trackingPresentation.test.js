@@ -1,4 +1,4 @@
-import { realtimeLabel, trackingModeLabel } from '../src/services/trackingPresentation';
+import { realtimeLabel, trackingModeLabel } from '../src/servicios/presentacionSeguimiento';
 
 describe('presentación del seguimiento', () => {
   test('traduce todos los estados emitidos por el canal en tiempo real', () => {

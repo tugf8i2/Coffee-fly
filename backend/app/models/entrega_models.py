@@ -18,6 +18,7 @@ class Entrega(Base):
     observaciones = Column(String(500))
     estado_entrega = Column(String(20), nullable=False, default="pendiente", index=True)
     actualizado_en = Column(DateTime, nullable=True)
+    carga_recogida_en = Column(DateTime, nullable=True)
     distancia_recorrida_m = Column(Float, nullable=False, default=0, server_default="0")
 
     solicitud = relationship("Solicitud")

@@ -6,6 +6,10 @@ node_modules/
 # Expo
 .expo/
 .expo-validation/
+.expo-android-check/
+.expo-verify/
+.expo-role-verify/
+.verification-*/
 dist/
 web-build/
 expo-env.d.ts

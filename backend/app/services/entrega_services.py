@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.entrega_models import Entrega
+from app.models.cooperativa_models import Cooperativa
 from app.models.historial_eventos_models import HistorialEvento
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.core.time import as_utc_aware, to_utc_naive, utc_now_naive
@@ -19,6 +20,8 @@ MAX_PRECISION_METROS = 150
 MAX_VELOCIDAD_METROS_SEGUNDO = 60
 DISTANCIA_DUPLICADO_METROS = 5
 VENTANA_DUPLICADO_SEGUNDOS = 20
+RADIO_CONFIRMACION_CARGA_METROS = 250
+MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS = 300
 
 
 def _fecha_utc_sin_zona(fecha: datetime) -> datetime:
@@ -241,18 +244,65 @@ class EntregaService:
         if role == "conductor" and (not usuario.conductor or vehiculo.conductor_id != usuario.conductor.id_conductor):
             raise HTTPException(status_code=403, detail="No tienes acceso a esta entrega")
         puntos, total_puntos = self.repository.get_puntos_ruta(entrega_id)
+        carga = entrega.solicitud.carga if entrega.solicitud else None
+        cooperativa = carga.cooperativa if carga else None
+        ubicacion_cooperativa = cooperativa.ubicacion if cooperativa else None
+        recoleccion_latitud = float(entrega.caficultor.latitud_finca) if entrega.caficultor and entrega.caficultor.latitud_finca is not None else None
+        recoleccion_longitud = float(entrega.caficultor.longitud_finca) if entrega.caficultor and entrega.caficultor.longitud_finca is not None else None
+        recoleccion = ", ".join(filter(None, [
+            f"{entrega.caficultor.nombre_usuario} {entrega.caficultor.apellido}".strip() if entrega.caficultor else None,
+            entrega.caficultor.vereda if entrega.caficultor else None,
+            entrega.caficultor.municipio if entrega.caficultor else None,
+            entrega.caficultor.departamento if entrega.caficultor else None,
+        ]))
+        cooperativa_destino = ", ".join(filter(None, [
+            cooperativa.nombre if cooperativa else None,
+            ubicacion_cooperativa.direccion if ubicacion_cooperativa else None,
+            ubicacion_cooperativa.ciudad if ubicacion_cooperativa else None,
+            ubicacion_cooperativa.departamento if ubicacion_cooperativa else None,
+        ]))
+        cooperativa_latitud = float(ubicacion_cooperativa.y) if ubicacion_cooperativa and ubicacion_cooperativa.y is not None else None
+        cooperativa_longitud = float(ubicacion_cooperativa.x) if ubicacion_cooperativa and ubicacion_cooperativa.x is not None else None
+        hacia_cooperativa = entrega.carga_recogida_en is not None
+        destino = cooperativa_destino if hacia_cooperativa else recoleccion
+        destino_latitud = cooperativa_latitud if hacia_cooperativa else recoleccion_latitud
+        destino_longitud = cooperativa_longitud if hacia_cooperativa else recoleccion_longitud
+        ultimo = puntos[-1] if puntos else None
+        distancia_recoleccion = None
+        if ultimo and recoleccion_latitud is not None and recoleccion_longitud is not None:
+            distancia_recoleccion = _distancia_metros(
+                float(ultimo.latitud), float(ultimo.longitud), recoleccion_latitud, recoleccion_longitud
+            )
+        ubicacion_reciente = bool(
+            ultimo
+            and (utc_now_naive() - to_utc_naive(ultimo.registrada_en)).total_seconds()
+            <= MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS
+        )
         return {
             "entrega_id": entrega.id_entrega, "estado_entrega": entrega.estado_entrega,
             "vehiculo_id": vehiculo.id_vehiculo, "vehiculo_placa": vehiculo.placa,
-            "destino": ", ".join(filter(None, [
-                f"{entrega.caficultor.nombre_usuario} {entrega.caficultor.apellido}".strip() if entrega.caficultor else None,
-                entrega.caficultor.vereda if entrega.caficultor else None,
-                entrega.caficultor.municipio if entrega.caficultor else None,
-                entrega.caficultor.departamento if entrega.caficultor else None,
-            ])),
-            "destino_latitud": float(entrega.caficultor.latitud_finca) if entrega.caficultor and entrega.caficultor.latitud_finca is not None else None,
-            "destino_longitud": float(entrega.caficultor.longitud_finca) if entrega.caficultor and entrega.caficultor.longitud_finca is not None else None,
+            "destino": destino,
+            "destino_latitud": destino_latitud,
+            "destino_longitud": destino_longitud,
             "destino_actualizado_en": entrega.caficultor.ubicacion_finca_actualizada_en if entrega.caficultor else None,
+            "etapa_viaje": "hacia_cooperativa" if hacia_cooperativa else "hacia_finca",
+            "carga_recogida_en": entrega.carga_recogida_en,
+            "recoleccion": recoleccion,
+            "recoleccion_latitud": recoleccion_latitud,
+            "recoleccion_longitud": recoleccion_longitud,
+            "cooperativa_nombre": cooperativa.nombre if cooperativa else None,
+            "cooperativa_destino": cooperativa_destino or None,
+            "cooperativa_latitud": cooperativa_latitud,
+            "cooperativa_longitud": cooperativa_longitud,
+            "distancia_recoleccion_m": distancia_recoleccion,
+            "radio_confirmacion_m": RADIO_CONFIRMACION_CARGA_METROS,
+            "puede_confirmar_carga": bool(
+                entrega.estado_entrega == "en camino"
+                and not hacia_cooperativa
+                and ubicacion_reciente
+                and distancia_recoleccion is not None
+                and distancia_recoleccion <= RADIO_CONFIRMACION_CARGA_METROS
+            ),
             "total_puntos": total_puntos,
             "ruta_truncada": total_puntos > len(puntos),
             "distancia_recorrida_m": float(entrega.distancia_recorrida_m or 0),
@@ -348,6 +398,15 @@ class EntregaService:
             }
             for usuario, conductor in self.repository.get_conductores_disponibles()
         ]
+
+    def obtener_cooperativas_disponibles(self):
+        return [{
+            "id_cooperativa": cooperativa.id_cooperativa,
+            "nombre": cooperativa.nombre,
+            "departamento": cooperativa.ubicacion.departamento,
+            "ciudad": cooperativa.ubicacion.ciudad,
+            "direccion": cooperativa.ubicacion.direccion,
+        } for cooperativa in self.repository.get_cooperativas_disponibles() if cooperativa.ubicacion]
 
     def obtener_historial_asignaciones(self):
         return [
@@ -462,6 +521,8 @@ class EntregaService:
             raise HTTPException(status_code=400, detail="Una entrega cancelada no puede cambiar de estado")
         if entrega.estado_entrega == estado_nuevo:
             raise HTTPException(status_code=400, detail="La entrega ya tiene ese estado")
+        if estado_nuevo == "entregado" and entrega.carga_recogida_en is None:
+            raise HTTPException(status_code=400, detail="Primero debes confirmar la recogida de la carga en la finca")
         if modificado_en and entrega.actualizado_en:
             fecha_cliente = to_utc_naive(modificado_en)
             if fecha_cliente <= entrega.actualizado_en:
@@ -540,7 +601,7 @@ class EntregaService:
             for item, usuario_cambio in self.repository.get_historial_estados_lote(ids)
         ]
 
-    def asignar_vehiculo(self, entrega_id: UUID, vehiculo_id: int, conductor_id: int, coordinador_id: int):
+    def asignar_vehiculo(self, entrega_id: UUID, vehiculo_id: int, conductor_id: int, cooperativa_id: int, coordinador_id: int):
         entrega = self.repository.db.query(Entrega).filter(
             Entrega.id_entrega == entrega_id
         ).with_for_update().first()
@@ -563,6 +624,11 @@ class EntregaService:
             raise HTTPException(status_code=400, detail="El conductor debe tener una foto de licencia registrada")
         if self.repository.conductor_tiene_viaje_activo(conductor_id, vehiculo_id):
             raise HTTPException(status_code=400, detail="El conductor ya tiene un vehículo en camino")
+        cooperativa = self.repository.db.query(Cooperativa).filter(
+            Cooperativa.id_cooperativa == cooperativa_id
+        ).first()
+        if cooperativa is None or cooperativa.ubicacion is None:
+            raise HTTPException(status_code=400, detail="La cooperativa seleccionada no tiene una ubicación válida")
 
         carga_actual = self.repository.get_peso_cargado_vehiculo(vehiculo_id)
         peso_nuevo = float(entrega.cantidad_kg)
@@ -574,5 +640,62 @@ class EntregaService:
             )
 
         return self.repository.asignar_vehiculo(
-            entrega, vehiculo, conductor, solicitud, solicitud.carga, coordinador_id
+            entrega, vehiculo, conductor, cooperativa, solicitud, solicitud.carga, coordinador_id
         )
+
+    def confirmar_carga_recogida(self, entrega_id: UUID, usuario_id: int, conductor_id: int):
+        entrega = self.repository.get_entrega_asignada_a_conductor(
+            entrega_id, conductor_id, for_update=True
+        )
+        if entrega is None:
+            raise HTTPException(status_code=403, detail="Solo puedes confirmar la carga asignada a tu vehículo")
+        if entrega.estado_entrega != "en camino":
+            raise HTTPException(status_code=400, detail="Inicia el viaje antes de confirmar la carga")
+        if entrega.carga_recogida_en is not None:
+            return {
+                "entrega_id": entrega.id_entrega,
+                "carga_recogida_en": entrega.carga_recogida_en,
+                "etapa_viaje": "hacia_cooperativa",
+            }
+        solicitud = self.repository.get_solicitud(entrega.solicitud_id)
+        carga = solicitud.carga if solicitud else None
+        if carga is None or carga.cooperativa is None or carga.cooperativa.ubicacion is None:
+            raise HTTPException(status_code=400, detail="La entrega no tiene una cooperativa de destino asignada")
+        caficultor = entrega.caficultor
+        if caficultor is None or caficultor.latitud_finca is None or caficultor.longitud_finca is None:
+            raise HTTPException(status_code=400, detail="El caficultor no tiene una ubicación de recolección registrada")
+        ultimo = self.repository.get_ultimo_punto_ruta(entrega_id)
+        if ultimo is None:
+            raise HTTPException(status_code=400, detail="Activa el GPS para confirmar que llegaste al punto de recolección")
+        antiguedad = (utc_now_naive() - to_utc_naive(ultimo.registrada_en)).total_seconds()
+        if antiguedad > MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS:
+            raise HTTPException(status_code=400, detail="Actualiza tu ubicación GPS antes de confirmar la carga")
+        distancia = _distancia_metros(
+            float(ultimo.latitud), float(ultimo.longitud),
+            float(caficultor.latitud_finca), float(caficultor.longitud_finca),
+        )
+        if distancia > RADIO_CONFIRMACION_CARGA_METROS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Debes estar a menos de {RADIO_CONFIRMACION_CARGA_METROS} m del caficultor. Distancia actual: {distancia:.0f} m",
+            )
+        ahora = utc_now_naive()
+        entrega.carga_recogida_en = ahora
+        self.repository.db.add(HistorialEvento(
+            carga_id=carga.id_carga,
+            entrega_id=entrega.id_entrega,
+            tipo_evento="carga recogida",
+            descripcion_evento="Carga recogida y confirmada por el conductor",
+            fecha_hora_evento=ahora,
+            fecha_hora_sincronizacion=ahora,
+            conductor_id=conductor_id,
+            usuario_id_cambio=usuario_id,
+            expira_en=ahora + timedelta(days=EVENT_RETENTION_DAYS),
+        ))
+        self.repository.db.commit()
+        self.repository.db.refresh(entrega)
+        return {
+            "entrega_id": entrega.id_entrega,
+            "carga_recogida_en": entrega.carga_recogida_en,
+            "etapa_viaje": "hacia_cooperativa",
+        }

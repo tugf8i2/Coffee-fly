@@ -1,10 +1,10 @@
-jest.mock('../src/config', () => ({
+jest.mock('../src/configuracion', () => ({
   API_BASE_URL: 'https://api.test',
   fetchApi: jest.fn(),
 }));
 
-import { fetchApi } from '../src/config';
-import { fetchDeliveryHistories } from '../src/services/deliveryHistory';
+import { fetchApi } from '../src/configuracion';
+import { fetchDeliveryHistories } from '../src/servicios/historialEntregas';
 
 describe('delivery history batch client', () => {
   beforeEach(() => fetchApi.mockReset());

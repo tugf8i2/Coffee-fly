@@ -2,6 +2,9 @@
 
 Fecha de revisión: 29 de agosto de 2026.
 
+Actualización del 7 de septiembre de 2026: el frontend fue migrado de Expo SDK
+54 a SDK 57 y validado con Expo Doctor, pruebas Jest y exports Android/web.
+
 ## Resultado ejecutivo
 
 Coffee Fly conserva los módulos funcionales RF-01 a RF-17 en una sola entrada canónica (`frontend/src/FullApp.js`). La aplicación usa Expo/React Native para Android, iOS y web, FastAPI para REST y WebSockets, PostgreSQL para persistencia y SQLite cifrado en el dispositivo para la operación offline móvil.
@@ -136,9 +139,9 @@ El limitador por IP incluido es local al proceso. En producción debe complement
 
 - `pip-audit` no reporta vulnerabilidades conocidas después de actualizar `python-dotenv` a 1.2.2 y `python-multipart` a 0.0.31.
 - `pip check` no reporta dependencias Python rotas.
-- `npm audit` conserva 8 avisos altos en Metro/image-size, dentro de las herramientas de compilación de Expo SDK 54. No son imports directos del código de negocio.
-- Se probó Metro 0.83.8, versión donde el aviso está corregido: Android/web compilaron, pero el servidor Expo SDK 54 falló con `eventsQueue is not iterable`. El override fue revertido porque una mitigación incompatible no es aceptable.
-- No debe ejecutarse `npm audit fix --force`: instalaría Expo 57 como cambio mayor. La corrección definitiva es migrar el SDK y generar un development build después de completar la validación física de la versión actual.
+- La migración controlada 54→55→56→57 alineó React Native 0.86.3 y los módulos Expo; `npm audit` no reporta vulnerabilidades conocidas.
+- Expo Doctor pasa 21/21 comprobaciones y los exports Android/web terminan correctamente.
+- Los valores heredados de splash screen fueron migrados al plugin `expo-splash-screen`; `expo-sharing` y `expo-status-bar` también quedaron registrados como plugins nativos.
 - Los `.env` reales están ignorados por Git y la búsqueda de secretos versionados no encontró credenciales incrustadas.
 
 ## Monitoreo y diagnóstico
@@ -272,7 +275,7 @@ Las URLs `trycloudflare.com` y `exp.direct` son temporales y no tienen garantía
 
 1. El flujo actual web + Expo Go no certifica ubicación nativa prolongada en segundo plano; completar la matriz física sólo si ese requisito vuelve a activarse.
 2. El APK queda archivado. Configurar una clave restringida de Maps SDK for Android y generar otro APK únicamente si el mapa nativo integrado vuelve a ser requisito de aceptación.
-3. Mantener SDK 54 mientras el requisito sea Expo Go de tienda; planear su migración como cambio controlado cuando corresponda.
+3. Mantener SDK 57 alineado con Expo Go y reconstruir cualquier development build creado con un SDK anterior.
 4. Llevar métricas y rate limiting a infraestructura compartida antes de usar varios workers.
 5. Añadir PostGIS únicamente cuando las consultas espaciales lo justifiquen.
 6. Ejecutar pruebas de carga multiusuario con datos semejantes a producción y monitorear PostgreSQL.

@@ -1,4 +1,4 @@
-import { accountStateFromUser, accountStatesByUser } from '../src/services/accountState';
+import { accountStateFromUser, accountStatesByUser } from '../src/servicios/estadoCuenta';
 
 const now = Date.parse('2026-08-29T18:00:00.000Z');
 

@@ -24,19 +24,27 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 2. Verifica que el archivo `docker-compose.yml` existe en la raíz del proyecto.
 
-3. Para usarlo únicamente en ese PC no necesitas crear `.env`. Si quieres abrirlo desde otros equipos de la red, crea `.env` con la IP del PC que ejecuta Docker:
+3. Copia `.env.example` como `.env` y cambia las contraseñas y la clave JWT. Para la versión web conserva `EXPO_PUBLIC_API_URL=/api`: Nginx dirigirá las peticiones al backend sin depender de la IP de la casa o del servidor.
 
    ```env
-   EXPO_PUBLIC_API_URL=http://192.168.1.10:8000
-   CORS_ORIGINS=http://192.168.1.10:8080,http://localhost:8080
+   EXPO_PUBLIC_API_URL=/api
+   POSTGRES_PASSWORD=una-clave-segura
+   ENV=production
+   JWT_SECRET_KEY=una-clave-aleatoria-larga-y-privada
+   BOOTSTRAP_REGISTRADOR_PASSWORD=otra-clave-segura
+   CORS_ORIGINS=https://coffee.midominio.com
+   ALLOWED_HOSTS=coffee.midominio.com
    ```
 
-   Nota: `192.168.1.10` debe ser la dirección IP del PC que ejecuta Docker en tu red local.
+   En un APK o Expo Go sí debes usar una URL absoluta alcanzable desde el teléfono; para producción usa un dominio HTTPS estable.
+   Usa una contraseña de PostgreSQL alfanumérica larga en este Compose; caracteres reservados de URL como `@`, `:` o `/` deben codificarse.
 
-4. Levanta los contenedores:
+4. En Windows, ejecuta el despliegue asistido. Valida Docker, construye, espera la base de datos y comprueba toda la ruta navegador -> Nginx -> FastAPI -> PostgreSQL:
    ```powershell
-   docker compose up --build -d
+   powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
    ```
+
+   En Linux/macOS puedes usar `docker compose up --build -d` y comprobar `http://127.0.0.1:8080/health`.
 
 5. Revisa que los servicios estén corriendo:
    ```powershell
@@ -54,24 +62,23 @@ Si usas Windows, puedes instalar Docker Desktop.
 
 ## Verificación
 
-- Para comprobar que el backend responde correctamente:
+- Para ejecutar solamente el diagnóstico en Windows:
   ```powershell
-  curl http://<HOST_IP>:8000/
+  powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1 -PublicUrl http://127.0.0.1:8080
   ```
   Debe devolver:
-  ```json
-  {"message":"API funcionando"}
-  ```
+  `Diagnóstico terminado: el entorno está listo.`
 
 - Para comprobar que el frontend puede ver el backend, carga la app en el navegador y prueba iniciar sesión o crear datos.
 
 ## Si el host se abre en otro PC y no funciona
 
 1. Asegúrate de que los puertos `8080`, `8000` y `5433` estén permitidos en el firewall del PC que ejecuta Docker.
-2. Verifica que `EXPO_PUBLIC_API_URL` en `.env` use la IP correcta del host y no `localhost`.
-3. Si cambias `EXPO_PUBLIC_API_URL`, vuelve a reconstruir el frontend:
+2. Verifica que `EXPO_PUBLIC_API_URL=/api`; no uses `localhost:8000` en el export web.
+3. Comprueba el estado y los logs:
    ```powershell
-   docker compose up --build -d frontend
+   docker compose ps
+   docker compose logs --tail 100 backend frontend db
    ```
 
 ## Notas importantes

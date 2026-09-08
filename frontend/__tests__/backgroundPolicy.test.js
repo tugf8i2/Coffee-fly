@@ -1,4 +1,4 @@
-import { isPowerConserving, trackingIntervals } from '../src/services/backgroundPolicy';
+import { isPowerConserving, trackingIntervals } from '../src/servicios/politicaSegundoPlano';
 
 describe('política de batería para GPS', () => {
   test('usa el perfil normal con batería suficiente', () => {

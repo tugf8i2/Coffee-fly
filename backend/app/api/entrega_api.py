@@ -9,7 +9,7 @@ from app.core.auth import require_roles
 from app.core.database import get_db
 from app.core.realtime import tracking_connections
 from app.models.usuario_models import Usuario
-from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConductorDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
+from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
 
 
@@ -102,6 +102,14 @@ def listar_conductores_disponibles(
     return EntregaService(db).obtener_conductores_disponibles()
 
 
+@router.get("/cooperativas-disponibles", response_model=list[CooperativaDisponibleResponse])
+def listar_cooperativas_disponibles(
+    db: Session = Depends(get_db),
+    _coordinador: Usuario = Depends(require_roles("coordinador")),
+):
+    return EntregaService(db).obtener_cooperativas_disponibles()
+
+
 @router.get("/historial-asignaciones", response_model=list[HistorialAsignacionResponse])
 def listar_historial_asignaciones(
     db: Session = Depends(get_db),
@@ -124,7 +132,7 @@ def obtener_historial_estados_lote(
 def listar_notificaciones_eventos(
     entrega_id: UUID | None = None,
     estado: Literal["pendiente", "en camino", "entregado", "cancelado"] | None = None,
-    tipo_evento: Literal["inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada", "daño vehicular", "parada baño", "imprevisto nuevo"] | None = None,
+    tipo_evento: Literal["inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada", "daño vehicular", "parada baño", "imprevisto nuevo", "carga recogida"] | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_roles("coordinador", "caficultor")),
 ):
@@ -148,7 +156,22 @@ def asignar_vehiculo(
     coordinador: Usuario = Depends(require_roles("coordinador")),
 ):
     return EntregaService(db).asignar_vehiculo(
-        UUID(entrega_id), asignacion.vehiculo_id, asignacion.conductor_id, coordinador.id_usuario
+        UUID(entrega_id), asignacion.vehiculo_id, asignacion.conductor_id,
+        asignacion.cooperativa_id, coordinador.id_usuario
+    )
+
+
+@router.post("/{entrega_id}/confirmar-carga", response_model=ConfirmarCargaResponse)
+def confirmar_carga_recogida(
+    entrega_id: UUID,
+    db: Session = Depends(get_db),
+    conductor: Usuario = Depends(require_roles("conductor")),
+):
+    if conductor.conductor is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="El usuario no tiene un perfil de conductor")
+    return EntregaService(db).confirmar_carga_recogida(
+        entrega_id, conductor.id_usuario, conductor.conductor.id_conductor
     )
 
 

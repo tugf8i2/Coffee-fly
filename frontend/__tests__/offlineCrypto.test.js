@@ -4,7 +4,7 @@ import {
   decryptWithKey,
   encryptWithKey,
   isEncryptedOfflineText,
-} from '../src/services/offlineCrypto.native';
+} from '../src/servicios/cifradoSinConexion.native';
 
 
 describe('cifrado offline móvil', () => {

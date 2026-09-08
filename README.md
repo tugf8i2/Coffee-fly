@@ -5,6 +5,9 @@
 **SENA · Tecnólogo en Análisis y Desarrollo de Software · Ficha 3407179**
 **Bootcamp: Arquitectura de Software · Marzo 2026**
 
+La guía técnica completa y actualizada del backend y el front-end está en
+[`Docs/DOCUMENTACION-BACKEND-FRONTEND.md`](Docs/DOCUMENTACION-BACKEND-FRONTEND.md).
+
 ---
 
 ## 1️⃣ ¿Qué Problema Resuelve?

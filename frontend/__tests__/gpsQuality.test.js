@@ -2,7 +2,7 @@ import {
   canStartTrackingFromGpsResult,
   distanceMeters,
   evaluateGpsPoint,
-} from '../src/services/gpsQuality';
+} from '../src/servicios/calidadGps';
 
 const now = Date.parse('2026-08-29T14:00:00.000Z');
 const point = (changes = {}) => ({

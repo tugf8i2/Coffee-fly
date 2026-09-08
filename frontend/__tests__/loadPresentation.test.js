@@ -1,4 +1,4 @@
-import { bagSummary, calculateBagGroupsKg, calculateLoadKg, tonnes, weight } from '../src/services/loadPresentation';
+import { bagSummary, calculateBagGroupsKg, calculateLoadKg, tonnes, weight } from '../src/servicios/presentacionCarga';
 
 test('calcula bultos normales y un bulto extra', () => {
   expect(calculateLoadKg('60', 12, '35.5')).toBe(755.5);

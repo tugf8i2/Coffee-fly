@@ -19,6 +19,7 @@ class EntregaResponse(BaseModel):
     fecha_hora_entrega: datetime
     observaciones: Optional[str] = None
     estado_entrega: str
+    carga_recogida_en: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,6 +87,21 @@ class SolicitudActivaEntregaResponse(BaseModel):
 class AsignarVehiculoRequest(BaseModel):
     vehiculo_id: int = Field(gt=0)
     conductor_id: int = Field(gt=0)
+    cooperativa_id: int = Field(gt=0)
+
+
+class CooperativaDisponibleResponse(BaseModel):
+    id_cooperativa: int
+    nombre: str
+    departamento: str
+    ciudad: str
+    direccion: str
+
+
+class ConfirmarCargaResponse(BaseModel):
+    entrega_id: UUID
+    carga_recogida_en: datetime
+    etapa_viaje: Literal["hacia_cooperativa"] = "hacia_cooperativa"
 
 
 class EntregaPendienteAsignacionResponse(BaseModel):
@@ -196,6 +212,18 @@ class SeguimientoEntregaResponse(BaseModel):
     destino_latitud: Optional[float] = None
     destino_longitud: Optional[float] = None
     destino_actualizado_en: Optional[datetime] = None
+    etapa_viaje: Literal["hacia_finca", "hacia_cooperativa"] = "hacia_finca"
+    carga_recogida_en: Optional[datetime] = None
+    recoleccion: Optional[str] = None
+    recoleccion_latitud: Optional[float] = None
+    recoleccion_longitud: Optional[float] = None
+    cooperativa_nombre: Optional[str] = None
+    cooperativa_destino: Optional[str] = None
+    cooperativa_latitud: Optional[float] = None
+    cooperativa_longitud: Optional[float] = None
+    distancia_recoleccion_m: Optional[float] = None
+    radio_confirmacion_m: float = 250
+    puede_confirmar_carga: bool = False
     total_puntos: int = 0
     ruta_truncada: bool = False
     distancia_recorrida_m: float = 0

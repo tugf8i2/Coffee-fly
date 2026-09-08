@@ -1,4 +1,4 @@
-import { applyTrackingMessage, mergeTrackingPoints } from '../src/services/trackingRealtime';
+import { applyTrackingMessage, mergeTrackingPoints, trackingSocketUrl } from '../src/servicios/seguimientoTiempoReal';
 
 const point = (id, second) => ({
   client_point_id: id,
@@ -8,6 +8,12 @@ const point = (id, second) => ({
 });
 
 describe('actualización incremental del seguimiento', () => {
+  test('crea WebSocket absoluto desde el proxy relativo del export web', () => {
+    expect(trackingSocketUrl('/api', { protocol: 'https:', host: 'coffee.example.com' }))
+      .toBe('wss://coffee.example.com/api/ws/seguimiento');
+    expect(trackingSocketUrl('https://api.example.com')).toBe('wss://api.example.com/ws/seguimiento');
+  });
+
   test('ordena y elimina puntos repetidos por UUID', () => {
     const result = mergeTrackingPoints([point('b', 2), point('a', 1)], [point('b', 2), point('c', 3)]);
     expect(result.map((item) => item.client_point_id)).toEqual(['a', 'b', 'c']);

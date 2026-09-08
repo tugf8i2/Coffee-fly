@@ -1,5 +1,14 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Literal, Optional
+
+
+def validar_anio_modelo(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return value
+    normalized = str(value).strip()
+    if not normalized.isdigit() or len(normalized) != 4 or int(normalized) < 2000:
+        raise ValueError("El modelo debe ser un año igual o posterior a 2000")
+    return normalized
 
 
 class VehiculoBase(BaseModel):
@@ -22,7 +31,10 @@ class VehiculoBase(BaseModel):
 
 
 class VehiculoCreate(VehiculoBase):
-    pass
+    @field_validator("modelo")
+    @classmethod
+    def validar_modelo(cls, value):
+        return validar_anio_modelo(value)
 
 
 
@@ -40,6 +52,11 @@ class VehiculoUpdate(BaseModel):
     ] = None
 
     conductor_id: Optional[int] = None
+
+    @field_validator("modelo")
+    @classmethod
+    def validar_modelo(cls, value):
+        return validar_anio_modelo(value)
 
 
 
