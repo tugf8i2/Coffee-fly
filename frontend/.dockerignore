@@ -1,8 +1,11 @@
-node_modules
-.git
-.expo
-dist
-dist-test
-dist-*
 .env
+.expo/
+.verification-*/
+android/
+ios/
+dist/
+dist-*/
+node_modules/
 npm-debug.log*
+__tests__/
+*.md

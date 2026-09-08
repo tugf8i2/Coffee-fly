@@ -1,30 +1,33 @@
+name: coffee-fly
+
 services:
   db:
-    image: postgres:16-alpine
-    command: ["postgres", "-p", "5433"]
+    image: postgres:16.15-alpine3.24
+    shm_size: 128mb
     environment:
-      # Nombre de la BD usado localmente: 'coffeefly'
-      POSTGRES_DB: coffeefly
-      POSTGRES_USER: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-coffeefly}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
     ports:
       # El 5432 del equipo ya lo usa otra instalación de PostgreSQL.
-      # PostgreSQL usa 5433 tanto dentro como fuera de Docker.
-      # Puedes cambiarlo sin tocar este archivo con POSTGRES_HOST_PORT.
-      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5433"
+      # Solo el puerto del PC cambia; entre contenedores se usa el estándar 5432.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Inicializar la base con el script SQL si no existe
       - ./backend/BaseDatos.sql:/docker-entrypoint-initdb.d/BaseDatos.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d coffeefly -p 5433"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    image: coffee-fly-backend:1.0.0
+    build:
+      context: ./backend
+      pull: true
     working_dir: /app
     command: sh -c "PYTHONPATH=/app alembic upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
@@ -40,8 +43,7 @@ services:
       EVENT_RETENTION_DAYS: ${EVENT_RETENTION_DAYS:-30}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
-      # Asegurarse de usar el mismo nombre de BD: 'coffeefly'
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-1234}@db:5433/coffeefly
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-1234}@db:5432/${POSTGRES_DB:-coffeefly}
     depends_on:
       db:
         condition: service_healthy
@@ -54,11 +56,13 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: coffee-fly-frontend:1.0.0
     build:
       context: ./frontend
+      pull: true
       args:
-          # /api usa el mismo host del navegador y Nginx lo dirige a FastAPI.
-          EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-/api}
+        # /api usa el mismo host del navegador y Nginx lo dirige a FastAPI.
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-/api}
     ports:
       - "${FRONTEND_HOST_PORT:-8080}:80"
     depends_on:

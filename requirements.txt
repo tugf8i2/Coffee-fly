@@ -1,6 +1,3 @@
-fastapi[standard]
-uvicorn
-sqlalchemy
-psycopg2-binary
-passlib[bcrypt]
-python-multipart
+# Archivo puente para herramientas ejecutadas desde la raíz.
+# La fuente canónica y versionada está en backend/requirements.txt.
+-r backend/requirements.txt
