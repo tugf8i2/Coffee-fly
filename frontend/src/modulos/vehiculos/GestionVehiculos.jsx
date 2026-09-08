@@ -3,12 +3,13 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
+import { styles } from './GestionVehiculos.styles';
 
 const empty = {
   placa: '', tipo_vehiculo: '', modelo: '', capacidad_toneladas: '', estado_vehiculo: 'disponible',
 };
 
-export default function GestionVehiculos({ go, token, styles }) {
+export default function GestionVehiculos({ go, token }) {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
@@ -99,7 +100,7 @@ export default function GestionVehiculos({ go, token, styles }) {
         <Text style={styles.label}>Estado operativo</Text>
         <View style={styles.statusActions}>{['disponible', 'en mantenimiento'].map((state) => <TouchableOpacity key={state} style={[styles.role, form.estado_vehiculo === state && styles.roleActive]} onPress={() => set('estado_vehiculo', state)}><Text>{state}</Text></TouchableOpacity>)}</View>
       </>}
-      <TouchableOpacity style={[styles.primary, saving && { opacity: 0.6 }]} disabled={saving} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar vehículo'}</Text></TouchableOpacity>
+      <TouchableOpacity style={[styles.primary, saving && styles.saving]} disabled={saving} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar vehículo'}</Text></TouchableOpacity>
       {editing ? <TouchableOpacity onPress={() => { setEditing(null); setForm(empty); }}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Vehículos registrados</Text>
@@ -112,6 +113,5 @@ export default function GestionVehiculos({ go, token, styles }) {
       <TouchableOpacity onPress={() => remove(vehicle)}><Text style={styles.error}>Eliminar vehículo</Text></TouchableOpacity>
     </View>)}</View>
     {!vehicles.length ? <Text style={styles.muted}>No hay vehículos registrados.</Text> : null}
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

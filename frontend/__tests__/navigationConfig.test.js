@@ -49,4 +49,23 @@ describe('navegación por roles', () => {
       expect(source).toMatch(new RegExp(`\\b${screen}\\s*:`));
     });
   });
+
+  test('centraliza el regreso al panel en el encabezado', () => {
+    const frontendRoot = path.join(__dirname, '..', 'src');
+    const header = fs.readFileSync(path.join(frontendRoot, 'componentes', 'comunes', 'Encabezado.jsx'), 'utf8');
+    expect(header).toMatch(/screen !== 'dashboard'[\s\S]*Volver al panel principal/);
+    expect(header).toMatch(/<Text style={styles\.backButtonText}>← Panel<\/Text>/);
+
+    const moduleFiles = [];
+    const collectJsx = (directory) => fs.readdirSync(directory, { withFileTypes: true }).forEach((entry) => {
+      const target = path.join(directory, entry.name);
+      if (entry.isDirectory()) collectJsx(target);
+      else if (entry.name.endsWith('.jsx')) moduleFiles.push(target);
+    });
+    collectJsx(path.join(frontendRoot, 'modulos'));
+    moduleFiles.forEach((file) => {
+      const source = fs.readFileSync(file, 'utf8');
+      expect(source).not.toMatch(/Volver al dashboard|Volver al panel|>Volver</);
+    });
+  });
 });

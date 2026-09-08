@@ -5,10 +5,11 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
 import usePolling from '../../ganchos/usarSondeo';
+import { styles } from './EstadoVehiculos.styles';
 
 const labels = { disponible: 'Disponible', 'en camino': 'En camino', 'en mantenimiento': 'En mantenimiento' };
 
-export default function EstadoVehiculos({ go, token, styles }) {
+export default function EstadoVehiculos({ go, token }) {
   const [vehicles, setVehicles] = useState([]);
   const [message, setMessage] = useState('');
   const load = useCallback(async () => {
@@ -31,6 +32,5 @@ export default function EstadoVehiculos({ go, token, styles }) {
     </View>)}</View>
     {!vehicles.length ? <Text style={styles.muted}>No hay vehículos registrados.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar panel</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

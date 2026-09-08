@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { enviarOSolicitarEnCola, guardarUbicacionFincaLocal, obtenerUbicacionFincaLocal } from '../../servicios/sinConexion';
+import { styles } from './UbicacionFinca.styles';
 
-export default function UbicacionFinca({ go, token, styles }) {
+export default function UbicacionFinca({ go, token }) {
   const [position, setPosition] = useState(null);
   const [message, setMessageText] = useState('');
   const [messageType, setMessageType] = useState('info');
@@ -27,6 +28,5 @@ export default function UbicacionFinca({ go, token, styles }) {
     {position ? <View style={styles.card}><Text>Latitud: {position.latitud.toFixed(6)}</Text><Text>Longitud: {position.longitud.toFixed(6)}</Text></View> : null}
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <TouchableOpacity style={styles.primary} onPress={guardar}><Text style={styles.primaryText}>Guardar mi ubicación actual</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

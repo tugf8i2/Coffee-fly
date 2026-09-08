@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
+import FondoCafeAnimado from '../../componentes/comunes/FondoCafeAnimado';
 import { API_BASE_URL, fetchApi } from '../../configuracion/ClienteApi';
+import { styles } from './IniciarSesion.styles';
 
-export default function IniciarSesion({ onLogin, styles }) {
+export default function IniciarSesion({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -34,8 +36,12 @@ export default function IniciarSesion({ onLogin, styles }) {
       setLoading(false);
     }
   };
-  return <View style={styles.page}><View style={[styles.formCard, { marginTop: 24 }]}>
-    <Text style={styles.title}>Bienvenido</Text>
+  return <View style={[styles.page, styles.loginPage]}>
+    <FondoCafeAnimado />
+    <View style={[styles.formCard, styles.loginCard]}>
+    <Text style={styles.loginEyebrow}>Gestión cafetera</Text>
+    <Text style={styles.title}>Bienvenido a Coffee Fly</Text>
+    <Text style={styles.loginDescription}>Ingresa para consultar y gestionar tu operación en Coffee Fly.</Text>
     <CampoFormulario
       label="Correo electrónico"
       value={email}
@@ -57,8 +63,10 @@ export default function IniciarSesion({ onLogin, styles }) {
       onSubmitEditing={submit}
     />
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
-    <TouchableOpacity style={[styles.primary, loading && { opacity: 0.6 }]} onPress={submit} disabled={loading}>
+    <TouchableOpacity style={[styles.primary, loading && styles.loading]} onPress={submit} disabled={loading}>
       <Text style={styles.primaryText}>{loading ? 'Iniciando sesión…' : 'Iniciar sesión'}</Text>
     </TouchableOpacity>
-  </View></View>;
+    <Text style={styles.loginHelp}>Usa el correo asignado a tu cuenta.</Text>
+    </View>
+  </View>;
 }

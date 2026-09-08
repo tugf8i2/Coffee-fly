@@ -339,11 +339,11 @@ class EntregaService:
         ]
 
     def crear_entrega(self, datos: EntregaCreate):
-        solicitud = self.repository.get_solicitud_activa(datos.solicitud_id)
+        solicitud = self.repository.get_solicitud_disponible(datos.solicitud_id)
         if solicitud is None or solicitud.carga is None:
             raise HTTPException(
                 status_code=400,
-                detail="La entrega requiere una solicitud activa previamente registrada",
+                detail="La solicitud ya fue registrada o asignada, o no está pendiente de recolección",
             )
         cantidad_kg = float(solicitud.carga.peso_kg or 0)
         if cantidad_kg <= 0:

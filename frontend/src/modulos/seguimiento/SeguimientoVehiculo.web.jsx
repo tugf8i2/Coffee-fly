@@ -8,13 +8,14 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { realtimeLabel } from '../../servicios/presentacionSeguimiento';
+import { styles } from './SeguimientoVehiculo.styles';
 
 const freshnessOf = (point) => {
   if (!point?.registrada_en) return 'Sin ubicación';
   return Date.now() - Date.parse(point.registrada_en) <= 90000 ? 'Actualizada' : 'Desactualizada';
 };
 
-export default function SeguimientoVehiculo({ go, token, styles, user }) {
+export default function SeguimientoVehiculo({ go, token, user }) {
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [tracking, setTracking] = useState(null);
@@ -153,9 +154,6 @@ export default function SeguimientoVehiculo({ go, token, styles, user }) {
 
       <TouchableOpacity style={styles.primary} onPress={load}>
         <Text style={styles.primaryText}>Actualizar ubicación</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => go('dashboard')}>
-        <Text style={styles.link}>Volver al dashboard</Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -16,7 +16,29 @@ export const APP_SCREEN_KEYS = Object.freeze([
   'deliveryHistory',
   'reports',
   'monitoring',
+  'support',
 ]);
+
+export const SCREEN_LABELS = Object.freeze({
+  login: 'Inicio de sesión',
+  dashboard: 'Panel principal',
+  request: 'Solicitar recolección',
+  farmLocation: 'Ubicación de finca',
+  farmerDashboard: 'Mi actividad',
+  tracking: 'Seguimiento de vehículos',
+  users: 'Gestión de usuarios',
+  cooperatives: 'Cooperativas',
+  vehicles: 'Gestión de vehículos',
+  vehicleStatus: 'Estado de vehículos',
+  deliveries: 'Registrar recolección',
+  vehicleAssignment: 'Asignar vehículo',
+  assignmentHistory: 'Historial de asignaciones',
+  assignedDeliveries: 'Entregas asignadas',
+  deliveryHistory: 'Historial de entregas',
+  reports: 'Reportes',
+  monitoring: 'Monitoreo operativo',
+  support: 'Servicio al cliente',
+});
 
 export const ROLE_CARDS = Object.freeze({
   caficultor: Object.freeze([
@@ -25,6 +47,7 @@ export const ROLE_CARDS = Object.freeze({
     ['Mi actividad', 'farmerDashboard'],
     ['Historial de entregas', 'deliveryHistory'],
     ['Seguimiento de vehículo', 'tracking'],
+    ['Servicio al cliente', 'support'],
   ]),
   registrador: Object.freeze([
     ['Usuarios', 'users'],
@@ -40,6 +63,7 @@ export const ROLE_CARDS = Object.freeze({
     ['Monitoreo operativo', 'monitoring'],
     ['Historial de asignaciones', 'assignmentHistory'],
     ['Reportes', 'reports'],
+    ['Servicio al cliente', 'support'],
   ]),
   conductor: Object.freeze([
     ['Mis entregas asignadas', 'assignedDeliveries'],

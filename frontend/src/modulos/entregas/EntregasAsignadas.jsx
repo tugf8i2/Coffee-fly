@@ -7,11 +7,12 @@ import { detenerRastreoSegundoPlano } from '../../servicios/ubicacionSegundoPlan
 import { fetchDeliveryHistories } from '../../servicios/historialEntregas';
 import { weight } from '../../servicios/presentacionCarga';
 import { enviarOSolicitarEnCola, sincronizarPendientes } from '../../servicios/sinConexion';
+import { styles } from './EntregasAsignadas.styles';
 
 const labels = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelado' };
 const formatDate = (value) => new Date(value).toLocaleString();
 
-export default function EntregasAsignadas({ go, token, styles }) {
+export default function EntregasAsignadas({ go, token }) {
   const [deliveries, setDeliveries] = useState([]);
   const [history, setHistory] = useState({});
   const [message, setMessage] = useState('');
@@ -62,6 +63,5 @@ export default function EntregasAsignadas({ go, token, styles }) {
     </View>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>No tienes entregas asignadas.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={async () => { setError(''); setMessage(''); try { const resultado = await sincronizarPendientes(token); setMessageType(resultado.estado === 'synced' ? 'success' : 'warning'); setMessage(resultado.sincronizadas ? `${resultado.sincronizadas} cambio(s) sincronizado(s).` : resultado.estado === 'synced' ? 'No hay cambios pendientes para sincronizar.' : 'Hay cambios pendientes. Revisa la conexión e intenta sincronizar nuevamente.'); await load(); } catch (reason) { setError(reason.message); } }}><Text style={styles.primaryText}>Sincronizar y actualizar</Text></TouchableOpacity>
-    <TouchableOpacity onPress={() => go('dashboard')}><Text style={styles.link}>Volver al dashboard</Text></TouchableOpacity>
   </ScrollView>;
 }

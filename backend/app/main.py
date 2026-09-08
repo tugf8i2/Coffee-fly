@@ -24,6 +24,7 @@ from app.api.reportes_api import router as reportes_router
 from app.api.rol_api import router as rol_router
 from app.api.ruta_api import router as ruta_router
 from app.api.solicitud_api import router as solicitud_router
+from app.api.soporte_api import router as soporte_router
 from app.api.ubicacion_api import router as ubicacion_router
 from app.api.usuario_api import router as usuario_router
 from app.api.vehiculo_api import router as vehiculo_router
@@ -149,5 +150,6 @@ for router in (
     dashboard_router,
     realtime_router,
     monitoring_router,
+    soporte_router,
 ):
     app.include_router(router)
