@@ -73,6 +73,8 @@ class SolicitudService:
         solicitudes = [
             {
                 "id_solicitud": str(solicitud.id_solicitud),
+                "carga_id": str(carga.id_carga) if carga else None,
+                "entrega_id": str(entrega.id_entrega) if entrega else None,
                 "estado_solicitud": solicitud.estado_solicitud,
                 "fecha_hora_solicitud": solicitud.fecha_hora_solicitud,
                 "estado_sincronizacion": solicitud.estado_sincronizacion,
@@ -83,7 +85,7 @@ class SolicitudService:
                 "grupos_bultos": carga.grupos_bultos if carga else None,
                 "observacion": carga.descripcion if carga else None,
             }
-            for solicitud, carga in registros
+            for solicitud, carga, entrega in registros
         ]
         entregadas = [item for item in solicitudes if item["estado_solicitud"] == "entregado"]
         activas = [item for item in solicitudes if item["estado_solicitud"] in {"pendiente", "en camino"}]

@@ -10,26 +10,55 @@ const states = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'E
 
 export default function MiActividad({ go, token }) {
   const [data, setData] = useState(null);
+  const [eventsByDelivery, setEventsByDelivery] = useState({});
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const response = await fetchApi(`${API_BASE_URL}/solicitudes/mis-solicitudes`, { headers: { Authorization: `Bearer ${token}` } });
-      const result = await response.json();
+      const headers = { Authorization: `Bearer ${token}` };
+      const [response, eventsResponse] = await Promise.all([
+        fetchApi(`${API_BASE_URL}/solicitudes/mis-solicitudes`, { headers }),
+        fetchApi(`${API_BASE_URL}/entregas/eventos/notificaciones`, { headers }),
+      ]);
+      const [result, events] = await Promise.all([response.json(), eventsResponse.json()]);
       if (!response.ok) throw Error(result.detail || 'No se pudo cargar tu actividad.');
+      if (!eventsResponse.ok) throw Error(events.detail || 'No se pudo cargar el historial de eventos.');
+      const groupedEvents = {};
+      events.forEach((event) => {
+        if (!groupedEvents[event.entrega_id]) groupedEvents[event.entrega_id] = [];
+        groupedEvents[event.entrega_id].push(event);
+      });
       setData(result);
+      setEventsByDelivery(groupedEvents);
+      setError('');
     } catch (reason) { setError(reason.message); }
   }, [token]);
 
   usePolling(load, 30000);
   const summary = data?.resumen;
-  const requestCard = (request) => <View style={styles.card} key={request.id_solicitud}>
+  const requestCard = (request) => {
+    const events = eventsByDelivery[request.entrega_id] || [];
+    return <View style={styles.card} key={request.id_solicitud}>
     <Text style={styles.cardTitle}>{states[request.estado_solicitud] || request.estado_solicitud}</Text>
+    {request.carga_id ? <Text style={styles.muted}>Carga: {request.carga_id.slice(0, 8)}</Text> : null}
     <Text style={styles.totalValue}>{tonnes(request.peso_kg)}</Text>
     {bagSummary(request) ? <Text>{bagSummary(request)}</Text> : null}
     <Text style={styles.muted}>{weight(request.peso_kg)} · {new Date(request.fecha_hora_solicitud).toLocaleDateString()}</Text>
     {request.observacion ? <Text>{request.observacion}</Text> : null}
+    {request.entrega_id ? <View style={{ borderTopWidth: 1, borderTopColor: '#d6ddce', marginTop: 10, paddingTop: 10, gap: 8 }}>
+      <Text style={styles.cardTitle}>Historial de eventos</Text>
+      <Text style={styles.muted}>Mensajes del conductor asignado únicamente a esta carga.</Text>
+      {events.map((event) => <View key={event.id_evento} style={{ borderLeftWidth: 3, borderLeftColor: '#6A994E', paddingLeft: 9 }}>
+        <Text style={styles.label}>{event.tipo_evento.toUpperCase()}</Text>
+        <Text>{event.descripcion_evento}</Text>
+        <Text>Conductor: {event.conductor_nombre}</Text>
+        <Text>Vehículo: {event.vehiculo_placa || 'Sin placa'}</Text>
+        <Text style={styles.muted}>{new Date(event.fecha_hora_evento).toLocaleString()}</Text>
+      </View>)}
+      {!events.length ? <Text style={styles.muted}>Esta carga todavía no tiene eventos reportados.</Text> : null}
+    </View> : <Text style={styles.muted}>El historial aparecerá cuando se asigne la recolección.</Text>}
   </View>;
+  };
 
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Mi actividad cafetera</Text>
