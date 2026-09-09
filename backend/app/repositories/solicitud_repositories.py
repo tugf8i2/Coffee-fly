@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.solicitud_models import Solicitud
 from app.models.carga_models import Carga
+from app.models.entrega_models import Entrega
 
 from app.schemas.solicitud_schemas import (
     SolicitudCreate,
@@ -49,8 +50,9 @@ class SolicitudRepository:
 
     def get_solicitudes_por_caficultor(self, caficultor_id: int):
         return (
-            self.db.query(Solicitud, Carga)
+            self.db.query(Solicitud, Carga, Entrega)
             .outerjoin(Carga, Solicitud.carga_id == Carga.id_carga)
+            .outerjoin(Entrega, Entrega.solicitud_id == Solicitud.id_solicitud)
             .filter(Solicitud.caficultor_id == caficultor_id)
             .order_by(Solicitud.fecha_hora_solicitud.desc())
             .all()
