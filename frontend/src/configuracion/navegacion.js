@@ -33,7 +33,7 @@ export const SCREEN_LABELS = Object.freeze({
   deliveries: 'Registrar recolección',
   vehicleAssignment: 'Asignar vehículo',
   assignmentHistory: 'Historial de asignaciones',
-  assignedDeliveries: 'Entregas asignadas',
+  assignedDeliveries: 'Recolecciones asignadas',
   deliveryHistory: 'Historial de entregas',
   reports: 'Reportes',
   monitoring: 'Monitoreo operativo',
@@ -66,7 +66,7 @@ export const ROLE_CARDS = Object.freeze({
     ['Servicio al cliente', 'support'],
   ]),
   conductor: Object.freeze([
-    ['Mis entregas asignadas', 'assignedDeliveries'],
+    ['Recolecciones asignadas', 'assignedDeliveries'],
     ['GPS y trayecto', 'tracking'],
   ]),
 });

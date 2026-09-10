@@ -14,6 +14,7 @@ from app.schemas.solicitud_schemas import (
     SincronizarSolicitudRequest,
 )
 from app.models.carga_models import Carga
+from app.models.entrega_models import Entrega
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
 
@@ -213,6 +214,12 @@ class SolicitudService:
         if self._rol(usuario) == "caficultor":
             if existente.estado_solicitud != "pendiente":
                 raise HTTPException(status_code=409, detail="Solo puedes modificar una solicitud pendiente")
+            entrega_asignada = self.repository.db.query(Entrega.id_entrega).filter(
+                Entrega.solicitud_id == existente.id_solicitud,
+                Entrega.viaje_id.isnot(None),
+            ).first()
+            if entrega_asignada is not None:
+                raise HTTPException(status_code=409, detail="La solicitud ya pertenece a un viaje asignado")
             cambios.pop("caficultor_id", None)
             cambios.pop("estado_sincronizacion", None)
             if cambios.get("estado_solicitud", "pendiente") not in {"pendiente", "cancelado"}:

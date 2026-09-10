@@ -1,32 +1,14 @@
-import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import FormularioUbicacionFinca from './FormularioUbicacionFinca';
 
-import { enviarOSolicitarEnCola, guardarUbicacionFincaLocal, obtenerUbicacionFincaLocal } from '../../servicios/sinConexion';
-import { styles } from './UbicacionFinca.styles';
+const obtenerUbicacionActual = () => new Promise((resolve, reject) => {
+  if (!navigator.geolocation) return reject(Error('Este navegador no permite obtener tu ubicación.'));
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+    () => reject(Error('No fue posible obtener tu ubicación. Revisa el permiso del navegador.')),
+    { enableHighAccuracy: true, timeout: 15000 },
+  );
+});
 
-export default function UbicacionFinca({ go, token }) {
-  const [position, setPosition] = useState(null);
-  const [message, setMessageText] = useState('');
-  const [messageType, setMessageType] = useState('info');
-  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
-  useEffect(() => { obtenerUbicacionFincaLocal().then(setPosition); }, []);
-  const guardar = () => {
-    if (!navigator.geolocation) return setMessage('Este navegador no permite obtener ubicación. Usa Expo Go en el celular.');
-    navigator.geolocation.getCurrentPosition(async (current) => {
-      try {
-        const payload = { latitud: current.coords.latitude, longitud: current.coords.longitude, fecha: new Date().toISOString() };
-        setPosition(payload);
-        await guardarUbicacionFincaLocal(payload);
-        const result = await enviarOSolicitarEnCola('ubicacion_finca', payload, token);
-        setMessage(result.offline ? 'Ubicación guardada localmente para sincronizar.' : 'Ubicación de finca guardada correctamente.', result.offline ? 'warning' : 'success');
-      } catch (error) { setMessage(error.message); }
-    }, () => setMessage('No fue posible obtener tu ubicación. Revisa el permiso del navegador.'), { enableHighAccuracy: true, timeout: 15000 });
-  };
-  return <ScrollView contentContainerStyle={styles.page}>
-    <Text style={styles.title}>Ubicación de mi finca</Text><Text style={styles.muted}>Guarda el punto de llegada del vehículo.</Text>
-    {position ? <View style={styles.card}><Text>Latitud: {position.latitud.toFixed(6)}</Text><Text>Longitud: {position.longitud.toFixed(6)}</Text></View> : null}
-    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
-    <TouchableOpacity style={styles.primary} onPress={guardar}><Text style={styles.primaryText}>Guardar mi ubicación actual</Text></TouchableOpacity>
-  </ScrollView>;
+export default function UbicacionFinca({ token }) {
+  return <FormularioUbicacionFinca token={token} obtenerUbicacionActual={obtenerUbicacionActual} />;
 }

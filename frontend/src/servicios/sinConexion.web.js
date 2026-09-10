@@ -172,7 +172,7 @@ async function enviar(tipo, payload, token) {
     response = await fetchApi(`${API_BASE_URL}/usuarios/mi-ubicacion`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ latitud: payload.latitud, longitud: payload.longitud }),
+      body: JSON.stringify({ latitud: payload.latitud, longitud: payload.longitud, direccion: payload.direccion }),
     });
     fallback = 'No fue posible sincronizar la ubicación de la finca';
   } else if (tipo === 'solicitud') {

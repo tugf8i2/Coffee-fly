@@ -21,6 +21,7 @@ class Usuario(Base):
     # exponen en los listados generales de usuarios.
     latitud_finca = Column(Float, nullable=True)
     longitud_finca = Column(Float, nullable=True)
+    direccion_finca = Column(String(300), nullable=True)
     ubicacion_finca_actualizada_en = Column(DateTime, nullable=True)
 
     rol_id = Column(Integer, ForeignKey("rol.id_rol"))

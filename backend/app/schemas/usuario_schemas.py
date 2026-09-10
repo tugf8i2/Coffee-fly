@@ -108,9 +108,21 @@ class UsuarioResponse(BaseModel):
 class UbicacionFincaUpdate(BaseModel):
     latitud: float = Field(ge=-90, le=90)
     longitud: float = Field(ge=-180, le=180)
+    direccion: Optional[str] = Field(default=None, min_length=3, max_length=300)
+
+    @field_validator("direccion")
+    @classmethod
+    def validar_direccion(cls, value):
+        if value is None:
+            return value
+        normalized = value.strip()
+        if len(normalized) < 3:
+            raise ValueError("La dirección seleccionada no es válida")
+        return normalized
 
 
 class UbicacionFincaResponse(BaseModel):
     latitud: float
     longitud: float
+    direccion: Optional[str] = None
     actualizada_en: datetime

@@ -12,7 +12,7 @@ const validCoordinate = (latitude, longitude) => Number.isFinite(Number(latitude
   && Number(longitude) >= -180
   && Number(longitude) <= 180;
 
-export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect }) {
+export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa' }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -62,16 +62,16 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
       if (!markerRef.current) {
         markerRef.current = L.circleMarker(coordinate, {
           radius: 10, color: '#ffffff', weight: 3, fillColor: '#386641', fillOpacity: 1,
-        }).addTo(mapRef.current).bindTooltip('Ubicación de la cooperativa');
+        }).addTo(mapRef.current).bindTooltip(`Ubicación de la ${entityLabel}`);
       } else markerRef.current.setLatLng(coordinate);
       mapRef.current.setView(coordinate, Math.max(mapRef.current.getZoom(), 16));
     }).catch(() => !disposed && setError('No fue posible actualizar el punto seleccionado.'));
     return () => { disposed = true; };
-  }, [latitude, longitude, ready]);
+  }, [entityLabel, latitude, longitude, ready]);
 
   return <View style={{ width: '100%', gap: 7 }}>
-    <Text style={{ color: '#386641', fontWeight: '700' }}>Haz clic sobre el mapa para ubicar la cooperativa.</Text>
-    <div ref={containerRef} aria-label="Mapa para elegir la ubicación de la cooperativa" style={{ width: '100%', height: 380, borderRadius: 14, overflow: 'hidden', background: '#e8efe9' }} />
+    <Text style={{ color: '#386641', fontWeight: '700' }}>Haz clic sobre el mapa para ubicar la {entityLabel}.</Text>
+    <div ref={containerRef} aria-label={`Mapa para elegir la ubicación de la ${entityLabel}`} style={{ width: '100%', height: 380, borderRadius: 14, overflow: 'hidden', background: '#e8efe9' }} />
     <Text style={{ color: '#526451', fontSize: 12 }}>Mapa y datos cartográficos © colaboradores de OpenStreetMap.</Text>
     {error ? <Text style={{ color: '#a02b1f' }}>{error}</Text> : null}
   </View>;

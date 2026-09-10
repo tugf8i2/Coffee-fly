@@ -3,65 +3,51 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
-import { detenerRastreoSegundoPlano } from '../../servicios/ubicacionSegundoPlano';
-import { fetchDeliveryHistories } from '../../servicios/historialEntregas';
 import { weight } from '../../servicios/presentacionCarga';
-import { enviarOSolicitarEnCola, sincronizarPendientes } from '../../servicios/sinConexion';
 import { styles } from './EntregasAsignadas.styles';
 
-const labels = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelado' };
-const formatDate = (value) => new Date(value).toLocaleString();
-
 export default function EntregasAsignadas({ go, token }) {
-  const [deliveries, setDeliveries] = useState([]);
-  const [history, setHistory] = useState({});
+  const [trips, setTrips] = useState([]);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('success');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      const response = await fetchApi(`${API_BASE_URL}/entregas/mis-asignadas`, { headers });
+      const response = await fetchApi(`${API_BASE_URL}/viajes/mis-asignados`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
-      if (!response.ok) throw Error(data.detail || 'No se pudieron consultar tus entregas asignadas.');
-      setDeliveries(data);
-      setHistory(await fetchDeliveryHistories(data, token));
+      if (!response.ok) throw Error(data.detail || 'No se pudieron consultar tus recolecciones asignadas.');
+      setTrips(data); setError('');
     } catch (reason) { setError(reason.message); }
   }, [token]);
-
   usePolling(load, 15000);
 
-  const changeStatus = async (delivery, estado_entrega) => {
-    setError(''); setMessage('');
+  const start = async (trip) => {
     try {
-      const result = await enviarOSolicitarEnCola('estado_entrega', { entrega_id: delivery.id_entrega, estado_entrega, fecha: new Date().toISOString() }, token);
-      setMessageType(result.offline ? 'warning' : 'success');
-      setMessage(result.offline
-        ? `Sin conexión: el cambio a ${labels[estado_entrega]} quedó guardado y se sincronizará automáticamente.`
-        : `Entrega actualizada a ${labels[estado_entrega]}.`);
-      if (['entregado', 'cancelado'].includes(estado_entrega)) await detenerRastreoSegundoPlano();
-      if (!result.offline) await load();
+      const response = await fetchApi(`${API_BASE_URL}/viajes/${trip.id_viaje}/iniciar`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || 'No se pudo iniciar el viaje.');
+      setMessage('Viaje iniciado. Las cargas ahora aparecen en Seguimiento de vehículo.');
+      await load();
+      go('tracking');
     } catch (reason) { setError(reason.message); }
   };
 
   return <ScrollView contentContainerStyle={styles.page}>
-    <Text style={styles.title}>Mis entregas asignadas</Text>
-    <Text style={styles.muted}>Los cambios se guardan sin conexión y se sincronizan automáticamente al recuperar internet. Una entrega cancelada queda bloqueada.</Text>
+    <Text style={styles.title}>Recolecciones asignadas</Text>
+    <Text style={styles.muted}>Los viajes en espera se habilitan automáticamente cuando el vehículo termina su recorrido anterior.</Text>
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
-    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
-    <View style={styles.grid}>{deliveries.map((delivery) => <View key={delivery.id_entrega} style={styles.card}>
-      <Text style={styles.cardTitle}>{delivery.caficultor_nombre}</Text><Text>Peso: {weight(delivery.cantidad_kg)}</Text>
-      <Text>Vehículo: {delivery.vehiculo_placa}</Text>
-      <Text>Estado actual: {labels[delivery.estado_entrega]}</Text>
-      {delivery.carga_recogida_en ? <Text style={styles.success}>Carga recogida: {formatDate(delivery.carga_recogida_en)}</Text> : delivery.estado_entrega === 'en camino' ? <Text style={styles.muted}>Pendiente de confirmar la carga desde GPS y trayecto.</Text> : null}
-      <Text>Registrada: {formatDate(delivery.fecha_hora_entrega)}</Text>
-      {delivery.estado_entrega !== 'cancelado' ? <View style={styles.statusActions}>
-        {Object.entries(labels).filter(([value]) => (delivery.estado_entrega === 'pendiente' ? ['en camino', 'cancelado'] : delivery.estado_entrega === 'en camino' ? [delivery.carga_recogida_en ? 'entregado' : null, 'cancelado'] : []).includes(value)).map(([value, label]) => <TouchableOpacity key={value} style={styles.statusButton} onPress={() => changeStatus(delivery, value)}><Text style={styles.statusButtonText}>{label}</Text></TouchableOpacity>)}
-      </View> : <Text style={styles.error}>Esta entrega fue cancelada y no puede modificarse.</Text>}
-      {history[delivery.id_entrega]?.length ? <View style={styles.history}><Text style={styles.label}>Trazabilidad</Text>{history[delivery.id_entrega].map((item) => <Text key={item.id_historial}>{labels[item.estado_anterior]} → {labels[item.estado_nuevo]} · {item.usuario_nombre} · {formatDate(item.fecha_hora_cambio)}</Text>)}</View> : <Text style={styles.muted}>Sin cambios de estado registrados.</Text>}
+    {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
+    <View style={styles.grid}>{trips.map((trip) => <View key={trip.id_viaje} style={styles.card}>
+      <Text style={styles.cardTitle}>{trip.vehiculo_placa} · {weight(trip.peso_total_kg)}</Text>
+      <Text>Destino: {trip.cooperativa_nombre}</Text>
+      <Text>Estado: {trip.estado_viaje === 'en_cola' ? `En espera · turno ${trip.orden_cola}` : 'Listo para iniciar'}</Text>
+      <Text style={styles.label}>Cargas del viaje</Text>
+      {trip.cargas.map((load) => <Text key={load.id_entrega}>{load.orden_recoleccion}. {load.caficultor_nombre} · {weight(load.cantidad_kg)}</Text>)}
+      {trip.puede_iniciar ? <TouchableOpacity style={styles.primary} onPress={() => start(trip)}><Text style={styles.primaryText}>En camino</Text></TouchableOpacity> : <Text style={styles.muted}>Esperando disponibilidad del vehículo.</Text>}
     </View>)}</View>
-    {!deliveries.length ? <Text style={styles.muted}>No tienes entregas asignadas.</Text> : null}
-    <TouchableOpacity style={styles.primary} onPress={async () => { setError(''); setMessage(''); try { const resultado = await sincronizarPendientes(token); setMessageType(resultado.estado === 'synced' ? 'success' : 'warning'); setMessage(resultado.sincronizadas ? `${resultado.sincronizadas} cambio(s) sincronizado(s).` : resultado.estado === 'synced' ? 'No hay cambios pendientes para sincronizar.' : 'Hay cambios pendientes. Revisa la conexión e intenta sincronizar nuevamente.'); await load(); } catch (reason) { setError(reason.message); } }}><Text style={styles.primaryText}>Sincronizar y actualizar</Text></TouchableOpacity>
+    {!trips.length ? <Text style={styles.muted}>No tienes recolecciones pendientes de iniciar.</Text> : null}
+    <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar recolecciones</Text></TouchableOpacity>
   </ScrollView>;
 }

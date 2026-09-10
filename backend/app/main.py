@@ -28,6 +28,7 @@ from app.api.soporte_api import router as soporte_router
 from app.api.ubicacion_api import router as ubicacion_router
 from app.api.usuario_api import router as usuario_router
 from app.api.vehiculo_api import router as vehiculo_router
+from app.api.viaje_api import router as viaje_router
 from app.core.config import IS_PRODUCTION, allowed_hosts, cors_origin_regex, cors_origins
 from app.core.database import SessionLocal
 from app.core.observability import (
@@ -142,6 +143,7 @@ for router in (
     ubicacion_router,
     ruta_router,
     vehiculo_router,
+    viaje_router,
     carga_router,
     solicitud_router,
     historial_eventos_router,

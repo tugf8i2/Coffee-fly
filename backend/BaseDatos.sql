@@ -30,6 +30,10 @@ CREATE TABLE public.usuario (
     departamento character varying(100),
     municipio character varying(100),
     vereda character varying(100),
+    latitud_finca double precision,
+    longitud_finca double precision,
+    direccion_finca character varying(300),
+    ubicacion_finca_actualizada_en timestamp,
 
     rol_id integer,
 
@@ -192,6 +196,29 @@ CREATE TABLE public.solicitud (
 CREATE UNIQUE INDEX ux_solicitud_client_request_id
     ON public.solicitud (client_request_id) WHERE client_request_id IS NOT NULL;
 
+-- VIAJE: agrupa cargas y permite programar turnos por vehículo.
+CREATE TABLE public.viaje (
+    id_viaje uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    vehiculo_id integer NOT NULL REFERENCES public.vehiculo (id_vehiculo),
+    conductor_id integer NOT NULL REFERENCES public.conductor (id_conductor),
+    cooperativa_id integer NOT NULL REFERENCES public.cooperativa (id_cooperativa),
+    coordinador_id integer NOT NULL REFERENCES public.usuario (id_usuario),
+    estado_viaje character varying(20) NOT NULL DEFAULT 'asignado',
+    orden_cola integer NOT NULL DEFAULT 1,
+    creado_en timestamp NOT NULL DEFAULT current_timestamp,
+    iniciado_en timestamp,
+    completado_en timestamp,
+    CONSTRAINT chk_estado_viaje CHECK (
+        estado_viaje IN ('asignado', 'en_cola', 'en_camino', 'completado', 'cancelado')
+    ),
+    CONSTRAINT chk_orden_cola_positivo CHECK (orden_cola > 0),
+    CONSTRAINT uq_viaje_vehiculo_orden UNIQUE (vehiculo_id, orden_cola)
+);
+CREATE INDEX ix_viaje_vehiculo_estado_orden
+    ON public.viaje (vehiculo_id, estado_viaje, orden_cola);
+CREATE INDEX ix_viaje_conductor_estado
+    ON public.viaje (conductor_id, estado_viaje);
+
 -- ENTREGA DE CAFÉ (RF-04 / RF-05)
 CREATE TABLE public.entrega (
     id_entrega uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
@@ -204,6 +231,8 @@ CREATE TABLE public.entrega (
     actualizado_en timestamp,
     carga_recogida_en timestamp,
     distancia_recorrida_m double precision NOT NULL DEFAULT 0,
+    viaje_id uuid REFERENCES public.viaje (id_viaje),
+    orden_recoleccion integer,
     CONSTRAINT uq_entrega_solicitud_id UNIQUE (solicitud_id),
     CONSTRAINT chk_entrega_distancia_recorrida CHECK (distancia_recorrida_m >= 0),
     CONSTRAINT chk_estados_entrega CHECK (
@@ -219,8 +248,11 @@ CREATE TABLE public.historial_asignacion (
     vehiculo_id integer NOT NULL REFERENCES public.vehiculo (id_vehiculo),
     conductor_id integer NOT NULL REFERENCES public.conductor (id_conductor),
     coordinador_id integer NOT NULL REFERENCES public.usuario (id_usuario),
-    fecha_hora_asignacion timestamp NOT NULL DEFAULT current_timestamp
+    fecha_hora_asignacion timestamp NOT NULL DEFAULT current_timestamp,
+    viaje_id uuid REFERENCES public.viaje (id_viaje)
 );
+CREATE INDEX ix_entrega_viaje_id ON public.entrega (viaje_id);
+CREATE INDEX ix_historial_asignacion_viaje_id ON public.historial_asignacion (viaje_id);
 
 -- Trazabilidad de los cambios de estado de una entrega (RF-05).
 -- El usuario se obtiene de la sesión autenticada y no del cliente.

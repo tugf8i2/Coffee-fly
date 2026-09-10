@@ -29,7 +29,7 @@ def actualizar_mi_ubicacion_finca(
     caficultor = Depends(require_roles("caficultor")),
 ):
     return UsuarioService(db).actualizar_ubicacion_finca(
-        caficultor.id_usuario, ubicacion.latitud, ubicacion.longitud
+        caficultor.id_usuario, ubicacion.latitud, ubicacion.longitud, ubicacion.direccion
     )
 
 

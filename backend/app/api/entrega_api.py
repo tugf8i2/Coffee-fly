@@ -8,12 +8,20 @@ from sqlalchemy.orm import Session
 from app.core.auth import require_roles
 from app.core.database import get_db
 from app.core.realtime import tracking_connections
+from app.models.entrega_models import Entrega
 from app.models.usuario_models import Usuario
 from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
 
 
 router = APIRouter(prefix="/entregas", tags=["Entregas"])
+
+
+def _destinos_realtime(db: Session, entrega_id: UUID) -> list[UUID]:
+    viaje_id = db.query(Entrega.viaje_id).filter(Entrega.id_entrega == entrega_id).scalar()
+    if viaje_id is None:
+        return [entrega_id]
+    return [item[0] for item in db.query(Entrega.id_entrega).filter(Entrega.viaje_id == viaje_id).all()]
 
 
 @router.get("/", response_model=list[EntregaResponse])
@@ -205,20 +213,21 @@ def registrar_ubicacion_entrega(
         entrega_id, punto, conductor.conductor.id_conductor
     )
     if resultado["estado"] == "guardado":
-        background_tasks.add_task(tracking_connections.broadcast, entrega_id, {
-            "tipo": "ubicacion",
-            "entrega_id": entrega_id,
-            "punto": {
-                "client_point_id": punto.client_point_id,
-                "latitud": punto.latitud,
-                "longitud": punto.longitud,
-                "precision_m": punto.precision_m,
-                "velocidad_m_s": punto.velocidad_m_s,
-                "rumbo_grados": punto.rumbo_grados,
-                "registrada_en": resultado["registrada_en"],
-            },
-            "distancia_recorrida_m": resultado["distancia_recorrida_m"],
-        })
+        for destino_id in _destinos_realtime(db, entrega_id):
+            background_tasks.add_task(tracking_connections.broadcast, destino_id, {
+                "tipo": "ubicacion",
+                "entrega_id": destino_id,
+                "punto": {
+                    "client_point_id": punto.client_point_id,
+                    "latitud": punto.latitud,
+                    "longitud": punto.longitud,
+                    "precision_m": punto.precision_m,
+                    "velocidad_m_s": punto.velocidad_m_s,
+                    "rumbo_grados": punto.rumbo_grados,
+                    "registrada_en": resultado["registrada_en"],
+                },
+                "distancia_recorrida_m": resultado["distancia_recorrida_m"],
+            })
     return resultado
 
 
@@ -251,12 +260,13 @@ def sincronizar_ubicaciones_entrega(
     } for punto in lote.puntos if str(punto.client_point_id) in nuevos]
     if puntos:
         puntos.sort(key=lambda item: item["registrada_en"])
-        background_tasks.add_task(tracking_connections.broadcast, entrega_id, {
-            "tipo": "ubicaciones",
-            "entrega_id": entrega_id,
-            "puntos": puntos,
-            "distancia_recorrida_m": resultado["distancia_recorrida_m"],
-        })
+        for destino_id in _destinos_realtime(db, entrega_id):
+            background_tasks.add_task(tracking_connections.broadcast, destino_id, {
+                "tipo": "ubicaciones",
+                "entrega_id": destino_id,
+                "puntos": puntos,
+                "distancia_recorrida_m": resultado["distancia_recorrida_m"],
+            })
     return resultado
 
 

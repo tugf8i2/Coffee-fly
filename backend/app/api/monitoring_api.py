@@ -35,7 +35,7 @@ def resumen_operacional(
     _coordinador: Usuario = Depends(require_roles("coordinador")),
 ):
     latest = db.query(
-        SeguimientoUbicacion.entrega_id.label("entrega_id"),
+        SeguimientoUbicacion.vehiculo_id.label("vehiculo_id"),
         SeguimientoUbicacion.latitud.label("latitud"),
         SeguimientoUbicacion.longitud.label("longitud"),
         SeguimientoUbicacion.precision_m.label("precision_m"),
@@ -43,7 +43,7 @@ def resumen_operacional(
         SeguimientoUbicacion.rumbo_grados.label("rumbo_grados"),
         SeguimientoUbicacion.registrada_en.label("ultima_ubicacion"),
         func.row_number().over(
-            partition_by=SeguimientoUbicacion.entrega_id,
+            partition_by=SeguimientoUbicacion.vehiculo_id,
             order_by=(
                 SeguimientoUbicacion.registrada_en.desc(),
                 SeguimientoUbicacion.id_ubicacion.desc(),
@@ -65,13 +65,14 @@ def resumen_operacional(
         Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
     ).outerjoin(
         latest,
-        and_(latest.c.entrega_id == Entrega.id_entrega, latest.c.orden == 1),
+        and_(latest.c.vehiculo_id == Vehiculo.id_vehiculo, latest.c.orden == 1),
     ).filter(
         Entrega.estado_entrega == "en camino"
     ).order_by(Entrega.fecha_hora_entrega.asc()).all()
 
     now = datetime.now(timezone.utc)
     vehicles = []
+    seen_vehicle_ids = set()
     for (
         delivery,
         vehicle,
@@ -82,6 +83,9 @@ def resumen_operacional(
         speed,
         heading,
     ) in rows:
+        if vehicle.id_vehiculo in seen_vehicle_ids:
+            continue
+        seen_vehicle_ids.add(vehicle.id_vehiculo)
         state, age_seconds = classify_gps_state(last_location, now)
         vehicles.append({
             "entrega_id": delivery.id_entrega,

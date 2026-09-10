@@ -2,11 +2,24 @@ import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from app.schemas.usuario_schemas import UsuarioCreate, UsuarioUpdate, UsuarioResponse
+from app.schemas.usuario_schemas import UbicacionFincaUpdate, UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from pydantic import ValidationError
 
 
 class UserListSchemaTests(unittest.TestCase):
+    def test_farm_location_accepts_selected_address(self):
+        location = UbicacionFincaUpdate(
+            latitud=4.5373265,
+            longitud=-75.7692713,
+            direccion="Parque del Café, Pueblo Tapao, Quindío",
+        )
+
+        self.assertEqual(location.direccion, "Parque del Café, Pueblo Tapao, Quindío")
+
+    def test_farm_location_rejects_blank_address(self):
+        with self.assertRaises(ValidationError):
+            UbicacionFincaUpdate(latitud=4.53, longitud=-75.68, direccion="   ")
+
     def test_password_rules_apply_to_create_and_update(self):
         base = dict(nombre_usuario="Ana", apellido="Cafe", correo_usuario="ana@coffeefly.com", telefono_usuario="3001234567", rol_id=3)
         for schema, fields in [(UsuarioCreate, base), (UsuarioUpdate, {})]:

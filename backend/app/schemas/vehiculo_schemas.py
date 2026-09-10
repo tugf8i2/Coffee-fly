@@ -13,7 +13,7 @@ def validar_anio_modelo(value: Optional[str]) -> Optional[str]:
 
 class VehiculoBase(BaseModel):
     placa: str
-    tipo_vehiculo: str
+    tipo_vehiculo: Literal["Camión", "Tractomula"]
     modelo: Optional[str] = None
     capacidad_kg: float
 
@@ -40,7 +40,7 @@ class VehiculoCreate(VehiculoBase):
 
 class VehiculoUpdate(BaseModel):
     placa: Optional[str] = None
-    tipo_vehiculo: Optional[str] = None
+    tipo_vehiculo: Optional[Literal["Camión", "Tractomula"]] = None
     modelo: Optional[str] = None
     capacidad_kg: Optional[float] = None
     estado_vehiculo: Optional[
@@ -62,4 +62,6 @@ class VehiculoUpdate(BaseModel):
 
 class VehiculoResponse(VehiculoBase):
     id_vehiculo: int
+    # Los registros históricos pueden conservar tipos anteriores al catálogo actual.
+    tipo_vehiculo: str
     model_config = ConfigDict(from_attributes=True)

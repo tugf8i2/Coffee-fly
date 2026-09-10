@@ -10,7 +10,7 @@ export default function AsignacionVehiculos({ go, token }) {
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [cooperatives, setCooperatives] = useState([]);
-  const [selectedDelivery, setSelectedDelivery] = useState(null);
+  const [selectedDeliveries, setSelectedDeliveries] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [selectedCooperative, setSelectedCooperative] = useState(null);
@@ -44,17 +44,19 @@ export default function AsignacionVehiculos({ go, token }) {
   useEffect(() => { load(); }, [load]);
 
   const assign = async () => {
-    if (!selectedDelivery || !selectedVehicle || !selectedDriver || !selectedCooperative) {
-      return setMessage('Selecciona una entrega, un vehículo, un conductor y la cooperativa de destino.');
+    if (!selectedDeliveries.length || !selectedVehicle || !selectedDriver || !selectedCooperative) {
+      return setMessage('Selecciona una o varias cargas, un vehículo, un conductor y la cooperativa de destino.');
     }
-    if (selectedDelivery.cantidad_kg > selectedVehicle.capacidad_disponible_kg) {
-      return setMessage(`La entrega supera las ${(selectedVehicle.capacidad_disponible_kg / 1000).toFixed(2)} t disponibles en el vehículo.`);
+    const totalWeight = selectedDeliveries.reduce((total, delivery) => total + delivery.cantidad_kg, 0);
+    if (totalWeight > selectedVehicle.capacidad_kg) {
+      return setMessage(`Las cargas superan las ${(selectedVehicle.capacidad_kg / 1000).toFixed(2)} t del vehículo.`);
     }
     try {
-      const response = await fetchApi(`${API_BASE_URL}/entregas/${selectedDelivery.id_entrega}/asignar-vehiculo`, {
+      const response = await fetchApi(`${API_BASE_URL}/viajes/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          entrega_ids: selectedDeliveries.map((delivery) => delivery.id_entrega),
           vehiculo_id: selectedVehicle.id_vehiculo,
           conductor_id: selectedDriver.id_conductor,
           cooperativa_id: selectedCooperative.id_cooperativa,
@@ -62,8 +64,10 @@ export default function AsignacionVehiculos({ go, token }) {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo asignar el vehículo.');
-      setMessage(`Vehículo ${selectedVehicle.placa} y conductor ${selectedDriver.nombre_conductor} asignados. La entrega sigue Pendiente hasta que el conductor inicie el viaje.`, 'success');
-      setSelectedDelivery(null);
+      setMessage(data.estado_viaje === 'en_cola'
+        ? `Asignación guardada en espera para el vehículo ${selectedVehicle.placa}.`
+        : `${selectedDeliveries.length} carga(s) asignada(s) al vehículo ${selectedVehicle.placa}.`, 'success');
+      setSelectedDeliveries([]);
       setSelectedVehicle(null);
       setSelectedDriver(null);
       setSelectedCooperative(null);
@@ -71,20 +75,25 @@ export default function AsignacionVehiculos({ go, token }) {
     } catch (error) { setMessage(error.message); }
   };
 
-  const compatibleVehicles = selectedDelivery
-    ? vehicles.filter((vehicle) => selectedDelivery.cantidad_kg <= vehicle.capacidad_disponible_kg)
+  const selectedWeight = selectedDeliveries.reduce((total, delivery) => total + delivery.cantidad_kg, 0);
+  const compatibleVehicles = selectedDeliveries.length
+    ? vehicles.filter((vehicle) => selectedWeight <= vehicle.capacidad_kg)
     : vehicles;
 
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Asignación de vehículo y conductor</Text>
-    <Text style={styles.muted}>Selecciona una entrega, el vehículo, el conductor y la cooperativa a la que debe llevarse la carga.</Text>
+    <Text style={styles.muted}>Selecciona varias cargas para un viaje. Si el vehículo está ocupado, la nueva asignación quedará en espera con el conductor elegido.</Text>
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <Text style={styles.section}>Entregas pendientes</Text>
-    <View style={styles.grid}>{deliveries.map((delivery) => <TouchableOpacity key={delivery.id_entrega} style={[styles.card, selectedDelivery?.id_entrega === delivery.id_entrega && styles.cardSelected]} onPress={() => setSelectedDelivery(delivery)}>
+    <View style={styles.grid}>{deliveries.map((delivery) => {
+      const selected = selectedDeliveries.some((item) => item.id_entrega === delivery.id_entrega);
+      return <TouchableOpacity key={delivery.id_entrega} style={[styles.card, selected && styles.cardSelected]} onPress={() => setSelectedDeliveries((current) => selected ? current.filter((item) => item.id_entrega !== delivery.id_entrega) : [...current, delivery])}>
       <Text style={styles.cardTitle}>{delivery.caficultor_nombre}</Text>
       <Text>Carga: {weight(delivery.cantidad_kg)}</Text>
       <Text>Entrega: {new Date(delivery.fecha_hora_entrega).toLocaleString()}</Text>
-    </TouchableOpacity>)}</View>
+      <Text style={selected ? styles.success : styles.muted}>{selected ? 'Seleccionada' : 'Toca para seleccionar'}</Text>
+    </TouchableOpacity>; })}</View>
+    {selectedDeliveries.length ? <Text style={styles.label}>{selectedDeliveries.length} carga(s) · Total: {weight(selectedWeight)}</Text> : null}
     {!deliveries.length ? <Text style={styles.muted}>No hay entregas pendientes de asignación.</Text> : null}
     <Text style={styles.section}>1. Asignar vehículo</Text>
     <View style={styles.grid}>{compatibleVehicles.map((vehicle) => <TouchableOpacity key={vehicle.id_vehiculo} style={[styles.card, selectedVehicle?.id_vehiculo === vehicle.id_vehiculo && styles.cardSelected]} onPress={() => {
@@ -92,14 +101,14 @@ export default function AsignacionVehiculos({ go, token }) {
       setSelectedDriver(null);
     }}>
       <Text style={styles.cardTitle}>{vehicle.placa} · {vehicle.tipo_vehiculo}</Text>
+      <Text style={vehicle.estado_vehiculo === 'en camino' ? styles.muted : styles.success}>{vehicle.estado_vehiculo === 'en camino' ? 'En viaje: la asignación quedará en espera' : 'Disponible para iniciar'}</Text>
       {vehicle.modelo ? <Text>Modelo: {vehicle.modelo}</Text> : null}
       <Text>Capacidad máxima: {vehicle.capacidad_kg / 1000} t</Text>
-      <Text>Carga asignada: {vehicle.carga_actual_kg / 1000} t</Text>
-      <Text style={styles.muted}>Disponible: {vehicle.capacidad_disponible_kg / 1000} t</Text>
-      {selectedDelivery && selectedDelivery.cantidad_kg > vehicle.capacidad_disponible_kg ? <Text style={styles.error}>No tiene capacidad para esta entrega.</Text> : null}
+      <Text>Capacidad por viaje: {vehicle.capacidad_disponible_kg / 1000} t</Text>
+       {selectedWeight > vehicle.capacidad_kg ? <Text style={styles.error}>No tiene capacidad para estas cargas.</Text> : null}
     </TouchableOpacity>)}</View>
-    {selectedDelivery && !compatibleVehicles.length ? <Text style={styles.error}>No hay vehículos con capacidad suficiente para esta carga.</Text> : null}
-    {!selectedDelivery && !vehicles.length ? <Text style={styles.muted}>No hay vehículos disponibles.</Text> : null}
+    {selectedDeliveries.length && !compatibleVehicles.length ? <Text style={styles.error}>No hay vehículos con capacidad suficiente para estas cargas.</Text> : null}
+    {!selectedDeliveries.length && !vehicles.length ? <Text style={styles.muted}>No hay vehículos programables.</Text> : null}
     {selectedVehicle ? <>
       <Text style={styles.section}>2. Asignar conductor</Text>
       <View style={styles.grid}>{drivers.map((driver, index) => <TouchableOpacity key={driver.id_conductor || `incomplete-${index}`} style={[styles.card, selectedDriver?.id_conductor === driver.id_conductor && styles.cardSelected]} onPress={() => {
@@ -121,6 +130,6 @@ export default function AsignacionVehiculos({ go, token }) {
       <Text style={styles.muted}>{cooperative.ciudad}, {cooperative.departamento}</Text>
     </TouchableOpacity>)}</View>
     {!cooperatives.length ? <Text style={styles.error}>No hay cooperativas con ubicación registradas. El registrador debe crear una antes de asignar la entrega.</Text> : null}
-    <TouchableOpacity style={styles.primary} onPress={assign}><Text style={styles.primaryText}>Asignar vehículo</Text></TouchableOpacity>
+    <TouchableOpacity style={styles.primary} onPress={assign}><Text style={styles.primaryText}>Asignar viaje</Text></TouchableOpacity>
   </ScrollView>;
 }
