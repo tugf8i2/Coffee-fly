@@ -20,9 +20,12 @@ class Entrega(Base):
     actualizado_en = Column(DateTime, nullable=True)
     carga_recogida_en = Column(DateTime, nullable=True)
     distancia_recorrida_m = Column(Float, nullable=False, default=0, server_default="0")
+    viaje_id = Column(UUID(as_uuid=True), ForeignKey("viaje.id_viaje"), nullable=True, index=True)
+    orden_recoleccion = Column(Integer, nullable=True)
 
     solicitud = relationship("Solicitud")
     caficultor = relationship("Usuario")
+    viaje = relationship("Viaje", back_populates="entregas")
     historial_estados = relationship(
         "HistorialEstadoEntrega", back_populates="entrega", cascade="all, delete-orphan"
     )

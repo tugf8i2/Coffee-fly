@@ -11,7 +11,7 @@ const validCoordinate = (latitude, longitude) => Number.isFinite(Number(latitude
   && Number(longitude) >= -180
   && Number(longitude) <= 180;
 
-export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect }) {
+export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa' }) {
   const mapRef = useRef(null);
   const selected = validCoordinate(latitude, longitude)
     ? { latitude: Number(latitude), longitude: Number(longitude) }
@@ -24,7 +24,7 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
   }, [latitude, longitude]);
 
   return <View style={{ width: '100%', gap: 7 }}>
-    <Text style={{ color: '#386641', fontWeight: '700' }}>Toca el mapa para ubicar la cooperativa. También puedes arrastrar el marcador.</Text>
+    <Text style={{ color: '#386641', fontWeight: '700' }}>Toca el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
     <View style={{ width: '100%', height: 360, overflow: 'hidden', borderRadius: 14 }}>
       <MapView
         ref={mapRef}
@@ -38,7 +38,7 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
         toolbarEnabled
         zoomControlEnabled
       >
-        {selected ? <Marker coordinate={selected} draggable onDragEnd={(event) => onSelect?.(event.nativeEvent.coordinate)} title="Ubicación de la cooperativa" /> : null}
+        {selected ? <Marker coordinate={selected} draggable onDragEnd={(event) => onSelect?.(event.nativeEvent.coordinate)} title={`Ubicación de la ${entityLabel}`} /> : null}
       </MapView>
     </View>
     <Text style={{ color: '#526451', fontSize: 12 }}>Toca o arrastra el marcador para ajustar el punto exacto.</Text>

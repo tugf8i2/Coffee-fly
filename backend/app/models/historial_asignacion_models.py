@@ -15,3 +15,4 @@ class HistorialAsignacion(Base):
     conductor_id = Column(Integer, ForeignKey("conductor.id_conductor"), nullable=False)
     coordinador_id = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
     fecha_hora_asignacion = Column(DateTime, nullable=False)
+    viaje_id = Column(UUID(as_uuid=True), ForeignKey("viaje.id_viaje"), nullable=True)

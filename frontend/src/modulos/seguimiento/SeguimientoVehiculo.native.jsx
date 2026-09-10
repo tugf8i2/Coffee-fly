@@ -47,6 +47,7 @@ const asInstruction = (step) => {
 export default function SeguimientoVehiculo({ go, token, user }) {
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
+  const [activeTrip, setActiveTrip] = useState(null);
   const [tracking, setTracking] = useState(null);
   const [route, setRoute] = useState(null);
   const [message, setMessageText] = useState('');
@@ -93,14 +94,15 @@ export default function SeguimientoVehiculo({ go, token, user }) {
         return;
       }
       if (role === 'conductor') {
-        const response = await fetchApi(`${API_BASE_URL}/entregas/mis-asignadas`, { headers });
+        const response = await fetchApi(`${API_BASE_URL}/viajes/mi-activo`, { headers });
         const rows = await response.json();
-        if (!response.ok) throw Error(rows.detail || 'No se pudieron cargar las entregas.');
-        const assigned = rows.find((item) => item.estado_entrega === 'en camino')
-          || rows.find((item) => item.estado_entrega === 'pendiente');
-        if (!assigned) throw Error('No tienes entregas asignadas activas.');
-        setDelivery(assigned.id_entrega);
-        await loadTracking(assigned.id_entrega);
+        if (!response.ok) throw Error(rows.detail || 'No se pudo cargar el viaje activo.');
+        const trip = rows[0];
+        if (!trip) throw Error('No tienes un viaje en camino. Inícialo desde Recolecciones asignadas.');
+        setActiveTrip(trip);
+        const selected = trip.cargas.find((item) => item.id_entrega === delivery) || trip.cargas[0];
+        setDelivery(selected.id_entrega);
+        await loadTracking(selected.id_entrega);
         await refreshGpsState();
         setMessage('');
         return;
@@ -251,10 +253,28 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       const result = await response.json();
       if (!response.ok) throw Error(result.detail || 'No se pudo confirmar la recogida de la carga.');
       setRoute(null);
-      const updated = await loadTracking(delivery);
-      const nextDestination = toCoordinate(updated.cooperativa_latitud, updated.cooperativa_longitud);
-      await cargarRuta(origin, nextDestination, 'hacia_cooperativa');
-      setMessage('Carga confirmada. La ruta ahora te lleva a la cooperativa.', 'success');
+      const remainingLoad = activeTrip?.cargas.find((item) => item.id_entrega !== delivery && !item.carga_recogida_en);
+      setActiveTrip((current) => current ? {
+        ...current,
+        cargas: current.cargas.map((item) => item.id_entrega === delivery
+          ? { ...item, carga_recogida_en: result.carga_recogida_en }
+          : item),
+      } : current);
+      if (remainingLoad) {
+        setDelivery(remainingLoad.id_entrega);
+        const nextTracking = await loadTracking(remainingLoad.id_entrega);
+        if (nextTracking.destino_latitud == null || nextTracking.destino_longitud == null) {
+          throw Error('La siguiente finca no tiene una ubicación registrada.');
+        }
+        const nextDestination = toCoordinate(nextTracking.destino_latitud, nextTracking.destino_longitud);
+        await cargarRuta(origin, nextDestination, 'hacia_finca');
+        setMessage('Carga confirmada. Continúa hacia la siguiente finca.', 'success');
+      } else {
+        const updated = await loadTracking(delivery);
+        const nextDestination = toCoordinate(updated.cooperativa_latitud, updated.cooperativa_longitud);
+        await cargarRuta(origin, nextDestination, 'hacia_cooperativa');
+        setMessage('Todas las cargas fueron recogidas. Continúa hacia la cooperativa.', 'success');
+      }
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -337,6 +357,20 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     }
   };
 
+  const completeTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/viajes/${activeTrip.id_viaje}/completar`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || 'No se pudo completar el viaje.');
+      await detenerRastreoSegundoPlano();
+      setActiveTrip(null); setTracking(null); setDelivery(null);
+      setMessage('Viaje completado. El vehículo quedó disponible para su siguiente asignación.', 'success');
+    } catch (error) { setMessage(error.message); }
+  };
+
   const points = tracking?.puntos || [];
   const last = points[points.length - 1];
   const vehicle = last ? toCoordinate(last.latitud, last.longitud) : null;
@@ -406,6 +440,12 @@ export default function SeguimientoVehiculo({ go, token, user }) {
           ) : null}
         </View>
       ) : null}
+
+      {role === 'conductor' && activeTrip ? <View style={styles.fullCard}>
+        <Text style={styles.cardTitle}>Cargas de este viaje</Text>
+        <Text>{activeTrip.vehiculo_placa} · {activeTrip.cargas.length} carga(s)</Text>
+        <View style={styles.statusActions}>{activeTrip.cargas.map((load) => <TouchableOpacity key={load.id_entrega} style={[styles.role, delivery === load.id_entrega && styles.roleActive]} onPress={() => { setDelivery(load.id_entrega); setRoute(null); loadTracking(load.id_entrega).catch((error) => setMessage(error.message)); }}><Text>{load.orden_recoleccion}. {load.caficultor_nombre}{load.carga_recogida_en ? ' ✓' : ''}</Text></TouchableOpacity>)}</View>
+      </View> : null}
 
       {role === 'conductor' && delivery ? <DriverEventReporter deliveryId={delivery} token={token} styles={styles} /> : null}
 
@@ -516,6 +556,9 @@ export default function SeguimientoVehiculo({ go, token, user }) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.statusButton} onPress={stopGps}>
             <Text style={styles.statusButtonText}>Detener GPS</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.primary} onPress={completeTrip}>
+            <Text style={styles.primaryText}>Viaje completado</Text>
           </TouchableOpacity>
         </View>
       ) : null}

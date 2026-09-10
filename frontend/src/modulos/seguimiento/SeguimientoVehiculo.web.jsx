@@ -18,6 +18,7 @@ const freshnessOf = (point) => {
 export default function SeguimientoVehiculo({ go, token, user }) {
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
+  const [activeTrip, setActiveTrip] = useState(null);
   const [tracking, setTracking] = useState(null);
   const [message, setMessage] = useState('');
   const [realtimeState, setRealtimeState] = useState('disconnected');
@@ -42,11 +43,13 @@ export default function SeguimientoVehiculo({ go, token, user }) {
         setDelivery(data.entrega_id);
         setTracking(data);
       } else if (role === 'conductor') {
-        const response = await fetchApi(`${API_BASE_URL}/entregas/mis-asignadas`, { headers });
+        const response = await fetchApi(`${API_BASE_URL}/viajes/mi-activo`, { headers });
         const rows = await response.json();
-        if (!response.ok) throw Error(rows.detail || 'No se pudieron cargar tus entregas.');
-        const active = rows.find((row) => row.estado_entrega === 'en camino');
-        if (!active) throw Error('No tienes una entrega en camino. Iníciala desde la aplicación móvil.');
+        if (!response.ok) throw Error(rows.detail || 'No se pudo cargar tu viaje.');
+        const trip = rows[0];
+        if (!trip) throw Error('No tienes un viaje en camino. Inícialo desde Recolecciones asignadas.');
+        setActiveTrip(trip);
+        const active = trip.cargas.find((item) => item.id_entrega === delivery) || trip.cargas[0];
         setDelivery(active.id_entrega);
         await loadTracking(active.id_entrega);
       } else {
@@ -86,6 +89,17 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     };
   }, [tracking?.destino_latitud, tracking?.destino_longitud]);
   const openMap = () => last && Linking.openURL(`https://www.google.com/maps?q=${last.latitud},${last.longitud}`);
+  const completeTrip = async () => {
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/viajes/${activeTrip.id_viaje}/completar`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || 'No se pudo completar el viaje.');
+      setActiveTrip(null); setTracking(null); setDelivery(null);
+      setMessage('Viaje completado.');
+    } catch (error) { setMessage(error.message); }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
@@ -114,6 +128,12 @@ export default function SeguimientoVehiculo({ go, token, user }) {
           </View>
         </View>
       ) : null}
+
+      {role === 'conductor' && activeTrip ? <View style={styles.fullCard}>
+        <Text style={styles.cardTitle}>Cargas de este viaje</Text>
+        <View style={styles.statusActions}>{activeTrip.cargas.map((load) => <TouchableOpacity key={load.id_entrega} style={[styles.role, delivery === load.id_entrega && styles.roleActive]} onPress={() => { setDelivery(load.id_entrega); loadTracking(load.id_entrega).catch((error) => setMessage(error.message)); }}><Text>{load.orden_recoleccion}. {load.caficultor_nombre}{load.carga_recogida_en ? ' ✓' : ''}</Text></TouchableOpacity>)}</View>
+        <TouchableOpacity style={styles.primary} onPress={completeTrip}><Text style={styles.primaryText}>Viaje completado</Text></TouchableOpacity>
+      </View> : null}
 
       {role === 'conductor' && delivery ? <DriverEventReporter deliveryId={delivery} token={token} styles={styles} /> : null}
 

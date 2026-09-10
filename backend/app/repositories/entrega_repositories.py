@@ -15,6 +15,7 @@ from app.models.solicitud_models import Solicitud
 from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
 from app.models.vehiculo_models import Vehiculo
+from app.models.viaje_models import Viaje
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.core.time import utc_now_naive
 
@@ -101,6 +102,14 @@ class EntregaRepository:
         recientes = query.order_by(SeguimientoUbicacion.registrada_en.desc()).limit(limit).all()
         return list(reversed(recientes)), total
 
+    def get_puntos_ruta_viaje(self, viaje_id: UUID, limit: int = 2000):
+        query = self.db.query(SeguimientoUbicacion).join(
+            Entrega, SeguimientoUbicacion.entrega_id == Entrega.id_entrega
+        ).filter(Entrega.viaje_id == viaje_id)
+        total = query.count()
+        recientes = query.order_by(SeguimientoUbicacion.registrada_en.desc()).limit(limit).all()
+        return list(reversed(recientes)), total
+
     def get_ultimo_punto_ruta(self, entrega_id: UUID):
         return self.db.query(SeguimientoUbicacion).filter(
             SeguimientoUbicacion.entrega_id == entrega_id
@@ -159,9 +168,14 @@ class EntregaRepository:
             Carga, Solicitud.carga_id == Carga.id_carga
         ).join(
             Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
+        ).outerjoin(
+            Viaje, Entrega.viaje_id == Viaje.id_viaje
         ).filter(
             Entrega.id_entrega == entrega_id,
-            Vehiculo.conductor_id == conductor_id,
+            or_(
+                (Entrega.viaje_id.isnot(None)) & (Viaje.conductor_id == conductor_id),
+                (Entrega.viaje_id.is_(None)) & (Vehiculo.conductor_id == conductor_id),
+            ),
         )
         if for_update:
             query = query.with_for_update(of=Entrega)
@@ -176,8 +190,13 @@ class EntregaRepository:
             Carga, Solicitud.carga_id == Carga.id_carga
         ).join(
             Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
+        ).outerjoin(
+            Viaje, Entrega.viaje_id == Viaje.id_viaje
         ).filter(
-            Vehiculo.conductor_id == conductor_id
+            or_(
+                (Entrega.viaje_id.isnot(None)) & (Viaje.conductor_id == conductor_id),
+                (Entrega.viaje_id.is_(None)) & (Vehiculo.conductor_id == conductor_id),
+            )
         ).order_by(Entrega.fecha_hora_entrega.desc()).all()
 
     def get_entrega_activa_caficultor(self, caficultor_id: int):
@@ -258,6 +277,7 @@ class EntregaRepository:
             Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
         ).filter(
             Entrega.estado_entrega == "pendiente",
+            Entrega.viaje_id.is_(None),
             # También se recuperan asignaciones antiguas que tenían vehículo
             # pero nunca recibieron conductor, para poder completarlas.
             or_(Carga.vehiculo_id.is_(None), Vehiculo.conductor_id.is_(None)),
@@ -280,7 +300,7 @@ class EntregaRepository:
             (Entrega.solicitud_id == Solicitud.id_solicitud)
             & Entrega.estado_entrega.in_(["pendiente", "en camino"]),
         ).filter(
-            Vehiculo.estado_vehiculo == "disponible"
+            Vehiculo.estado_vehiculo != "en mantenimiento"
         ).group_by(Vehiculo.id_vehiculo).order_by(Vehiculo.placa).all()
 
     def get_vehiculo_disponible(self, vehiculo_id: int, for_update: bool = False):
@@ -312,6 +332,12 @@ class EntregaRepository:
 
     def get_cooperativas_disponibles(self):
         return self.db.query(Cooperativa).order_by(Cooperativa.nombre).all()
+
+    def siguiente_viaje_en_cola(self, vehiculo_id: int):
+        return self.db.query(Viaje).filter(
+            Viaje.vehiculo_id == vehiculo_id,
+            Viaje.estado_viaje == "en_cola",
+        ).order_by(Viaje.orden_cola).with_for_update().first()
 
     def get_conductor(self, conductor_id: int, for_update: bool = False) -> Conductor | None:
         query = self.db.query(Conductor).filter(Conductor.id_conductor == conductor_id)

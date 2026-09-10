@@ -125,12 +125,14 @@ class UsuarioService:
             raise
         return self._con_perfil(db_usuario)
 
-    def actualizar_ubicacion_finca(self, caficultor_id: int, latitud: float, longitud: float):
+    def actualizar_ubicacion_finca(self, caficultor_id: int, latitud: float, longitud: float, direccion: str | None):
         usuario = self.repository.get_usuario(caficultor_id)
         if not usuario:
             raise HTTPException(status_code=404, detail="Caficultor no encontrado")
         usuario.latitud_finca = latitud
         usuario.longitud_finca = longitud
+        if direccion is not None:
+            usuario.direccion_finca = direccion.strip()
         usuario.ubicacion_finca_actualizada_en = utc_now_naive()
         try:
             self.repository.db.commit()
@@ -141,6 +143,7 @@ class UsuarioService:
         return {
             "latitud": usuario.latitud_finca,
             "longitud": usuario.longitud_finca,
+            "direccion": usuario.direccion_finca,
             "actualizada_en": usuario.ubicacion_finca_actualizada_en,
         }
 

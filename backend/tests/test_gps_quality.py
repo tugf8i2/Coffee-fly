@@ -24,6 +24,7 @@ class FakeTrackingRepository:
             id_entrega=self.delivery_id,
             estado_entrega="en camino",
             distancia_recorrida_m=0,
+            viaje_id=None,
         )
 
     def get_vehiculo_entrega(self, _delivery_id, for_update=False):

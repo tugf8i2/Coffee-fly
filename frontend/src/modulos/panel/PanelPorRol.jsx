@@ -24,7 +24,7 @@ const ACCESS_DETAILS = {
   monitoring: ['◎', 'Supervisa viajes activos y calidad de las ubicaciones.'],
   assignmentHistory: ['↻', 'Consulta los cambios de asignación realizados.'],
   reports: ['▥', 'Genera informes operativos por rango de fechas.'],
-  assignedDeliveries: ['▣', 'Revisa las cargas que tienes asignadas.'],
+  assignedDeliveries: ['▣', 'Revisa los viajes de recolección pendientes de iniciar.'],
   support: ['✉', 'Conversa sobre una carga con la persona responsable.'],
 };
 

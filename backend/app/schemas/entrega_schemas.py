@@ -120,6 +120,7 @@ class VehiculoDisponibleResponse(BaseModel):
     capacidad_kg: float
     carga_actual_kg: float
     capacidad_disponible_kg: float
+    estado_vehiculo: str
 
 
 class ConductorDisponibleResponse(BaseModel):

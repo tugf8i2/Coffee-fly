@@ -8,6 +8,7 @@ import { styles } from './GestionVehiculos.styles';
 const empty = {
   placa: '', tipo_vehiculo: '', modelo: '', capacidad_toneladas: '', estado_vehiculo: 'disponible',
 };
+const vehicleTypes = ['Camión', 'Tractomula'];
 
 export default function GestionVehiculos({ go, token }) {
   const [vehicles, setVehicles] = useState([]);
@@ -17,6 +18,7 @@ export default function GestionVehiculos({ go, token }) {
   const [messageType, setMessageType] = useState('info');
   const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
   const [saving, setSaving] = useState(false);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = async () => {
@@ -36,7 +38,7 @@ export default function GestionVehiculos({ go, token }) {
     try {
       const toneladas = Number(form.capacidad_toneladas);
       const modelYear = Number(form.modelo);
-      if (!form.placa.trim() || !form.tipo_vehiculo.trim() || !form.modelo.trim() || !Number.isFinite(toneladas) || toneladas <= 0) {
+      if (!form.placa.trim() || !vehicleTypes.includes(form.tipo_vehiculo) || !form.modelo.trim() || !Number.isFinite(toneladas) || toneladas <= 0) {
         throw Error('Completa placa, tipo, modelo y capacidad.');
       }
       if (!Number.isInteger(modelYear) || modelYear < 2000) {
@@ -58,6 +60,7 @@ export default function GestionVehiculos({ go, token }) {
       if (!response.ok) throw Error(data.detail || 'No se pudo guardar el vehículo.');
       setMessage(editing ? 'Vehículo actualizado correctamente.' : `Vehículo ${data.placa} registrado correctamente.`, 'success');
       setForm(empty);
+      setTypeMenuOpen(false);
       setEditing(null);
       await load();
     } catch (error) { setMessage(error.message); } finally { setSaving(false); }
@@ -90,7 +93,8 @@ export default function GestionVehiculos({ go, token }) {
       <Text style={styles.label}>Placa</Text>
       <TextInput style={styles.input} value={form.placa} onChangeText={(value) => set('placa', value)} maxLength={7} autoCapitalize="characters" placeholder="ABC123" />
       <Text style={styles.label}>Tipo de vehículo</Text>
-      <TextInput style={styles.input} value={form.tipo_vehiculo} onChangeText={(value) => set('tipo_vehiculo', value)} placeholder="Camioneta, camión..." />
+      <TouchableOpacity style={styles.input} onPress={() => setTypeMenuOpen((current) => !current)}><Text>{form.tipo_vehiculo || 'Selecciona un tipo'} ▾</Text></TouchableOpacity>
+      {typeMenuOpen ? <View style={styles.card}>{vehicleTypes.map((type) => <TouchableOpacity key={type} onPress={() => { set('tipo_vehiculo', type); setTypeMenuOpen(false); }}><Text style={styles.link}>{type}</Text></TouchableOpacity>)}</View> : null}
       <Text style={styles.label}>Año del modelo</Text>
       <TextInput style={styles.input} value={form.modelo} onChangeText={(value) => set('modelo', value.replace(/[^0-9]/g, ''))} keyboardType="number-pad" maxLength={4} placeholder="Ej. 2024" />
       <Text style={styles.muted}>Se permiten modelos del año 2000 en adelante.</Text>

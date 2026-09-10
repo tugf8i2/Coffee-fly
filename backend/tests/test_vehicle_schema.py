@@ -29,6 +29,10 @@ class VehicleModelYearValidationTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             VehiculoUpdate(modelo="NPR")
 
+    def test_rejects_vehicle_type_outside_catalog(self):
+        with self.assertRaises(ValidationError):
+            VehiculoUpdate(tipo_vehiculo="Camioneta")
+
 
 if __name__ == "__main__":
     unittest.main()
