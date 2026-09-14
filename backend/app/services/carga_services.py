@@ -12,6 +12,7 @@ from app.schemas.carga_schemas import (
 )
 from app.models.vehiculo_models import Vehiculo
 from app.models.usuario_models import Usuario
+from app.models.solicitud_models import Solicitud
 from app.core.time import utc_now_naive
 
 
@@ -119,6 +120,10 @@ class CargaService:
         if carga_existente is None:
             raise HTTPException(status_code=404, detail="Carga no encontrada")
         self._autorizar(carga_existente, usuario)
+        if self.repository.db.query(Solicitud.id_solicitud).filter(
+            Solicitud.carga_id == id_carga
+        ).first() is not None:
+            raise HTTPException(status_code=409, detail="La carga ya está vinculada a una solicitud y no puede modificarse")
 
         datos = (
             carga
@@ -178,6 +183,10 @@ class CargaService:
         if existente is None:
             raise HTTPException(status_code=404, detail="Carga no encontrada")
         self._autorizar(existente, usuario)
+        if self.repository.db.query(Solicitud.id_solicitud).filter(
+            Solicitud.carga_id == id_carga
+        ).first() is not None:
+            raise HTTPException(status_code=409, detail="La carga pertenece a una solicitud y no puede eliminarse")
         eliminada = (
             self.repository
             .delete_carga(

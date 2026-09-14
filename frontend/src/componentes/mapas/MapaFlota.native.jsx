@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Text, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { useState } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 
-import { NATIVE_MAP_AVAILABLE } from '../../configuracion/mapasNativos';
+import MapaAbierto from './MapaAbierto.native';
 
 const isValidCoordinate = (vehicle) => Number.isFinite(Number(vehicle?.latitud))
   && Number.isFinite(Number(vehicle?.longitud))
@@ -16,66 +15,27 @@ const markerColor = (state) => (
 );
 
 export default function MapaFlota({ vehicles = [] }) {
-  const mapRef = useRef(null);
-  const fleetSignatureRef = useRef('');
-  const visible = useMemo(() => vehicles.filter(isValidCoordinate), [vehicles]);
-  const coordinates = useMemo(() => visible.map((vehicle) => ({
-    latitude: Number(vehicle.latitud),
-    longitude: Number(vehicle.longitud),
-  })), [visible]);
-  const fleetSignature = useMemo(
-    () => visible.map((vehicle) => String(vehicle.entrega_id)).sort().join('|'),
-    [visible],
-  );
+  const [fitRevision, setFitRevision] = useState(0);
+  const visible = vehicles.filter(isValidCoordinate);
+  if (!visible.length) return <Text style={{ color: '#526451' }}>Aún no hay posiciones GPS para mostrar en el mapa de flota.</Text>;
 
-  useEffect(() => {
-    if (!fleetSignature || fleetSignature === fleetSignatureRef.current) return;
-    fleetSignatureRef.current = fleetSignature;
-    if (coordinates.length > 1) {
-      mapRef.current?.fitToCoordinates(coordinates, {
-        animated: true,
-        edgePadding: { top: 45, right: 45, bottom: 45, left: 45 },
-      });
-    } else if (coordinates.length === 1) {
-      mapRef.current?.animateToRegion({
-        ...coordinates[0], latitudeDelta: 0.04, longitudeDelta: 0.04,
-      }, 600);
-    }
-  }, [coordinates, fleetSignature]);
+  const markers = visible.map((vehicle) => ({
+    id: vehicle.entrega_id,
+    kind: 'vehicle',
+    coordinate: { latitude: Number(vehicle.latitud), longitude: Number(vehicle.longitud) },
+    heading: Number(vehicle.rumbo_grados || 0),
+    color: markerColor(vehicle.estado_gps),
+    title: vehicle.placa || 'Vehículo',
+    description: `${vehicle.estado_gps} · GPS ${Number(vehicle.latitud).toFixed(6)}, ${Number(vehicle.longitud).toFixed(6)}${vehicle.precision_m != null ? ` · precisión ±${Math.round(vehicle.precision_m)} m` : ''} · ${vehicle.velocidad_m_s == null ? 'velocidad no disponible' : `${(vehicle.velocidad_m_s * 3.6).toFixed(1)} km/h`}`,
+  }));
+  const fitKey = `${visible.map((vehicle) => String(vehicle.entrega_id)).sort().join('|')}:${fitRevision}`;
 
-  if (!visible.length) {
-    return <Text style={{ color: '#526451' }}>Aún no hay posiciones GPS para mostrar en el mapa de flota.</Text>;
-  }
-
-  if (!NATIVE_MAP_AVAILABLE) {
-    return <View style={{ paddingVertical: 8 }}>
-      <Text style={{ color: '#293b2b', fontWeight: '700' }}>Flota conectada: {visible.length}</Text>
-      <Text style={{ color: '#526451' }}>
-        El mapa integrado requiere una clave de Google Maps en el APK. Las posiciones GPS siguen actualizándose.
-      </Text>
-    </View>;
-  }
-
-  const initial = coordinates[0];
-  return <View style={{ height: 340, overflow: 'hidden', borderRadius: 14 }}>
-    <MapView
-      ref={mapRef}
+  return <View style={{ height: 340, width: '100%', overflow: 'hidden', borderRadius: 14 }}>
+    <MapaAbierto
       style={{ flex: 1 }}
-      mapType="standard"
-      initialRegion={{ ...initial, latitudeDelta: 0.08, longitudeDelta: 0.08 }}
-      loadingEnabled
-      showsCompass
-      showsScale
-      toolbarEnabled
-      zoomControlEnabled
-    >
-      {visible.map((vehicle) => <Marker
-        key={vehicle.entrega_id}
-        coordinate={{ latitude: Number(vehicle.latitud), longitude: Number(vehicle.longitud) }}
-        title={vehicle.placa}
-        description={`${vehicle.estado_gps} · ${vehicle.velocidad_m_s == null ? 'velocidad no disponible' : `${(vehicle.velocidad_m_s * 3.6).toFixed(1)} km/h`}`}
-        pinColor={markerColor(vehicle.estado_gps)}
-      />)}
-    </MapView>
+      markers={markers}
+      camera={{ fitMode: 'markers', fitKey, zoom: 15, maxZoom: 16, padding: 45 }}
+    />
+    <TouchableOpacity accessibilityRole="button" onPress={() => setFitRevision((value) => value + 1)} style={{ position: 'absolute', right: 12, top: 12, backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 8 }}><Text style={{ color: '#17351f', fontWeight: '800' }}>Encuadrar flota</Text></TouchableOpacity>
   </View>;
 }

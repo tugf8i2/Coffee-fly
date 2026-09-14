@@ -34,6 +34,16 @@ class SolicitudRepository:
             .first()
         )
 
+    def get_solicitud_for_update(self, id_solicitud: UUID) -> Solicitud | None:
+        return self.db.query(Solicitud).filter(
+            Solicitud.id_solicitud == id_solicitud
+        ).populate_existing().with_for_update().first()
+
+    def get_entrega_solicitud_for_update(self, id_solicitud: UUID) -> Entrega | None:
+        return self.db.query(Entrega).filter(
+            Entrega.solicitud_id == id_solicitud
+        ).populate_existing().with_for_update().first()
+
 
     def get_solicitudes(
         self,

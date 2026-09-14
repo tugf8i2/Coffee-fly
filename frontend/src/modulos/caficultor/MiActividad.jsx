@@ -1,10 +1,11 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
-import { useCallback, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion/ClienteApi';
 import usePolling from '../../ganchos/usarSondeo';
 import { bagSummary, tonnes, weight } from '../../servicios/presentacionCarga';
 import { styles } from './MiActividad.styles';
+import { apiErrorMessage } from '../../servicios/mensajesApi';
 
 const states = { pendiente: 'Pendiente', 'en camino': 'En camino', entregado: 'Entregado', cancelado: 'Cancelada' };
 
@@ -12,30 +13,77 @@ export default function MiActividad({ go, token }) {
   const [data, setData] = useState(null);
   const [eventsByDelivery, setEventsByDelivery] = useState({});
   const [error, setError] = useState('');
+  const [eventsError, setEventsError] = useState('');
+  const [message, setMessage] = useState('');
+  const [cancelingId, setCancelingId] = useState(null);
+  const cancelingRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [response, eventsResponse] = await Promise.all([
+      const [requestOutcome, eventsOutcome] = await Promise.allSettled([
         fetchApi(`${API_BASE_URL}/solicitudes/mis-solicitudes`, { headers }),
         fetchApi(`${API_BASE_URL}/entregas/eventos/notificaciones`, { headers }),
       ]);
-      const [result, events] = await Promise.all([response.json(), eventsResponse.json()]);
-      if (!response.ok) throw Error(result.detail || 'No se pudo cargar tu actividad.');
-      if (!eventsResponse.ok) throw Error(events.detail || 'No se pudo cargar el historial de eventos.');
+      if (requestOutcome.status === 'rejected') throw requestOutcome.reason;
+      const response = requestOutcome.value;
+      const result = await response.json();
+      if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo cargar tu actividad.'));
+      setData(result);
+      setError('');
+      if (eventsOutcome.status === 'rejected') {
+        setEventsError(`${eventsOutcome.reason.message || 'No se pudo consultar el historial de eventos.'} Las solicitudes siguen disponibles.`);
+        return;
+      }
+      const eventsResponse = eventsOutcome.value;
+      let events;
+      try {
+        events = await eventsResponse.json();
+      } catch {
+        setEventsError('El historial de eventos devolvió una respuesta inválida. Las solicitudes siguen disponibles.');
+        return;
+      }
+      if (!eventsResponse.ok || !Array.isArray(events)) {
+        setEventsError(apiErrorMessage(events, 'No se pudo cargar el historial de eventos. Las solicitudes siguen disponibles.'));
+        return;
+      }
       const groupedEvents = {};
       events.forEach((event) => {
         if (!groupedEvents[event.entrega_id]) groupedEvents[event.entrega_id] = [];
         groupedEvents[event.entrega_id].push(event);
       });
-      setData(result);
       setEventsByDelivery(groupedEvents);
-      setError('');
+      setEventsError('');
     } catch (reason) { setError(reason.message); }
   }, [token]);
 
   usePolling(load, 30000);
   const summary = data?.resumen;
+  const confirmCancellation = (request) => {
+    const prompt = `¿Cancelar la solicitud ${request.id_solicitud.slice(0, 8)}? Esta acción no se puede deshacer.`;
+    if (Platform.OS === 'web') return Promise.resolve(globalThis.confirm?.(prompt) ?? false);
+    return new Promise((resolve) => Alert.alert('Cancelar solicitud', prompt, [
+      { text: 'Conservar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Cancelar solicitud', style: 'destructive', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) }));
+  };
+  const cancelRequest = async (request) => {
+    if (cancelingRef.current || !(await confirmCancellation(request))) return;
+    cancelingRef.current = request.id_solicitud;
+    setCancelingId(request.id_solicitud);
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/solicitudes/${request.id_solicitud}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado_solicitud: 'cancelado' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo cancelar la solicitud.'));
+      setMessage('Solicitud cancelada correctamente.');
+      await load();
+    } catch (reason) { setError(reason.message); }
+    finally { cancelingRef.current = null; setCancelingId(null); }
+  };
   const requestCard = (request) => {
     const events = eventsByDelivery[request.entrega_id] || [];
     return <View style={styles.card} key={request.id_solicitud}>
@@ -45,6 +93,13 @@ export default function MiActividad({ go, token }) {
     {bagSummary(request) ? <Text>{bagSummary(request)}</Text> : null}
     <Text style={styles.muted}>{weight(request.peso_kg)} · {new Date(request.fecha_hora_solicitud).toLocaleDateString()}</Text>
     {request.observacion ? <Text>{request.observacion}</Text> : null}
+    {request.estado_solicitud === 'pendiente' ? <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(cancelingId), busy: cancelingId === request.id_solicitud }}
+      disabled={Boolean(cancelingId)}
+      style={[styles.secondary, cancelingId && styles.buttonDisabled]}
+      onPress={() => cancelRequest(request)}
+    ><Text style={styles.secondaryText}>{cancelingId === request.id_solicitud ? 'Cancelando…' : 'Cancelar solicitud pendiente'}</Text></TouchableOpacity> : null}
     {request.entrega_id ? <View style={{ borderTopWidth: 1, borderTopColor: '#d6ddce', marginTop: 10, paddingTop: 10, gap: 8 }}>
       <Text style={styles.cardTitle}>Historial de eventos</Text>
       <Text style={styles.muted}>Mensajes del conductor asignado únicamente a esta carga.</Text>
@@ -64,6 +119,8 @@ export default function MiActividad({ go, token }) {
     <Text style={styles.title}>Mi actividad cafetera</Text>
     <Text style={styles.muted}>Resumen personal de solicitudes y despachos. Se actualiza automáticamente cada 30 segundos.</Text>
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
+    {eventsError ? <FeedbackMessage type="warning">{eventsError}</FeedbackMessage> : null}
+    {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
     {!data && !error ? <Text style={styles.muted}>Cargando actividad...</Text> : null}
     {summary ? <>
       <View style={styles.card}><Text style={styles.cardTitle}>Resumen del período</Text>
@@ -78,6 +135,6 @@ export default function MiActividad({ go, token }) {
       <Text style={styles.section}>Historial de despachos</Text>
       {data.historial_despachos.length ? <View style={styles.grid}>{data.historial_despachos.map(requestCard)}</View> : <Text style={styles.muted}>Aún no tienes despachos entregados.</Text>}
     </> : null}
-    <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar resumen</Text></TouchableOpacity>
+    <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar resumen</Text></TouchableOpacity>
   </ScrollView>;
 }

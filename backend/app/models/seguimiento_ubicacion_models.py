@@ -16,11 +16,13 @@ class SeguimientoUbicacion(Base):
             postgresql_where=text("client_point_id IS NOT NULL"),
         ),
         Index("ix_seguimiento_entrega_fecha", "entrega_id", "registrada_en"),
+        Index("ix_seguimiento_viaje_fecha", "viaje_id", "registrada_en"),
         Index("ix_seguimiento_vehiculo_id", "vehiculo_id"),
     )
     id_ubicacion = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_point_id = Column(UUID(as_uuid=True), nullable=True)
     entrega_id = Column(UUID(as_uuid=True), ForeignKey("entrega.id_entrega"), nullable=False)
+    viaje_id = Column(UUID(as_uuid=True), ForeignKey("viaje.id_viaje"), nullable=True)
     vehiculo_id = Column(ForeignKey("vehiculo.id_vehiculo"), nullable=False)
     latitud = Column(Numeric(9, 6), nullable=False)
     longitud = Column(Numeric(9, 6), nullable=False)

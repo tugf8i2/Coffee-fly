@@ -1,4 +1,5 @@
 from datetime import timezone
+from math import isfinite
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -15,8 +16,10 @@ from app.schemas.solicitud_schemas import (
 )
 from app.models.carga_models import Carga
 from app.models.entrega_models import Entrega
+from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
+from app.core.time import utc_now_naive
 
 
 class SolicitudService:
@@ -53,6 +56,39 @@ class SolicitudService:
             vinculada = vinculada.filter(Solicitud.id_solicitud != solicitud_id)
         if vinculada.first() is not None:
             raise HTTPException(status_code=409, detail="La carga ya está vinculada a otra solicitud")
+
+    @staticmethod
+    def _fecha_captura(datos: SincronizarSolicitudRequest):
+        capturada_en = datos.capturada_en
+        if capturada_en.tzinfo is not None:
+            capturada_en = capturada_en.astimezone(timezone.utc).replace(tzinfo=None)
+        return capturada_en
+
+    def _validar_reintento_sincronizacion(self, existente, datos, caficultor_id):
+        if existente.caficultor_id != caficultor_id:
+            raise HTTPException(status_code=409, detail="El identificador ya pertenece a otro caficultor")
+        carga = existente.carga
+
+        def numero(valor):
+            return None if valor is None else round(float(valor), 2)
+
+        coincide = carga is not None and all((
+            numero(carga.peso_kg) == numero(datos.peso_total_kg),
+            numero(carga.peso_bulto_kg) == numero(datos.peso_bulto_kg),
+            carga.cantidad_bultos == datos.cantidad_bultos,
+            numero(carga.peso_extra_kg or 0) == numero(datos.peso_extra_kg),
+            carga.grupos_bultos == datos.grupos_bultos,
+            (carga.descripcion or "").strip() == datos.observacion.strip(),
+            existente.fecha_hora_solicitud == self._fecha_captura(datos),
+        ))
+        if not coincide:
+            raise HTTPException(status_code=409, detail="El identificador de la solicitud ya fue usado con datos diferentes")
+        return {
+            "client_request_id": datos.client_request_id,
+            "solicitud_id": existente.id_solicitud,
+            "carga_id": existente.carga_id,
+            "estado": "duplicada",
+        }
 
 
     def obtener_solicitudes(
@@ -143,18 +179,19 @@ class SolicitudService:
             Solicitud.client_request_id == datos.client_request_id
         ).first()
         if existente is not None:
-            if existente.caficultor_id != caficultor_id:
-                raise HTTPException(status_code=409, detail="El identificador ya pertenece a otro caficultor")
-            return {
-                "client_request_id": datos.client_request_id,
-                "solicitud_id": existente.id_solicitud,
-                "carga_id": existente.carga_id,
-                "estado": "duplicada",
-            }
+            return self._validar_reintento_sincronizacion(existente, datos, caficultor_id)
 
-        captured_at = datos.capturada_en
-        if captured_at.tzinfo is not None:
-            captured_at = captured_at.astimezone(timezone.utc).replace(tzinfo=None)
+        caficultor = self.repository.db.query(Usuario).filter(Usuario.id_usuario == caficultor_id).first()
+        latitud = getattr(caficultor, "latitud_finca", None)
+        longitud = getattr(caficultor, "longitud_finca", None)
+        if (
+            latitud is None or longitud is None
+            or not isfinite(float(latitud)) or not isfinite(float(longitud))
+            or not -90 <= float(latitud) <= 90 or not -180 <= float(longitud) <= 180
+        ):
+            raise HTTPException(status_code=409, detail="Registra la ubicación de tu finca antes de solicitar una recolección")
+
+        captured_at = self._fecha_captura(datos)
         carga = Carga(
             peso_kg=datos.peso_total_kg,
             peso_bulto_kg=datos.peso_bulto_kg,
@@ -184,13 +221,8 @@ class SolicitudService:
         except Exception:
             db.rollback()
             repetida = db.query(Solicitud).filter(Solicitud.client_request_id == datos.client_request_id).first()
-            if repetida is not None and repetida.caficultor_id == caficultor_id:
-                return {
-                    "client_request_id": datos.client_request_id,
-                    "solicitud_id": repetida.id_solicitud,
-                    "carga_id": repetida.carga_id,
-                    "estado": "duplicada",
-                }
+            if repetida is not None:
+                return self._validar_reintento_sincronizacion(repetida, datos, caficultor_id)
             raise
         return {
             "client_request_id": datos.client_request_id,
@@ -211,6 +243,24 @@ class SolicitudService:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")
         self._autorizar(existente, usuario)
         cambios = solicitud.model_dump(exclude_unset=True)
+        entrega_vinculada = self.repository.get_entrega_solicitud_for_update(
+            existente.id_solicitud
+        )
+        if entrega_vinculada is not None:
+            existente = self.repository.get_solicitud_for_update(existente.id_solicitud)
+            if existente is None:
+                raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+            self._autorizar(existente, usuario)
+            es_cancelacion_previa = (
+                entrega_vinculada.viaje_id is None
+                and entrega_vinculada.estado_entrega == "pendiente"
+                and existente.carga is not None
+                and existente.carga.vehiculo_id is None
+                and existente.estado_solicitud == "pendiente"
+                and cambios == {"estado_solicitud": "cancelado"}
+            )
+            if not es_cancelacion_previa:
+                raise HTTPException(status_code=409, detail="La solicitud registrada para transporte ya no permite modificaciones")
         if self._rol(usuario) == "caficultor":
             if existente.estado_solicitud != "pendiente":
                 raise HTTPException(status_code=409, detail="Solo puedes modificar una solicitud pendiente")
@@ -228,6 +278,17 @@ class SolicitudService:
             if carga_id is not None:
                 self._validar_carga_propia(carga_id, usuario.id_usuario, id_solicitud)
         solicitud_segura = SolicitudUpdate(**cambios)
+        if entrega_vinculada is not None and cambios.get("estado_solicitud") == "cancelado":
+            ahora = utc_now_naive()
+            self.repository.db.add(HistorialEstadoEntrega(
+                entrega_id=entrega_vinculada.id_entrega,
+                estado_anterior=entrega_vinculada.estado_entrega,
+                estado_nuevo="cancelado",
+                usuario_id=usuario.id_usuario,
+                fecha_hora_cambio=ahora,
+            ))
+            entrega_vinculada.estado_entrega = "cancelado"
+            entrega_vinculada.actualizado_en = ahora
         actualizada = (
             self.repository
             .update_solicitud(
@@ -257,6 +318,10 @@ class SolicitudService:
         self._autorizar(existente, usuario)
         if self._rol(usuario) == "caficultor" and existente.estado_solicitud != "pendiente":
             raise HTTPException(status_code=409, detail="Solo puedes eliminar una solicitud pendiente")
+        if self.repository.db.query(Entrega.id_entrega).filter(
+            Entrega.solicitud_id == id_solicitud
+        ).first() is not None:
+            raise HTTPException(status_code=409, detail="La solicitud ya fue registrada para transporte y no puede eliminarse")
         eliminada = (
             self.repository
             .delete_solicitud(

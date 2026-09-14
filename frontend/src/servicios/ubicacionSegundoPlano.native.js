@@ -22,6 +22,38 @@ import {
 export const BACKGROUND_LOCATION_TASK = 'coffee-fly-background-location';
 let foregroundSubscription = null;
 let foregroundChain = Promise.resolve();
+let synchronizationPromise = null;
+let pendingSynchronizationToken = null;
+const navigationListeners = new Set();
+
+export function suscribirLecturasNavegacion(listener) {
+  navigationListeners.add(listener);
+  return () => navigationListeners.delete(listener);
+}
+
+const publishNavigationReading = (position, quality) => {
+  navigationListeners.forEach((listener) => {
+    try { listener(position, quality); } catch { /* La captura GPS no debe fallar por un consumidor visual. */ }
+  });
+};
+
+const scheduleSynchronization = (token) => {
+  if (!token) return;
+  pendingSynchronizationToken = token;
+  if (synchronizationPromise) return;
+  synchronizationPromise = (async () => {
+    while (pendingSynchronizationToken) {
+      const activeToken = pendingSynchronizationToken;
+      pendingSynchronizationToken = null;
+      await sincronizarPendientes(activeToken);
+    }
+  })()
+    .catch((error) => guardarEstadoRastreo({ modo: 'error', detalle: error.message }))
+    .finally(() => {
+      synchronizationPromise = null;
+      if (pendingSynchronizationToken) scheduleSynchronization(pendingSynchronizationToken);
+    });
+};
 
 async function trackingOptions() {
   let power = { batteryLevel: -1, lowPowerMode: false };
@@ -56,7 +88,7 @@ export async function procesarLecturaGps(
   deliveryId,
   position,
   token,
-  { force = false, historical = false, synchronizeNow = true } = {},
+  { force = false, historical = false, publishNavigation = true, synchronizeNow = true } = {},
 ) {
   const point = createGpsPoint(position);
   const previous = await obtenerUltimoPuntoGps(deliveryId);
@@ -64,6 +96,7 @@ export async function procesarLecturaGps(
     force,
     maxAgeMs: historical ? Number.POSITIVE_INFINITY : 5 * 60 * 1000,
   });
+  if (quality.valid && publishNavigation) publishNavigationReading(position, quality);
   if (!quality.valid || !quality.shouldStore) {
     await guardarEstadoRastreo({
       modo: 'capturando',
@@ -95,13 +128,16 @@ async function processBackgroundLocations(locations) {
   }
   const session = await getAuthenticatedSession();
   const ordered = [...(locations || [])].sort((first, second) => first.timestamp - second.timestamp);
-  for (const location of ordered) {
-    await procesarLecturaGps(tracking.deliveryId, location, session?.token, {
-      historical: true,
-      synchronizeNow: false,
-    });
-  }
-  if (session?.token && ordered.length) await sincronizarPendientes(session.token);
+  foregroundChain = foregroundChain.catch(() => undefined).then(async () => {
+    for (const location of ordered) {
+      await procesarLecturaGps(tracking.deliveryId, location, session?.token, {
+        historical: true,
+        synchronizeNow: false,
+      });
+    }
+    if (session?.token && ordered.length) await sincronizarPendientes(session.token);
+  });
+  await foregroundChain;
 }
 
 if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
@@ -123,15 +159,25 @@ async function startForegroundFallback(deliveryId, token) {
   const profile = await trackingOptions();
   foregroundSubscription = await Location.watchPositionAsync(
     {
-      accuracy: profile.options.accuracy,
-      timeInterval: profile.options.timeInterval,
-      distanceInterval: profile.options.distanceInterval,
+      accuracy: profile.power.lowPowerMode ? Location.Accuracy.High : Location.Accuracy.BestForNavigation,
+      timeInterval: profile.power.lowPowerMode ? 5000 : 1000,
+      distanceInterval: profile.power.lowPowerMode ? 10 : 2,
     },
     (position) => {
+      // La interfaz recibe el punto inmediatamente. Persistencia y red continúan
+      // serializadas por separado y nunca frenan el movimiento del marcador.
+      publishNavigationReading(position);
       foregroundChain = foregroundChain
+        .catch(() => undefined)
         .then(async () => {
           const latestSession = await getAuthenticatedSession();
-          return procesarLecturaGps(deliveryId, position, latestSession?.token || token);
+          const activeToken = latestSession?.token || token;
+          const result = await procesarLecturaGps(deliveryId, position, activeToken, {
+            publishNavigation: false,
+            synchronizeNow: false,
+          });
+          if (result.accepted) scheduleSynchronization(activeToken);
+          return result;
         })
         .catch((error) => guardarEstadoRastreo({ modo: 'error', detalle: error.message }));
     },
@@ -186,7 +232,9 @@ export async function iniciarRastreoSegundoPlano(
   foregroundSubscription = null;
   await saveActiveTracking(deliveryId);
   try {
-    await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, profile.options);
+    const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+    if (!alreadyStarted) await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, profile.options);
+    await startForegroundFallback(deliveryId, token);
   } catch (error) {
     await startForegroundFallback(deliveryId, token);
     return {

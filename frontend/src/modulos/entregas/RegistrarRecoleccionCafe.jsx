@@ -1,11 +1,12 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
-import { useCallback, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import { fetchDeliveryHistories } from '../../servicios/historialEntregas';
 import { bagSummary, tonnes, weight } from '../../servicios/presentacionCarga';
 import { styles } from './RegistrarRecoleccionCafe.styles';
+import { apiErrorMessage } from '../../servicios/mensajesApi';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
@@ -17,6 +18,10 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [history, setHistory] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [cancelingId, setCancelingId] = useState(null);
+  const savingRef = useRef(false);
+  const cancelingRef = useRef(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -27,8 +32,8 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
         fetchApi(`${API_BASE_URL}/entregas/`, { headers }),
       ]);
       const [requestsData, deliveriesData] = await Promise.all([requestsResponse.json(), deliveriesResponse.json()]);
-      if (!requestsResponse.ok) throw Error(requestsData.detail || 'No se pudieron consultar las solicitudes activas.');
-      if (!deliveriesResponse.ok) throw Error(deliveriesData.detail || 'No se pudieron consultar las entregas.');
+      if (!requestsResponse.ok) throw Error(apiErrorMessage(requestsData, 'No se pudieron consultar las solicitudes activas.'));
+      if (!deliveriesResponse.ok) throw Error(apiErrorMessage(deliveriesData, 'No se pudieron consultar las entregas.'));
       setRequests(requestsData);
       setSelected((current) => current
         ? requestsData.find((request) => request.id_solicitud === current.id_solicitud) || null
@@ -43,7 +48,10 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
   usePolling(load, 15000);
 
   const register = async () => {
+    if (savingRef.current) return;
     if (!selected) return setError('Selecciona una solicitud activa para registrar la recolección.');
+    savingRef.current = true;
+    setSaving(true);
     setError('');
     setMessage('');
     try {
@@ -57,14 +65,41 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
         }),
       });
       const result = await response.json();
-      if (!response.ok) throw Error(result.detail || 'No se pudo registrar la recolección.');
+      if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo registrar la recolección.'));
       setMessage('Recolección de café registrada con estado Pendiente.');
       setSelected(null);
       setObservations('');
       await load();
     } catch (reason) {
       setError(reason.message);
-    }
+    } finally { savingRef.current = false; setSaving(false); }
+  };
+
+  const confirmCancellation = (delivery) => {
+    const prompt = `¿Cancelar la recolección ${delivery.id_entrega.slice(0, 8)}? La solicitud quedará cancelada y no podrá asignarse.`;
+    if (Platform.OS === 'web') return Promise.resolve(globalThis.confirm?.(prompt) ?? false);
+    return new Promise((resolve) => Alert.alert('Cancelar recolección', prompt, [
+      { text: 'Conservar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Sí, cancelar', style: 'destructive', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) }));
+  };
+
+  const cancelDelivery = async (delivery) => {
+    if (cancelingRef.current || !(await confirmCancellation(delivery))) return;
+    cancelingRef.current = delivery.id_entrega;
+    setCancelingId(delivery.id_entrega);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/entregas/${delivery.id_entrega}/cancelar`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo cancelar la recolección.'));
+      setMessage('Recolección cancelada correctamente.');
+      await load();
+    } catch (reason) { setError(reason.message); }
+    finally { cancelingRef.current = null; setCancelingId(null); }
   };
 
   return <ScrollView contentContainerStyle={styles.page}>
@@ -76,7 +111,7 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
     {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
 
     <Text style={styles.section}>Solicitudes activas</Text>
-    <View style={styles.grid}>{requests.map((request) => <TouchableOpacity key={request.id_solicitud} style={[styles.card, selected?.id_solicitud === request.id_solicitud && styles.cardSelected]} onPress={() => setSelected(request)}>
+    <View style={styles.grid}>{requests.map((request) => <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selected?.id_solicitud === request.id_solicitud, disabled: saving }} disabled={saving} key={request.id_solicitud} style={[styles.card, selected?.id_solicitud === request.id_solicitud && styles.cardSelected]} onPress={() => setSelected(request)}>
       <Text style={styles.cardTitle}>{request.caficultor_nombre}</Text>
       <Text>Solicitud: {request.id_solicitud.slice(0, 8)}</Text>
       <Text style={styles.totalValue}>{tonnes(request.cantidad_solicitada_kg)}</Text>
@@ -97,8 +132,8 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
       <Text style={styles.readonly}>{formatDate(new Date())}</Text>
       <Text style={styles.label}>Observaciones (opcional)</Text>
       <TextInput style={[styles.input, styles.textArea]} value={observations} onChangeText={setObservations} editable={Boolean(selected)} multiline placeholder="Observaciones de la recolección" />
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !selected }} style={[styles.deliverySubmit, !selected && styles.buttonDisabled]} disabled={!selected} onPress={register}>
-        <Text style={styles.primaryText}>Registrar recolección de café</Text>
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !selected || saving, busy: saving }} style={[styles.deliverySubmit, (!selected || saving) && styles.buttonDisabled]} disabled={!selected || saving} onPress={register}>
+        <Text style={styles.primaryText}>{saving ? 'Registrando recolección…' : 'Registrar recolección de café'}</Text>
       </TouchableOpacity>
     </View>
 
@@ -109,6 +144,7 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
       <Text>Fecha: {formatDate(delivery.fecha_hora_entrega)}</Text>
       {delivery.observaciones ? <Text>Observaciones: {delivery.observaciones}</Text> : null}
       {history[delivery.id_entrega]?.length ? <View style={styles.history}><Text style={styles.label}>Último cambio</Text><Text>{history[delivery.id_entrega][0].estado_anterior} → {history[delivery.id_entrega][0].estado_nuevo} · {history[delivery.id_entrega][0].usuario_nombre} · {formatDate(history[delivery.id_entrega][0].fecha_hora_cambio)}</Text></View> : <Text style={styles.muted}>Aún no hay cambios de estado.</Text>}
+      {delivery.estado_entrega === 'pendiente' ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: Boolean(cancelingId), busy: cancelingId === delivery.id_entrega }} disabled={Boolean(cancelingId)} style={[styles.secondary, cancelingId && styles.buttonDisabled]} onPress={() => cancelDelivery(delivery)}><Text style={styles.error}>{cancelingId === delivery.id_entrega ? 'Cancelando…' : 'Cancelar recolección'}</Text></TouchableOpacity> : null}
     </View>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>Aún no hay recolecciones registradas.</Text> : null}
     <Text style={styles.muted}>El listado se actualiza automáticamente cada 15 segundos.</Text><TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar listado</Text></TouchableOpacity>

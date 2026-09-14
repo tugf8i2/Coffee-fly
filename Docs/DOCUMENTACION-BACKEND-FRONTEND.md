@@ -296,7 +296,7 @@ sirve para una base nueva y Alembic actualiza bases existentes.
 - Expo Location y Task Manager para GPS móvil.
 - Expo SQLite para cola offline nativa.
 - Expo Secure Store para sesión móvil.
-- Leaflet para mapas web y React Native Maps para mapas móviles.
+- MapLibre GL, OpenFreeMap y datos de OpenStreetMap para mapas web y móviles.
 - NetInfo para detectar conectividad.
 - Jest Expo para pruebas.
 
@@ -326,7 +326,6 @@ rol y las pruebas verifican que todos los destinos existan.
 | `frontend/App.js` | Entrada de compatibilidad para herramientas que esperan `App.js`. |
 | `frontend/index.js` | Registra tarea GPS, aplicación y filtros de avisos de desarrollo. |
 | `frontend/app.json` | Identidad, permisos, iconos y plugins Expo. |
-| `frontend/app.config.js` | Inyecta Google Maps solo si existe una clave y comunica su disponibilidad. |
 | `frontend/eas.json` | Perfiles de APK de desarrollo, vista previa y producción. |
 | `frontend/package.json` | Dependencias y comandos npm. |
 | `frontend/package-lock.json` | Instalación reproducible exacta. |
@@ -386,8 +385,7 @@ la implementación correcta sin condicionales extensos.
 | `configuracion/ClienteApi.js` | Resuelve URL local/LAN, agrega timeout, normaliza fallos y notifica sesión vencida. |
 | `configuracion/index.js` | Punto único de exportación del cliente API. |
 | `configuracion/navegacion.js` | Pantallas y accesos por rol. |
-| `configuracion/disponibilidadMapa.js` | Decide si el mapa nativo puede montarse. |
-| `configuracion/mapasNativos.js` | Detecta Expo Go y clave de Google Maps. |
+| `configuracion/mapasNativos.js` | Detecta Expo Go para adaptar capacidades nativas. |
 | `ganchos/usarSondeo.js` | Ejecuta una carga inicial y sondeo periódico seguro. |
 | `utilidades/calculosRuta.js` | Muestrea, proyecta y dibuja coordenadas. |
 | `estilos/colores.js` | Paleta central. |
@@ -555,10 +553,8 @@ npx eas build --profile preview --platform android
 npx eas build --profile production --platform android
 ```
 
-Para Google Maps nativo configure `GOOGLE_MAPS_ANDROID_API_KEY` como secreto del
-entorno de compilación. No confirme la clave en Git. Los permisos de ubicación
-en segundo plano deben probarse en un development build o APK, no únicamente en
-Expo Go.
+Los mapas no necesitan claves comerciales. Los permisos de ubicación en segundo
+plano deben probarse en un development build o APK, no únicamente en Expo Go.
 
 ## 8. Variables de entorno
 
@@ -589,8 +585,7 @@ En Docker también se usan `POSTGRES_PASSWORD`, `POSTGRES_HOST_PORT`,
 | --- | --- |
 | `EXPO_PUBLIC_API_URL` | Base REST; `/api` en Docker web o URL absoluta en móvil. |
 | `EXPO_PUBLIC_REVERSE_GEOCODING_URL` | Servicio opcional de geocodificación inversa. |
-| `GOOGLE_MAPS_ANDROID_API_KEY` | Clave privada usada al compilar Android. |
-| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY` | Alternativa pública; se recomienda la variable privada anterior. |
+| `EXPO_PUBLIC_OSRM_URL` | Servicio OSRM opcional para calcular rutas; vacío usa el servidor público. |
 
 Las variables `EXPO_PUBLIC_*` quedan incluidas en el bundle y nunca deben
 contener contraseñas o secretos.
@@ -633,7 +628,7 @@ propiedad offline, GPS, mapas, navegación, historial, presentación y WebSocket
 | Web recibe CORS | Revise origen exacto. | Agréguelo a `CORS_ORIGINS` y reinicie backend. |
 | Base no está lista | `docker compose ps` y logs de `db`. | Corrija contraseña/puerto y espere health check. |
 | Migración falla | `alembic current` y `alembic heads`. | No edite una migración aplicada; cree una nueva corrección. |
-| No aparece mapa nativo | Falta clave o se ejecuta en Expo Go. | Configure Google Maps o use la vista previa segura. |
+| No aparece el mapa | Revise conectividad con OpenFreeMap y soporte WebGL. | Restablezca la red; móvil mantiene una vista previa segura. |
 | GPS no funciona en segundo plano | Expo Go limita tareas nativas. | Use development build/APK y conceda permisos. |
 | Datos pendientes | Revise banner de sincronización y red. | Mantenga sesión abierta y pulse actualizar al recuperar conexión. |
 | Exportación falla | Período o conectividad. | Use máximo 30 días, revise sesión y health check. |

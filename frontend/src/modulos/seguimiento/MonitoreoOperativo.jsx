@@ -35,12 +35,12 @@ export default function MonitoreoOperativo({ go, token }) {
     }
   }, [token]);
 
-  usePolling(load, 15000);
+  usePolling(load, 5000);
 
   const counters = summary?.metricas_proceso?.contadores || {};
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Monitoreo operativo</Text>
-    <Text style={styles.muted}>Mapa general y estado GPS de las entregas en camino. Se actualiza cada 15 segundos; el detalle usa canal en vivo.</Text>
+    <Text style={styles.muted}>Mapa general y estado GPS de las entregas en camino. Se actualiza cada 5 segundos; el detalle usa canal en vivo.</Text>
     {loading && !summary ? <Text style={styles.muted}>Consultando…</Text> : null}
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
     {summary ? <>

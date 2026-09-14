@@ -1,4 +1,4 @@
-import { realtimeLabel, trackingModeLabel } from '../src/servicios/presentacionSeguimiento';
+import { canCompleteTrip, realtimeLabel, trackingModeLabel } from '../src/servicios/presentacionSeguimiento';
 
 describe('presentación del seguimiento', () => {
   test('traduce todos los estados emitidos por el canal en tiempo real', () => {
@@ -17,5 +17,11 @@ describe('presentación del seguimiento', () => {
       .toBe('Primer plano (Expo Go)');
     expect(trackingModeLabel({ taskStarted: false, deliveryId: null, runningInExpoGo: true }))
       .toBe('Detenido');
+  });
+
+  test('solo permite completar cuando todas las cargas fueron recogidas', () => {
+    expect(canCompleteTrip([])).toBe(false);
+    expect(canCompleteTrip([{ carga_recogida_en: '2026-09-14T10:00:00Z' }, { carga_recogida_en: null }])).toBe(false);
+    expect(canCompleteTrip([{ carga_recogida_en: '2026-09-14T10:00:00Z' }])).toBe(true);
   });
 });

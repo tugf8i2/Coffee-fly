@@ -17,12 +17,15 @@ from app.core.security import hash_password
 from app.models.auth_session_models import AuthSession
 from app.models.carga_models import Carga
 from app.models.conductor_models import Conductor
+from app.models.cooperativa_models import Cooperativa
 from app.models.entrega_models import Entrega
 from app.models.rol_models import Rol
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
+from app.models.ubicacion_models import Ubicacion
 from app.models.vehiculo_models import Vehiculo
+from app.models.viaje_models import Viaje
 
 
 API_URL = "http://127.0.0.1:8000"
@@ -59,6 +62,18 @@ def seed():
         )
         db.add(driver)
         db.flush()
+        cooperative_location = Ubicacion(
+            x=-74.0721, y=4.711, departamento="Cundinamarca",
+            ciudad="Bogotá", direccion="Punto de prueba",
+        )
+        db.add(cooperative_location)
+        db.flush()
+        cooperative = Cooperativa(
+            nombre=f"Coop {suffix}", telefono="3000000004",
+            correo=f"coop{suffix}@t.co", ubicacion_id=cooperative_location.id_ubicacion,
+        )
+        db.add(cooperative)
+        db.flush()
         vehicle = Vehiculo(
             placa=f"T{suffix}"[:7], tipo_vehiculo="Camión", modelo="Prueba",
             capacidad_kg=5000, estado_vehiculo="en camino", conductor_id=driver.id_conductor,
@@ -67,6 +82,7 @@ def seed():
         db.flush()
         load = Carga(
             peso_kg=100, descripcion="Prueba tiempo real", vehiculo_id=vehicle.id_vehiculo,
+            cooperativa_id=cooperative.id_cooperativa,
             estado_sincronizacion="sincronizado", actualizado_en=datetime.now(),
         )
         db.add(load)
@@ -78,13 +94,35 @@ def seed():
         )
         db.add(request)
         db.flush()
+        trip = Viaje(
+            vehiculo_id=vehicle.id_vehiculo, conductor_id=driver.id_conductor,
+            coordinador_id=coordinator.id_usuario, cooperativa_id=cooperative.id_cooperativa,
+            cooperativa_latitud_snapshot=float(cooperative_location.y),
+            cooperativa_longitud_snapshot=float(cooperative_location.x),
+            cooperativa_direccion_snapshot="Coop de prueba, Punto de prueba",
+            estado_viaje="en_camino", orden_cola=1, creado_en=datetime.now(),
+            iniciado_en=datetime.now(),
+        )
+        db.add(trip)
+        db.flush()
         delivery = Entrega(
             solicitud_id=request.id_solicitud, caficultor_id=farmer.id_usuario,
             cantidad_kg=100, fecha_hora_entrega=datetime.now(),
             observaciones="Prueba WebSocket", estado_entrega="en camino",
-            actualizado_en=datetime.now(),
+            actualizado_en=datetime.now(), viaje_id=trip.id_viaje, orden_recoleccion=1,
+            finca_latitud_snapshot=farmer.latitud_finca,
+            finca_longitud_snapshot=farmer.longitud_finca,
+            finca_ubicacion_snapshot_en=datetime.now(),
         )
         db.add(delivery)
+        db.flush()
+        # Simula un punto histórico del mismo vehículo que no pertenece al viaje activo.
+        db.add(SeguimientoUbicacion(
+            client_point_id=uuid4(), entrega_id=delivery.id_entrega,
+            viaje_id=None, vehiculo_id=vehicle.id_vehiculo,
+            latitud=4.711, longitud=-74.0721, precision_m=10,
+            registrada_en=datetime.now() - timedelta(days=1), recibida_en=datetime.now(),
+        ))
         db.commit()
         return {
             "suffix": suffix,
@@ -96,6 +134,9 @@ def seed():
             "load_id": load.id_carga,
             "request_id": request.id_solicitud,
             "delivery_id": delivery.id_entrega,
+            "trip_id": trip.id_viaje,
+            "cooperative_id": cooperative.id_cooperativa,
+            "cooperative_location_id": cooperative_location.id_ubicacion,
         }
     finally:
         db.close()
@@ -109,8 +150,11 @@ def cleanup(data):
             SeguimientoUbicacion.entrega_id == data["delivery_id"]
         ).delete(synchronize_session=False)
         db.query(Entrega).filter(Entrega.id_entrega == data["delivery_id"]).delete(synchronize_session=False)
+        db.query(Viaje).filter(Viaje.id_viaje == data["trip_id"]).delete(synchronize_session=False)
         db.query(Solicitud).filter(Solicitud.id_solicitud == data["request_id"]).delete(synchronize_session=False)
         db.query(Carga).filter(Carga.id_carga == data["load_id"]).delete(synchronize_session=False)
+        db.query(Cooperativa).filter(Cooperativa.id_cooperativa == data["cooperative_id"]).delete(synchronize_session=False)
+        db.query(Ubicacion).filter(Ubicacion.id_ubicacion == data["cooperative_location_id"]).delete(synchronize_session=False)
         db.query(Vehiculo).filter(Vehiculo.id_vehiculo == data["vehicle_id"]).delete(synchronize_session=False)
         db.query(Conductor).filter(Conductor.id_conductor == data["driver_id"]).delete(synchronize_session=False)
         db.query(Usuario).filter(Usuario.id_usuario.in_(data["user_ids"])).delete(synchronize_session=False)
@@ -143,7 +187,7 @@ async def run():
                 captured = datetime.now()
                 points = [{
                     "client_point_id": str(uuid4()),
-                    "latitud": 4.711 + index * 0.0001,
+                    "latitud": 4.711 + index * 0.0003,
                     "longitud": -74.0721,
                     "precision_m": 10,
                     "velocidad_m_s": 5,

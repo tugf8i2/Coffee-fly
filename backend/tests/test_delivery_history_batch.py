@@ -11,11 +11,13 @@ class FakeHistoryBatchRepository:
     def __init__(self, delivery_ids):
         self.delivery_ids = set(delivery_ids)
         self.batch_calls = 0
+        self.authorized_driver_id = None
 
     def get_entrega_ids_existentes(self, _ids):
         return set(self.delivery_ids)
 
     def get_entrega_ids_asignadas_a_conductor(self, _ids, _conductor_id):
+        self.authorized_driver_id = _conductor_id
         return set(self.delivery_ids)
 
     def get_historial_estados_lote(self, ids):
@@ -59,6 +61,20 @@ class DeliveryHistoryBatchTests(unittest.TestCase):
             )
         self.assertEqual(context.exception.status_code, 404)
         self.assertEqual(repository.batch_calls, 0)
+
+    def test_authorizes_batch_with_driver_profile_id(self):
+        delivery_id = uuid4()
+        repository = FakeHistoryBatchRepository([delivery_id])
+        service = EntregaService.__new__(EntregaService)
+        service.repository = repository
+
+        service.obtener_historial_estados_lote(
+            [delivery_id],
+            SimpleNamespace(conductor=SimpleNamespace(id_conductor=31)),
+            True,
+        )
+
+        self.assertEqual(repository.authorized_driver_id, 31)
 
 
 if __name__ == "__main__":

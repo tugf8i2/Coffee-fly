@@ -86,6 +86,15 @@ def crear_entrega(
     return EntregaService(db).crear_entrega(entrega)
 
 
+@router.patch("/{entrega_id}/cancelar", response_model=EntregaResponse)
+def cancelar_recoleccion(
+    entrega_id: UUID,
+    db: Session = Depends(get_db),
+    coordinador: Usuario = Depends(require_roles("coordinador")),
+):
+    return EntregaService(db).cancelar_recoleccion(entrega_id, coordinador.id_usuario)
+
+
 @router.get("/pendientes-asignacion", response_model=list[EntregaPendienteAsignacionResponse])
 def listar_pendientes_asignacion(
     db: Session = Depends(get_db),

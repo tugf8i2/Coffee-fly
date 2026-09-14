@@ -158,7 +158,7 @@ class RegistrarUbicacionRequest(BaseModel):
     client_point_id: UUID = Field(default_factory=uuid4)
     latitud: float = Field(ge=-90, le=90)
     longitud: float = Field(ge=-180, le=180)
-    precision_m: Optional[float] = Field(default=None, ge=0, le=10000)
+    precision_m: float = Field(ge=0, le=10000, allow_inf_nan=False)
     velocidad_m_s: Optional[float] = Field(default=None, ge=0, le=200)
     rumbo_grados: Optional[float] = Field(default=None, ge=0, le=360)
     capturada_en: Optional[datetime] = None

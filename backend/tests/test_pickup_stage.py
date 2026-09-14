@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -39,11 +39,17 @@ class FakePickupRepository:
             estado_entrega="en camino",
             carga_recogida_en=None,
             caficultor=self.farmer,
+            viaje_id=None,
+            finca_latitud_snapshot=4.711,
+            finca_longitud_snapshot=-74.0721,
+            finca_direccion_snapshot="Centro",
+            finca_ubicacion_snapshot_en=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         self.last = SimpleNamespace(
             latitud=4.711 + distance_in_degrees,
             longitud=-74.0721,
-            registrada_en=datetime.utcnow(),
+            precision_m=10,
+            registrada_en=datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
     def get_entrega_asignada_a_conductor(self, _delivery_id, _driver_id, for_update=False):
@@ -84,6 +90,64 @@ class PickupStageTests(unittest.TestCase):
 
         self.assertEqual(context.exception.status_code, 400)
         self.assertIsNone(repository.delivery.carga_recogida_en)
+
+    def test_revalidates_accuracy_when_confirming_pickup(self):
+        service, repository = self.service()
+        repository.last.precision_m = 151
+
+        with self.assertRaises(HTTPException) as context:
+            service.confirmar_carga_recogida(
+                repository.delivery_id, 5, repository.driver_id
+            )
+
+        self.assertEqual(context.exception.status_code, 400)
+        self.assertIsNone(repository.delivery.carga_recogida_en)
+
+    def test_uses_frozen_farm_location_instead_of_current_profile(self):
+        service, repository = self.service()
+        repository.delivery.caficultor.latitud_finca = 5.5
+        repository.delivery.caficultor.longitud_finca = -75.5
+
+        result = service.confirmar_carga_recogida(
+            repository.delivery_id, 5, repository.driver_id
+        )
+
+        self.assertEqual(result["etapa_viaje"], "hacia_cooperativa")
+
+    def test_recovers_missing_legacy_farm_snapshot_once(self):
+        service, repository = self.service()
+        repository.delivery.finca_latitud_snapshot = None
+        repository.delivery.finca_longitud_snapshot = None
+
+        service.confirmar_carga_recogida(
+            repository.delivery_id, 5, repository.driver_id
+        )
+        recovered = (
+            repository.delivery.finca_latitud_snapshot,
+            repository.delivery.finca_longitud_snapshot,
+        )
+        repository.delivery.caficultor.latitud_finca = 6.0
+        repository.delivery.caficultor.longitud_finca = -76.0
+        EntregaService._guardar_snapshot_finca(
+            repository.delivery, repository.delivery.caficultor
+        )
+
+        self.assertEqual(recovered, (4.711, -74.0721))
+        self.assertEqual(
+            recovered,
+            (repository.delivery.finca_latitud_snapshot, repository.delivery.finca_longitud_snapshot),
+        )
+
+    def test_rejects_future_gps_outside_clock_tolerance(self):
+        service, repository = self.service()
+        repository.last.registrada_en = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=31)
+
+        with self.assertRaises(HTTPException) as context:
+            service.confirmar_carga_recogida(
+                repository.delivery_id, 5, repository.driver_id
+            )
+
+        self.assertEqual(context.exception.status_code, 400)
 
 
 if __name__ == "__main__":

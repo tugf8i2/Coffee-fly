@@ -125,24 +125,23 @@ eventos recientes. Recibe la entrega, token y estilos. Usa
 
 ### `src/componentes/mapas/MapaFlota.native.jsx`
 
-Mapa Android/iOS de vehículos activos con React Native Maps y OpenStreetMap.
-Filtra coordenadas, encuadra marcadores y muestra una alternativa segura cuando
-el mapa nativo no está disponible.
+Mapa Android/iOS de vehículos activos sobre el renderer MapLibre compartido.
+Filtra coordenadas, encuadra marcadores y muestra sus datos GPS recientes.
 
 ### `src/componentes/mapas/MapaFlota.web.jsx`
 
-Equivalente web construido con Leaflet. Crea el mapa una sola vez, actualiza
-marcadores circulares, ajusta límites y libera recursos al desmontarse.
+Equivalente web construido con MapLibre y OpenFreeMap. Actualiza marcadores,
+ajusta límites y libera recursos al desmontarse.
 
 ### `src/componentes/mapas/MapaSeguimiento.web.jsx`
 
 Dibuja en web la polilínea de una entrega, el último punto del vehículo y el
 destino actual. Reacciona a nuevos puntos sin recrear el mapa completo.
 
-### `src/componentes/mapas/MarcadorVehiculo.native.jsx`
+### `src/componentes/mapas/MapaAbierto.native.jsx` y `MapaAbierto.web.jsx`
 
-Marcador móvil basado en `AnimatedRegion`. Anima el movimiento entre una
-coordenada anterior y la siguiente para evitar saltos visuales.
+Renderers MapLibre reutilizables para ruta, marcadores, cámara, popups y
+selección. Interpolan el movimiento sin recrear marcadores en cada lectura GPS.
 
 ### `src/componentes/mapas/SelectorUbicacionCooperativa.native.jsx`
 
@@ -151,8 +150,8 @@ entrega la coordenada mediante `onSelect`.
 
 ### `src/componentes/mapas/SelectorUbicacionCooperativa.web.jsx`
 
-Selector web equivalente con Leaflet. Mantiene la callback actualizada y mueve
-el marcador al punto seleccionado.
+Selector web equivalente con MapLibre. Permite hacer clic o arrastrar el
+marcador y mueve la cámara al punto seleccionado.
 
 ### `src/componentes/mapas/VistaPreviaRuta.native.jsx`
 
@@ -184,13 +183,6 @@ Es el único cliente HTTP general del front-end.
 **Importancia:** impide que cada pantalla implemente timeouts, reintentos y
 mensajes diferentes.
 
-### `src/configuracion/disponibilidadMapa.js`
-
-Exporta `isNativeMapAvailable`. En Android permite el mapa cuando hay clave de
-Google Maps o la aplicación corre dentro de Expo Go. En otras plataformas no
-exige esa condición. Está separada para poder probar esta regla sin montar un
-mapa.
-
 ### `src/configuracion/index.js`
 
 Reexporta el cliente API. Permite importar desde `../../configuracion` sin
@@ -198,9 +190,8 @@ conocer el nombre exacto del archivo interno y facilita reorganizaciones.
 
 ### `src/configuracion/mapasNativos.js`
 
-Lee Expo Constants, detecta si la ejecución ocurre en Expo Go y si el build
-recibió una clave de Google Maps. Exporta `RUNNING_IN_EXPO_GO` y
-`NATIVE_MAP_AVAILABLE` para los componentes móviles.
+Lee Expo Constants y exporta `RUNNING_IN_EXPO_GO` para adaptar funciones que
+Expo Go no permite ejecutar en segundo plano.
 
 ### `src/configuracion/navegacion.js`
 

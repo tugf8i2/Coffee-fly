@@ -20,3 +20,7 @@ export function trackingModeLabel({ taskStarted, deliveryId, runningInExpoGo }) 
     ? 'Primer plano (Expo Go)'
     : 'Primer plano / segundo plano no iniciado';
 }
+
+export const trackingFitKey = (deliveryId, destination) => `${deliveryId || 'sin-entrega'}:${destination?.latitude ?? ''}:${destination?.longitude ?? ''}`;
+
+export const canCompleteTrip = (loads) => Boolean(loads?.length) && loads.every((load) => Boolean(load.carga_recogida_en));

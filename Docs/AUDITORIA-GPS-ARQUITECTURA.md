@@ -5,6 +5,37 @@ Fecha de revisión: 29 de agosto de 2026.
 Actualización del 7 de septiembre de 2026: el frontend fue migrado de Expo SDK
 54 a SDK 57 y validado con Expo Doctor, pruebas Jest y exports Android/web.
 
+Actualización del 14 de septiembre de 2026: se auditó el flujo completo desde la
+solicitud hasta la entrega. Los mapas web y móviles usan MapLibre y OpenFreeMap,
+el GPS queda asociado al viaje activo, la ruta vial usa OSRM cuando está
+disponible y las migraciones Alembic llegan a `20260914_16`.
+
+## Garantías del flujo auditado
+
+- La solicitud exige una finca georreferenciada y emplea una clave idempotente
+  para que un reintento no cree otra carga.
+- La asignación bloquea los registros implicados, comprueba rol del conductor,
+  capacidad del vehículo y coordenadas válidas.
+- Los turnos se calculan únicamente sobre los viajes activos de cada vehículo.
+  Al completar o cancelar un viaje, toda su cola se renumera consecutivamente:
+  el siguiente queda asignado con turno 1 y los demás bajan a 2, 3, etc.
+- La cancelación solo procede antes de asignar vehículo o viaje. Tampoco pueden
+  eliminarse directamente solicitudes o cargas ya vinculadas al transporte.
+- La recogida exige una lectura GPS precisa dentro de la geocerca de la finca.
+- La finalización exige una lectura GPS reciente y precisa dentro de la
+  geocerca de la cooperativa.
+- Cada entrega conserva un snapshot de la finca y cada viaje uno de la
+  cooperativa; los cambios posteriores de perfil no alteran un recorrido en
+  curso o histórico.
+- Los puntos GPS se guardan con `viaje_id`; los registros anteriores sin esa
+  referencia se consultan únicamente mediante la ruta de compatibilidad legacy.
+- La distancia recorrida se calcula con pares GPS del mismo viaje, descuenta la
+  incertidumbre de ambas lecturas y se acumula en
+  `Viaje.distancia_recorrida_m`.
+- El inicio del viaje activa automáticamente el seguimiento móvil; la posición
+  suavizada y ajustada a ruta es visual, mientras la lectura cruda permanece
+  como evidencia para historial y geocercas.
+
 ## Resultado ejecutivo
 
 Coffee Fly conserva los módulos funcionales RF-01 a RF-17 en una sola entrada canónica (`frontend/src/FullApp.js`). La aplicación usa Expo/React Native para Android, iOS y web, FastAPI para REST y WebSockets, PostgreSQL para persistencia y SQLite cifrado en el dispositivo para la operación offline móvil.
@@ -40,13 +71,11 @@ Componentes principales:
 
 ## Incidentes reales encontrados y corregidos
 
-1. **Cierre de Android al crear el mapa.** `react-native-maps` inicializaba Google
-   Maps aunque las teselas visibles fueran de OpenStreetMap, pero el APK no tenía
-   una clave de Maps SDK for Android. El impacto era el cierre completo de la
-   pantalla de seguimiento. `app.config.js` prepara la clave de compilación y las
-   pantallas nativas ahora evitan montar el componente sin esa capacidad. GPS,
-   cola y ruta siguen operativos; mostrar el mapa nativo requiere un APK nuevo
-   compilado con `GOOGLE_MAPS_ANDROID_API_KEY`.
+1. **Cierre de Android al crear el mapa.** El proveedor nativo anterior requería
+   una configuración comercial aunque las teselas visibles fueran abiertas. El
+   impacto era el cierre completo de la pantalla de seguimiento. Todos los mapas
+   se migraron a MapLibre, OpenFreeMap y datos de OpenStreetMap; ya no requieren
+   claves comerciales y la ruta mantiene una vista previa móvil sin conexión.
 2. **Estado de red engañoso.** Tener Wi-Fi podía mostrar “Sincronizado” aunque
    FastAPI estuviera caído. La comprobación ahora distingue Internet, API no
    disponible, datos pendientes y sincronización; además reintenta cada minuto.
