@@ -37,6 +37,8 @@ def main():
                 departamento="Caldas",
                 municipio="Manizales",
                 vereda="Prueba",
+                latitud_finca=5.0703 + index * 0.001,
+                longitud_finca=-75.5138,
                 rol_id=role.id_rol,
             )
             db.add(user)
@@ -83,6 +85,7 @@ def main():
             assert "contrasena" not in listed_user
 
             client_request_id = str(uuid4())
+            captured_at = datetime.now(timezone.utc).isoformat()
             solicitud_response = client.post(
                 "/solicitudes/sincronizar",
                 headers=headers_owner,
@@ -90,7 +93,7 @@ def main():
                     "client_request_id": client_request_id,
                     "peso_kg": 125.5,
                     "observacion": "Carga de prueba de autorización",
-                    "capturada_en": datetime.now(timezone.utc).isoformat(),
+                    "capturada_en": captured_at,
                 },
             )
             solicitud_response.raise_for_status()
@@ -104,7 +107,7 @@ def main():
                     "client_request_id": client_request_id,
                     "peso_kg": 125.5,
                     "observacion": "Carga de prueba de autorización",
-                    "capturada_en": datetime.now(timezone.utc).isoformat(),
+                    "capturada_en": captured_at,
                 },
             )
             duplicate_response.raise_for_status()

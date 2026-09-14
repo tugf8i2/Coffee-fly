@@ -3,7 +3,6 @@ import { Text, View } from 'react-native';
 
 import { OPEN_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
 import { RUNNING_IN_EXPO_GO } from '../../configuracion/mapasNativos';
-import MapaAbiertoExpoGo from './MapaAbiertoExpoGo.native';
 import MapaAbiertoWebView from './MapaAbiertoWebView.native';
 
 let MapLibre;
@@ -88,7 +87,7 @@ function MapaNativo({ camera = {}, markers = [], onError, onManualMove, onMapPre
 }
 
 export default function MapaAbierto(props) {
-  if (RUNNING_IN_EXPO_GO) return <MapaAbiertoExpoGo {...props} />;
+  if (RUNNING_IN_EXPO_GO) return <MapaAbiertoWebView {...props} />;
   if (!MapLibre?.Map || props.markers?.some((marker) => marker.draggable)) return <MapaAbiertoWebView {...props} />;
   return <MapaNativo {...props} />;
 }

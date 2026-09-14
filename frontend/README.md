@@ -76,7 +76,8 @@ EXPO_PUBLIC_API_URL=https://mi-api.trycloudflare.com
 Después inicie o reinicie Expo limpiando la caché:
 
 ```powershell
-npx expo start --tunnel --go --clear
+npm install expo "CASO DE QUE NO ESTE INSTALADO"
+npx expo start --go --clear
 ```
 
 Recargue completamente Expo Go y pruebe primero `https://mi-api.trycloudflare.com/`

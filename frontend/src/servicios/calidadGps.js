@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
-export const MAX_GPS_ACCURACY_METERS = 150;
+export const MAX_GPS_ACCURACY_METERS = 100;
 export const MAX_GPS_SPEED_METERS_SECOND = 60;
 
 export const canStartTrackingFromGpsResult = (result) => Boolean(result?.quality?.valid);

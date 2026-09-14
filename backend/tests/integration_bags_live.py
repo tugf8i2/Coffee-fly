@@ -21,7 +21,8 @@ def main():
         role = db.query(Rol).filter(Rol.descripcion_rol.ilike("caficultor")).first()
         user = Usuario(nombre_usuario="Prueba", apellido="Bultos", correo_usuario=f"bultos{suffix}@coffeefly.com",
                        telefono_usuario=f"31{suffix[:8]}", contrasena=hash_password("ClaveSegura123"),
-                       departamento="Huila", municipio="Pitalito", vereda="Prueba", rol_id=role.id_rol)
+                       departamento="Huila", municipio="Pitalito", vereda="Prueba",
+                       latitud_finca=1.8536, longitud_finca=-76.0503, rol_id=role.id_rol)
         db.add(user)
         db.commit()
         db.refresh(user)

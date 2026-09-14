@@ -28,6 +28,17 @@ describe('cliente API resiliente', () => {
     expect(global.fetch).toHaveBeenCalledTimes(3);
   });
 
+  test('explica una respuesta HTML sin intentar interpretarla como JSON', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 404,
+      headers: { get: () => 'text/html; charset=utf-8' },
+    });
+    await expect(fetchApi('https://api.test/data')).rejects.toThrow(
+      'respuesta inválida del servidor (HTTP 404)',
+    );
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   test('descubre FastAPI desde la IP LAN publicada por Metro', () => {
     expect(resolveApiBaseUrl('', 'android', '192.168.101.19:8081')).toBe('http://192.168.101.19:8000');
     expect(resolveApiBaseUrl('', 'web', 'localhost:8081')).toBe('/api');

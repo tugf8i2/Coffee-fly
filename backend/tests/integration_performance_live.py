@@ -91,9 +91,9 @@ def main():
             started_at = datetime.now() - timedelta(hours=2)
             points = [{
                 "client_point_id": str(uuid4()),
-                "latitud": 4.7000 + index * 0.00005,
+                "latitud": 4.7000 + index * 0.0001,
                 "longitud": -74.0700,
-                "precision_m": 12,
+                "precision_m": 3,
                 "velocidad_m_s": 3,
                 "rumbo_grados": 0,
                 "capturada_en": (started_at + timedelta(seconds=index * 20)).isoformat(),

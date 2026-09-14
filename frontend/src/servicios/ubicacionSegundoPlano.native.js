@@ -1,8 +1,8 @@
 import * as Battery from 'expo-battery';
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 
+import { RUNNING_IN_EXPO_GO } from '../configuracion/mapasNativos';
 import { createGpsPoint, evaluateGpsPoint } from './calidadGps';
 import { trackingIntervals } from './politicaSegundoPlano';
 import {
@@ -18,6 +18,8 @@ import {
   getAuthenticatedSession,
   saveActiveTracking,
 } from './sesionSeguimiento';
+
+const TaskManager = RUNNING_IN_EXPO_GO ? null : require('expo-task-manager');
 
 export const BACKGROUND_LOCATION_TASK = 'coffee-fly-background-location';
 let foregroundSubscription = null;
@@ -140,7 +142,7 @@ async function processBackgroundLocations(locations) {
   await foregroundChain;
 }
 
-if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
+if (!RUNNING_IN_EXPO_GO && !TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
   TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     if (error) {
       await guardarEstadoRastreo({ modo: 'error', detalle: error.message });
@@ -160,8 +162,8 @@ async function startForegroundFallback(deliveryId, token) {
   foregroundSubscription = await Location.watchPositionAsync(
     {
       accuracy: profile.power.lowPowerMode ? Location.Accuracy.High : Location.Accuracy.BestForNavigation,
-      timeInterval: profile.power.lowPowerMode ? 5000 : 1000,
-      distanceInterval: profile.power.lowPowerMode ? 10 : 2,
+      timeInterval: profile.power.lowPowerMode ? 1500 : 250,
+      distanceInterval: profile.power.lowPowerMode ? 2 : 0,
     },
     (position) => {
       // La interfaz recibe el punto inmediatamente. Persistencia y red continúan
@@ -190,6 +192,18 @@ export async function iniciarRastreoSegundoPlano(
   token,
   { requestBackground = true } = {},
 ) {
+  // En Android, Expo Go puede informar que TaskManager está disponible aunque
+  // no tenga un HeadlessAppLoader para ejecutar tareas de ubicación. Intentar
+  // registrarlas termina cerrando Expo Go cuando Android dispara el job.
+  if (RUNNING_IN_EXPO_GO) {
+    await saveActiveTracking(deliveryId);
+    await startForegroundFallback(deliveryId, token);
+    return {
+      background: false,
+      reason: 'development_build_required',
+      message: 'Expo Go mantendrá el GPS mientras Coffee Fly permanezca abierta. Para rastreo con la pantalla apagada usa el APK de desarrollo.',
+    };
+  }
   const taskManagerAvailable = await TaskManager.isAvailableAsync();
   const locationAvailable = await Location.isBackgroundLocationAvailableAsync();
   if (!taskManagerAvailable || !locationAvailable) {
@@ -270,7 +284,7 @@ export async function detenerRastreoSegundoPlano() {
   try {
     foregroundSubscription?.remove();
     foregroundSubscription = null;
-    if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+    if (!RUNNING_IN_EXPO_GO && await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
     }
   } catch {
@@ -288,13 +302,15 @@ export async function obtenerEstadoGps() {
     obtenerEstadoSincronizacion(),
     Location.hasServicesEnabledAsync(),
     Location.getForegroundPermissionsAsync(),
-    Location.getBackgroundPermissionsAsync(),
+    RUNNING_IN_EXPO_GO ? Promise.resolve({ status: 'unavailable' }) : Location.getBackgroundPermissionsAsync(),
   ]);
   let taskStarted = false;
-  try {
-    taskStarted = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-  } catch {
-    // Expo Go no permite consultar la tarea en todas las plataformas.
+  if (!RUNNING_IN_EXPO_GO) {
+    try {
+      taskStarted = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+    } catch {
+      // Algunos entornos nativos no permiten consultar la tarea todavía.
+    }
   }
   return {
     tracking,

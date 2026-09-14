@@ -89,9 +89,20 @@ export async function fetchApi(input, options = {}) {
       if (response.status === 401 && hasAuthorization(fetchOptions.headers)) {
         sessionExpiredListeners.forEach((listener) => listener());
       }
+      const contentType = response.headers?.get?.('content-type') || '';
+      if (response.status !== 204 && contentType && !contentType.toLowerCase().includes('application/json')) {
+        const invalidResponse = new Error(
+          `Coffee Fly recibió una respuesta inválida del servidor (HTTP ${response.status}). `
+          + 'Verifica que la API esté disponible y que la dirección configurada no apunte al sitio web.',
+        );
+        invalidResponse.code = 'API_NON_JSON';
+        invalidResponse.status = response.status;
+        throw invalidResponse;
+      }
       return response;
     } catch (error) {
       if (callerSignal?.aborted) throw new Error('La solicitud fue cancelada.');
+      if (error?.code === 'API_NON_JSON') throw error;
       if (timedOut) {
         throw new Error('La solicitud tardó demasiado. El servidor puede estar iniciando; espera unos segundos e inténtalo nuevamente.');
       }

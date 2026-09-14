@@ -10,7 +10,7 @@ import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seg
 import { canCompleteTrip, realtimeLabel } from '../../servicios/presentacionSeguimiento';
 import { styles } from './SeguimientoVehiculo.styles';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
-import { createGpsPoint, MAX_GPS_ACCURACY_METERS } from '../../servicios/calidadGps';
+import { createGpsPoint, evaluateGpsPoint, MAX_GPS_ACCURACY_METERS } from '../../servicios/calidadGps';
 import { OSRM_BASE_URL } from '../../configuracion/osrm';
 import { createLatestRequestController } from '../../servicios/controlSolicitudes';
 
@@ -35,6 +35,9 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   const trackingRequestsRef = useRef(null);
   if (!trackingRequestsRef.current) trackingRequestsRef.current = createLatestRequestController();
   const [realtimeState, setRealtimeState] = useState('disconnected');
+  const [gpsStatus, setGpsStatus] = useState('');
+  const lastWebGpsRef = useRef(null);
+  const gpsUploadInProgressRef = useRef(false);
   const role = String(user?.rol || '').toLowerCase();
 
   const selectDelivery = useCallback((id) => {
@@ -134,6 +137,63 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     });
   }, [delivery, token]);
 
+  useEffect(() => {
+    if (role !== 'conductor' || !activeTrip || !delivery) {
+      lastWebGpsRef.current = null;
+      gpsUploadInProgressRef.current = false;
+      setGpsStatus('');
+      return undefined;
+    }
+    if (!globalThis.isSecureContext || !navigator.geolocation) {
+      setGpsStatus('El GPS web requiere HTTPS o localhost. En el celular usa la aplicación Coffee Fly.');
+      return undefined;
+    }
+
+    let disposed = false;
+    setGpsStatus('Solicitando permiso y buscando una ubicación precisa…');
+    const watchId = navigator.geolocation.watchPosition(async (position) => {
+      if (disposed || gpsUploadInProgressRef.current) return;
+      const point = createGpsPoint(position);
+      const quality = evaluateGpsPoint(point, lastWebGpsRef.current);
+      if (!quality.valid) {
+        setGpsStatus(quality.reason);
+        return;
+      }
+      if (!quality.shouldStore) {
+        setGpsStatus(`GPS activo · precisión ±${Math.round(point.precision_m)} m`);
+        return;
+      }
+      gpsUploadInProgressRef.current = true;
+      try {
+        const response = await fetchApi(`${API_BASE_URL}/entregas/${delivery}/ubicacion`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(point),
+        });
+        const result = await response.json();
+        if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo transmitir la ubicación GPS.'));
+        lastWebGpsRef.current = point;
+        setGpsStatus(`GPS transmitiendo · precisión ±${Math.round(point.precision_m)} m`);
+      } catch (error) {
+        if (!disposed) setGpsStatus(error.message || 'No se pudo transmitir la ubicación GPS.');
+      } finally {
+        gpsUploadInProgressRef.current = false;
+      }
+    }, (error) => {
+      if (disposed) return;
+      if (error.code === 1) setGpsStatus('Permite la ubicación precisa del navegador para transmitir el trayecto.');
+      else if (error.code === 3) setGpsStatus('El GPS está tardando. Sal a un lugar despejado y mantén esta pestaña abierta.');
+      else setGpsStatus('No fue posible obtener la ubicación del navegador.');
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 });
+
+    return () => {
+      disposed = true;
+      navigator.geolocation.clearWatch(watchId);
+      lastWebGpsRef.current = null;
+      gpsUploadInProgressRef.current = false;
+    };
+  }, [activeTrip?.id_viaje, delivery, role, token]);
+
   const points = tracking?.puntos || [];
   const last = points.at(-1);
   const destination = useMemo(() => {
@@ -232,6 +292,7 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       <Text style={styles.muted}>
         Estado: {realtimeLabel(realtimeState)}. El sistema recupera el estado cada 30 segundos si se interrumpe el canal en vivo.
       </Text>
+      {role === 'conductor' && gpsStatus ? <Text style={styles.muted}>{gpsStatus}</Text> : null}
       {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
 
       {(role === 'coordinador' || role === 'caficultor') && activeDeliveries.length > 1 ? (
