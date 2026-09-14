@@ -20,7 +20,7 @@ const position = ({ eastM = 0, northM = 0, seconds = 0, accuracy = 6, speed = 10
 describe('motor GPS de navegación', () => {
   test('rechaza precisión mala y saltos físicamente imposibles', () => {
     const first = { timestampMs: baseTime, latitude: 4.65, longitude: -74.12, accuracyM: 5, speedMps: 0 };
-    expect(validateNavigationMeasurement({ ...first, accuracyM: 151 }, null, baseTime).code).toBe('poor-accuracy');
+    expect(validateNavigationMeasurement({ ...first, accuracyM: 101 }, null, baseTime).code).toBe('poor-accuracy');
     const jump = { ...first, timestampMs: baseTime + 1000, latitude: 4.66 };
     expect(validateNavigationMeasurement(jump, first, baseTime + 1000).code).toBe('impossible-jump');
   });
@@ -89,5 +89,23 @@ describe('motor GPS de navegación', () => {
     expect(predicted.predicted).toBe(true);
     expect(predicted.display.longitude).toBeGreaterThan(first.display.longitude);
     expect(engine.predictDisplay(baseTime + 5000)).toBe(first);
+  });
+
+  test('actualiza la predicción en intervalos cortos durante movimiento lento', () => {
+    const engine = createNavigationEngine();
+    const first = engine.pushLocation(position({ speed: 0.6, heading: 90 }), baseTime);
+    const predicted = engine.predictDisplay(baseTime + 100);
+    expect(predicted.predicted).toBe(true);
+    expect(predicted.display.longitude).toBeGreaterThan(first.display.longitude);
+  });
+
+  test('reacciona rápido al rumbo del teléfono después de un giro', () => {
+    const engine = createNavigationEngine();
+    engine.pushLocation(position({ speed: 10, heading: 90 }), baseTime);
+    const afterTurn = engine.pushLocation(
+      position({ eastM: 10, northM: 10, seconds: 1, speed: 10, heading: 0 }),
+      baseTime + 1000,
+    );
+    expect(headingDifference(afterTurn.headingDeg, 0)).toBeLessThan(35);
   });
 });

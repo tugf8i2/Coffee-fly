@@ -3,7 +3,12 @@ import { Pressable, Text, View } from 'react-native';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { OPEN_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
+import {
+  DEFAULT_MAP_CENTER,
+  DEFAULT_MAP_ZOOM,
+  MAPLIBRE_WORKER_URL,
+  OPEN_STREET_MAP_RASTER_STYLE,
+} from '../../configuracion/mapaAbierto';
 
 const validCoordinate = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
   && Number.isFinite(Number(coordinate?.longitude))
@@ -60,11 +65,17 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
       }
     };
     try {
+      // Expo exporta el bundle principal, pero no el worker calculado por el
+      // import.meta.url de MapLibre. Fijar una URL publica evita que Nginx
+      // responda index.html al solicitar maplibre-gl-worker.mjs.
+      maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: OPEN_MAP_STYLE_URL,
-        center: initialCoordinate ? lngLat(initialCoordinate) : [-74.2973, 4.5709],
-        zoom: initialCoordinate ? 15 : 5,
+        // La capa raster muestra calles de forma directa y evita depender del
+        // estilo vectorial externo, que puede fallar o cargar solo el relieve.
+        style: OPEN_STREET_MAP_RASTER_STYLE,
+        center: initialCoordinate ? lngLat(initialCoordinate) : DEFAULT_MAP_CENTER,
+        zoom: initialCoordinate ? 15 : DEFAULT_MAP_ZOOM,
         attributionControl: false,
       });
     } catch (mapError) {

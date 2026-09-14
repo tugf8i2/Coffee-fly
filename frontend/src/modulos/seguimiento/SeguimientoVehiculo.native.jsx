@@ -252,7 +252,7 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     const timer = setInterval(() => {
       const predicted = navigationEngine.predictDisplay();
       if (predicted?.predicted) setNavigationPosition(predicted);
-    }, 250);
+    }, 50);
     return () => clearInterval(timer);
   }, [navigationEngine, role]);
 
@@ -368,7 +368,7 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       if (!allowLastKnown) {
         throw Error(`El GPS no entregó una ubicación nueva en ${Math.round(timeoutMs / 1000)} segundos. Sal a un lugar despejado e inténtalo de nuevo.`);
       }
-      const saved = await Location.getLastKnownPositionAsync({ maxAge: 60000, requiredAccuracy: 150 });
+      const saved = await Location.getLastKnownPositionAsync({ maxAge: 30000, requiredAccuracy: 100 });
       if (!saved) {
         throw Error(`El GPS no entregó una lectura en ${Math.round(timeoutMs / 1000)} segundos. Activa la ubicación precisa, sal a un lugar despejado e inténtalo de nuevo.`);
       }

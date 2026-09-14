@@ -1,16 +1,16 @@
 const EARTH_RADIUS_M = 6371000;
 
 export const NAVIGATION_GPS_DEFAULTS = Object.freeze({
-  maxAccuracyM: 150,
+  maxAccuracyM: 100,
   maxAgeMs: 30000,
   maxFutureMs: 10000,
   maxSpeedMps: 60,
   resetGapS: 30,
-  maxSnapM: 60,
-  minimumHeadingSpeedMps: 2,
-  predictionMaxAgeMs: 5000,
-  predictionMaxDistanceM: 30,
-  predictionMinimumSpeedMps: 0.8,
+  maxSnapM: 50,
+  minimumHeadingSpeedMps: 1.5,
+  predictionMaxAgeMs: 3000,
+  predictionMaxDistanceM: 20,
+  predictionMinimumSpeedMps: 0.4,
 });
 
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
@@ -222,14 +222,27 @@ export function createNavigationEngine(options = {}) {
       };
     } else {
       const reportedSpeed = measurement.speedMps ?? Math.hypot(filter.east.velocity, filter.north.velocity);
-      const accelerationSigma = reportedSpeed >= 5 ? 3 : reportedSpeed >= 1 ? 1.5 : 0.6;
-      const responsiveAccuracy = reportedSpeed >= 5 ? measurement.accuracyM * 0.75 : measurement.accuracyM;
+      const accelerationSigma = reportedSpeed >= 5 ? 4.5 : reportedSpeed >= 1 ? 2.5 : 0.8;
+      const responsiveAccuracy = reportedSpeed >= 5
+        ? measurement.accuracyM * 0.5
+        : reportedSpeed >= 1 ? measurement.accuracyM * 0.75 : measurement.accuracyM;
       const measurementVariance = Math.max(3, responsiveAccuracy) ** 2;
       filter = {
         timestampMs: measurement.timestampMs,
         east: updateAxis(filter.east, measured.east, measurementVariance, elapsedS, accelerationSigma),
         north: updateAxis(filter.north, measured.north, measurementVariance, elapsedS, accelerationSigma),
       };
+      // El GPS del teléfono ya fusiona satélites y sensores. Cuando entrega una
+      // velocidad y rumbo fiables, incorporarlos de inmediato evita que el
+      // filtro quede varios metros detrás al acelerar o doblar una esquina.
+      if (reportedSpeed >= config.minimumHeadingSpeedMps && measurement.headingDeg != null) {
+        const heading = radians(measurement.headingDeg);
+        const velocityTrust = clamp(0.45 + reportedSpeed / 25, 0.45, 0.8);
+        const measuredEastVelocity = reportedSpeed * Math.sin(heading);
+        const measuredNorthVelocity = reportedSpeed * Math.cos(heading);
+        filter.east.velocity = filter.east.velocity * (1 - velocityTrust) + measuredEastVelocity * velocityTrust;
+        filter.north.velocity = filter.north.velocity * (1 - velocityTrust) + measuredNorthVelocity * velocityTrust;
+      }
     }
     const filteredLocal = { east: filter.east.position, north: filter.north.position };
     const estimatedSpeed = clamp(Math.hypot(filter.east.velocity, filter.north.velocity), 0, config.maxSpeedMps);
@@ -237,8 +250,8 @@ export function createNavigationEngine(options = {}) {
       ? normalizeHeading(degrees(Math.atan2(filter.east.velocity, filter.north.velocity)))
       : measurement.headingDeg;
     const candidate = findMatch(filteredLocal, movementHeading, estimatedSpeed, measurement.accuracyM, Math.max(0, elapsedS));
-    const enterDistance = clamp(measurement.accuracyM * 1.2, 15, 35);
-    const exitDistance = clamp(measurement.accuracyM * 2, 30, 60);
+    const enterDistance = clamp(measurement.accuracyM, 12, 30);
+    const exitDistance = clamp(measurement.accuracyM * 1.5, 25, 50);
     const good = candidate && candidate.distanceM <= enterDistance
       && (estimatedSpeed < config.minimumHeadingSpeedMps || candidate.bearingDelta <= 75);
     if (good) {

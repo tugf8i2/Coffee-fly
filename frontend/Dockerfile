@@ -7,7 +7,7 @@ ARG EXPO_PUBLIC_API_URL=/api
 ARG EXPO_PUBLIC_OSRM_URL=
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 ENV EXPO_PUBLIC_OSRM_URL=$EXPO_PUBLIC_OSRM_URL
-RUN npm exec -- expo export --platform web
+RUN npm run export:web
 
 FROM nginx:1.30.4-alpine3.24
 COPY nginx.conf /etc/nginx/conf.d/default.conf

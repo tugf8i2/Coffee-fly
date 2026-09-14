@@ -26,7 +26,7 @@ describe('calidad GPS', () => {
   });
 
   test('rechaza precisión insuficiente', () => {
-    const result = evaluateGpsPoint(point({ precision_m: 151 }), null, { now });
+    const result = evaluateGpsPoint(point({ precision_m: 101 }), null, { now });
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('impreciso');
   });
