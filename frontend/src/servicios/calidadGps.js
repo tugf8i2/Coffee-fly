@@ -74,7 +74,9 @@ export function evaluateGpsPoint(
   if (capturedAt <= previousAt) {
     return { valid: false, shouldStore: false, reason: 'Se descartó una lectura GPS fuera de orden.' };
   }
-  if (seconds > 0 && distance / seconds > MAX_GPS_SPEED_METERS_SECOND) {
+  const combinedAccuracy = Math.hypot(previousPoint.precision_m || 0, point.precision_m || 0);
+  const plausibleDistance = Math.max(0, distance - combinedAccuracy * 2);
+  if (seconds > 0 && plausibleDistance / seconds > MAX_GPS_SPEED_METERS_SECOND) {
     return { valid: false, shouldStore: false, reason: 'Se descartó un salto GPS físicamente improbable.' };
   }
 

@@ -13,6 +13,7 @@ from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
 from app.models.vehiculo_models import Vehiculo
+from app.models.viaje_models import Viaje
 
 router = APIRouter(prefix="/monitoreo", tags=["Monitoreo"])
 GPS_STALE_AFTER_SECONDS = 120
@@ -36,6 +37,7 @@ def resumen_operacional(
 ):
     latest = db.query(
         SeguimientoUbicacion.vehiculo_id.label("vehiculo_id"),
+        SeguimientoUbicacion.viaje_id.label("viaje_id"),
         SeguimientoUbicacion.latitud.label("latitud"),
         SeguimientoUbicacion.longitud.label("longitud"),
         SeguimientoUbicacion.precision_m.label("precision_m"),
@@ -43,7 +45,7 @@ def resumen_operacional(
         SeguimientoUbicacion.rumbo_grados.label("rumbo_grados"),
         SeguimientoUbicacion.registrada_en.label("ultima_ubicacion"),
         func.row_number().over(
-            partition_by=SeguimientoUbicacion.vehiculo_id,
+            partition_by=SeguimientoUbicacion.viaje_id,
             order_by=(
                 SeguimientoUbicacion.registrada_en.desc(),
                 SeguimientoUbicacion.id_ubicacion.desc(),
@@ -61,14 +63,55 @@ def resumen_operacional(
         latest.c.rumbo_grados,
     ).join(
         Solicitud, Entrega.solicitud_id == Solicitud.id_solicitud
+    ).join(
+        Viaje, Entrega.viaje_id == Viaje.id_viaje
     ).join(Carga, Solicitud.carga_id == Carga.id_carga).join(
         Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
     ).outerjoin(
         latest,
-        and_(latest.c.vehiculo_id == Vehiculo.id_vehiculo, latest.c.orden == 1),
+        and_(latest.c.viaje_id == Viaje.id_viaje, latest.c.orden == 1),
     ).filter(
-        Entrega.estado_entrega == "en camino"
+        Entrega.estado_entrega == "en camino",
+        Viaje.estado_viaje == "en_camino",
     ).order_by(Entrega.fecha_hora_entrega.asc()).all()
+
+    latest_legacy = db.query(
+        SeguimientoUbicacion.entrega_id.label("entrega_id"),
+        SeguimientoUbicacion.latitud.label("latitud"),
+        SeguimientoUbicacion.longitud.label("longitud"),
+        SeguimientoUbicacion.precision_m.label("precision_m"),
+        SeguimientoUbicacion.velocidad_m_s.label("velocidad_m_s"),
+        SeguimientoUbicacion.rumbo_grados.label("rumbo_grados"),
+        SeguimientoUbicacion.registrada_en.label("ultima_ubicacion"),
+        func.row_number().over(
+            partition_by=SeguimientoUbicacion.entrega_id,
+            order_by=(
+                SeguimientoUbicacion.registrada_en.desc(),
+                SeguimientoUbicacion.id_ubicacion.desc(),
+            ),
+        ).label("orden"),
+    ).filter(SeguimientoUbicacion.viaje_id.is_(None)).subquery()
+    legacy_rows = db.query(
+        Entrega,
+        Vehiculo,
+        latest_legacy.c.ultima_ubicacion,
+        latest_legacy.c.latitud,
+        latest_legacy.c.longitud,
+        latest_legacy.c.precision_m,
+        latest_legacy.c.velocidad_m_s,
+        latest_legacy.c.rumbo_grados,
+    ).join(
+        Solicitud, Entrega.solicitud_id == Solicitud.id_solicitud
+    ).join(Carga, Solicitud.carga_id == Carga.id_carga).join(
+        Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
+    ).outerjoin(
+        latest_legacy,
+        and_(latest_legacy.c.entrega_id == Entrega.id_entrega, latest_legacy.c.orden == 1),
+    ).filter(
+        Entrega.viaje_id.is_(None),
+        Entrega.estado_entrega == "en camino",
+    ).order_by(Entrega.fecha_hora_entrega.asc()).all()
+    rows = [*rows, *legacy_rows]
 
     now = datetime.now(timezone.utc)
     vehicles = []

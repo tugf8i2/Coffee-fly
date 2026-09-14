@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.conductor_models import Conductor
@@ -10,6 +10,8 @@ from app.models.historial_asignacion_models import HistorialAsignacion
 from app.models.usuario_models import Usuario
 from app.models.vehiculo_models import Vehiculo
 from app.models.viaje_models import Viaje
+from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
+from app.repositories.cola_viajes import siguiente_orden_cola
 
 
 class ViajeRepository:
@@ -30,8 +32,7 @@ class ViajeRepository:
         return self.db.query(Cooperativa).filter(Cooperativa.id_cooperativa == cooperativa_id).first()
 
     def get_orden_siguiente(self, vehiculo_id: int):
-        maximo = self.db.query(func.coalesce(func.max(Viaje.orden_cola), 0)).filter(Viaje.vehiculo_id == vehiculo_id).scalar()
-        return int(maximo) + 1
+        return siguiente_orden_cola(self.db, vehiculo_id)
 
     def tiene_viajes_pendientes(self, vehiculo_id: int):
         return self.db.query(Viaje).filter(Viaje.vehiculo_id == vehiculo_id, Viaje.estado_viaje.in_(["asignado", "en_cola", "en_camino"])).first() is not None
@@ -44,6 +45,11 @@ class ViajeRepository:
 
     def get_cargas_viaje(self, viaje_id: UUID):
         return self.db.query(Entrega, Usuario).join(Usuario, Entrega.caficultor_id == Usuario.id_usuario).filter(Entrega.viaje_id == viaje_id).order_by(Entrega.orden_recoleccion).all()
+
+    def get_ultimo_punto_viaje(self, viaje_id: UUID):
+        return self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.viaje_id == viaje_id
+        ).order_by(SeguimientoUbicacion.registrada_en.desc()).first()
 
     def viaje_activo_vehiculo_o_conductor(self, vehiculo_id: int, conductor_id: int):
         return self.db.query(Viaje).filter(Viaje.estado_viaje == "en_camino", or_(Viaje.vehiculo_id == vehiculo_id, Viaje.conductor_id == conductor_id)).first()

@@ -210,11 +210,8 @@ mapa ausente cierre la aplicación.
 
 **Recibe:** `vehicles`.
 
-**Qué hace:** crea y destruye correctamente una instancia Leaflet, agrega capa
-OpenStreetMap, dibuja marcadores circulares, ajusta los límites y actualiza los
-marcadores cuando cambia la lista.
-
-**Estado interno:** mapa listo y mensaje de error de carga.
+**Qué hace:** usa el renderer MapLibre común con OpenFreeMap, ajusta los límites
+y actualiza posición, rumbo, estado y popup de cada vehículo.
 
 **Lo usa:** `MonitoreoOperativo` en navegador.
 
@@ -238,16 +235,16 @@ cada lectura.
 **Importancia:** transforma la secuencia de coordenadas en una representación
 comprensible del recorrido.
 
-### 6.4 `MarcadorVehiculo.native.jsx`
+### 6.4 `MapaAbierto.native.jsx` y `MapaAbierto.web.jsx`
 
-**Ubicación:** `frontend/src/componentes/mapas/MarcadorVehiculo.native.jsx`
+**Ubicación:** `frontend/src/componentes/mapas/MapaAbierto.*.jsx`
 
-**Recibe:** `coordinate`, `title` y `description`.
+**Recibe:** `camera`, `markers`, `route` y callbacks de interacción.
 
-**Qué hace:** conserva un `AnimatedRegion` y anima el marcador desde su posición
-anterior hasta la nueva, en lugar de hacerlo saltar.
+**Qué hace:** concentra MapLibre, OpenFreeMap, rutas, popups, cámara y selección.
+Interpola el marcador hacia cada lectura nueva sin desmontarlo.
 
-**Lo usa:** `SeguimientoVehiculo.native.jsx`.
+**Lo usan:** todos los adaptadores de mapa web y móvil.
 
 **Importancia:** hace que la actualización GPS sea visualmente estable y
 facilita entender la dirección del movimiento.
@@ -275,8 +272,8 @@ exacto.
 
 **Recibe:** las mismas propiedades que la versión nativa.
 
-**Qué hace:** usa Leaflet para seleccionar el punto en navegador, mueve el
-marcador al hacer clic y conserva una referencia actualizada a `onSelect`.
+**Qué hace:** usa MapLibre para seleccionar el punto en navegador mediante clic
+o arrastre y centra el mapa en la coordenada guardada.
 
 **Importancia:** mantiene disponible la selección manual en la aplicación web.
 
@@ -291,8 +288,8 @@ contenedor y dibuja segmentos, origen, vehículo y destino con vistas nativas.
 
 **Lo usa:** seguimiento móvil cuando el mapa completo no está disponible.
 
-**Importancia:** ofrece una ruta útil incluso en un APK sin Google Maps o ante
-un problema del proveedor cartográfico.
+**Importancia:** ofrece una ruta útil sin conexión o ante un problema del
+proveedor cartográfico.
 
 ## 7. Autenticación y panel
 

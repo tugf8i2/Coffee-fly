@@ -66,6 +66,12 @@ describe('calidad GPS', () => {
     expect(result.reason).toContain('salto');
   });
 
+  test('tolera saltos cubiertos por la incertidumbre informada', () => {
+    const previous = point({ precision_m: 50, capturada_en: new Date(now - 1000).toISOString() });
+    const result = evaluateGpsPoint(point({ latitud: 4.7118, precision_m: 50 }), previous, { now });
+    expect(result.valid).toBe(true);
+  });
+
   test('rechaza rumbo inválido y puntos incompatibles con la misma hora', () => {
     expect(evaluateGpsPoint(point({ rumbo_grados: 361 }), null, { now }).valid).toBe(false);
     const previous = point({ latitud: 4.7 });

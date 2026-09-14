@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from math import asin, cos, radians, sin, sqrt
+from math import asin, cos, hypot, isfinite, radians, sin, sqrt
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -8,11 +8,14 @@ from sqlalchemy.orm import Session
 from app.models.entrega_models import Entrega
 from app.models.cooperativa_models import Cooperativa
 from app.models.historial_eventos_models import HistorialEvento
+from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
+from app.models.viaje_models import Viaje
 from app.core.time import as_utc_aware, to_utc_naive, utc_now_naive
 from app.core.config import EVENT_RETENTION_DAYS
 from app.core.observability import logger, process_metrics
 from app.repositories.entrega_repositories import EntregaRepository
+from app.repositories.cola_viajes import renumerar_cola_vehiculo
 from app.schemas.entrega_schemas import EntregaCreate, RegistrarUbicacionRequest, SincronizarUbicacionesRequest
 
 
@@ -21,7 +24,9 @@ MAX_VELOCIDAD_METROS_SEGUNDO = 60
 DISTANCIA_DUPLICADO_METROS = 5
 VENTANA_DUPLICADO_SEGUNDOS = 20
 RADIO_CONFIRMACION_CARGA_METROS = 250
+RADIO_CONFIRMACION_COOPERATIVA_METROS = 250
 MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS = 300
+TOLERANCIA_FUTURO_GEOCERCA_SEGUNDOS = 30
 
 
 def _fecha_utc_sin_zona(fecha: datetime) -> datetime:
@@ -36,12 +41,123 @@ def _distancia_metros(latitud_a: float, longitud_a: float, latitud_b: float, lon
     return 2 * radio_tierra * asin(sqrt(min(1.0, max(0.0, valor))))
 
 
+def _distancia_efectiva_metros(
+    latitud_a: float,
+    longitud_a: float,
+    precision_a: float | None,
+    latitud_b: float,
+    longitud_b: float,
+    precision_b: float | None,
+) -> float:
+    distancia = _distancia_metros(latitud_a, longitud_a, latitud_b, longitud_b)
+    incertidumbre = hypot(float(precision_a or 0), float(precision_b or 0))
+    return max(0.0, distancia - incertidumbre)
+
+
+def _distancia_efectiva_puntos(punto_a, punto_b) -> float:
+    return _distancia_efectiva_metros(
+        float(punto_a.latitud), float(punto_a.longitud), getattr(punto_a, "precision_m", None),
+        float(punto_b.latitud), float(punto_b.longitud), getattr(punto_b, "precision_m", None),
+    )
+
+
+def _distancia_trayecto(puntos) -> float:
+    return sum(
+        _distancia_efectiva_puntos(anterior, actual)
+        for anterior, actual in zip(puntos, puntos[1:])
+    )
+
+
 class EntregaService:
     def __init__(self, db: Session):
         self.repository = EntregaRepository(db)
 
     def obtener_entregas(self, skip: int = 0, limit: int = 100):
         return self.repository.get_entregas(skip, limit)
+
+    @staticmethod
+    def _guardar_snapshot_finca(entrega, caficultor, requerido=True):
+        latitud_snapshot = entrega.finca_latitud_snapshot
+        longitud_snapshot = entrega.finca_longitud_snapshot
+        if latitud_snapshot is not None and longitud_snapshot is not None:
+            return False
+        if latitud_snapshot is not None or longitud_snapshot is not None:
+            raise HTTPException(status_code=409, detail="La entrega tiene un snapshot de finca incompleto")
+        latitud = getattr(caficultor, "latitud_finca", None)
+        longitud = getattr(caficultor, "longitud_finca", None)
+        if (
+            latitud is None or longitud is None
+            or not isfinite(float(latitud)) or not isfinite(float(longitud))
+            or not -90 <= float(latitud) <= 90 or not -180 <= float(longitud) <= 180
+        ):
+            if requerido:
+                raise HTTPException(status_code=400, detail="El caficultor no tiene coordenadas de finca válidas")
+            return False
+        entrega.finca_latitud_snapshot = float(latitud)
+        entrega.finca_longitud_snapshot = float(longitud)
+        entrega.finca_direccion_snapshot = ", ".join(filter(None, [
+            getattr(caficultor, "direccion_finca", None),
+            getattr(caficultor, "vereda", None),
+            getattr(caficultor, "municipio", None),
+            getattr(caficultor, "departamento", None),
+        ])) or None
+        entrega.finca_ubicacion_snapshot_en = getattr(caficultor, "ubicacion_finca_actualizada_en", None) or utc_now_naive()
+        return True
+
+    @classmethod
+    def _guardar_snapshot_cooperativa(cls, viaje, cooperativa, requerido=True):
+        latitud_snapshot = viaje.cooperativa_latitud_snapshot
+        longitud_snapshot = viaje.cooperativa_longitud_snapshot
+        if latitud_snapshot is not None and longitud_snapshot is not None:
+            return False
+        if latitud_snapshot is not None or longitud_snapshot is not None:
+            raise HTTPException(status_code=409, detail="El viaje tiene un snapshot de cooperativa incompleto")
+        try:
+            latitud, longitud = cls._coordenadas_cooperativa(cooperativa)
+        except HTTPException:
+            if requerido:
+                raise
+            return False
+        ubicacion = cooperativa.ubicacion
+        viaje.cooperativa_latitud_snapshot = latitud
+        viaje.cooperativa_longitud_snapshot = longitud
+        viaje.cooperativa_direccion_snapshot = ", ".join(filter(None, [
+            getattr(cooperativa, "nombre", None),
+            getattr(ubicacion, "direccion", None),
+            getattr(ubicacion, "ciudad", None),
+            getattr(ubicacion, "departamento", None),
+        ])) or None
+        return True
+
+    @staticmethod
+    def _coordenadas_cooperativa(cooperativa):
+        ubicacion = cooperativa.ubicacion if cooperativa else None
+        latitud = getattr(ubicacion, "y", None)
+        longitud = getattr(ubicacion, "x", None)
+        if (
+            latitud is None or longitud is None
+            or not isfinite(float(latitud)) or not isfinite(float(longitud))
+            or not -90 <= float(latitud) <= 90 or not -180 <= float(longitud) <= 180
+        ):
+            raise HTTPException(status_code=400, detail="La cooperativa seleccionada no tiene coordenadas válidas")
+        return float(latitud), float(longitud)
+
+    def _recuperar_snapshots_legacy(self, entrega_id, entrega):
+        viaje = self.repository.bloquear_viaje(entrega.viaje_id) if entrega.viaje_id else None
+        registro = self.repository.get_vehiculo_entrega(entrega_id, for_update=True)
+        if not registro:
+            raise HTTPException(status_code=404, detail="Entrega con vehículo asignado no encontrada")
+        entrega, vehiculo = registro
+        cambio = self._guardar_snapshot_finca(entrega, entrega.caficultor, requerido=False)
+        if viaje is not None:
+            carga = entrega.solicitud.carga if entrega.solicitud else None
+            cooperativa = carga.cooperativa if carga else None
+            cambio = self._guardar_snapshot_cooperativa(
+                viaje, cooperativa, requerido=False
+            ) or cambio
+        if cambio:
+            self.repository.db.commit()
+        return entrega, vehiculo, viaje
 
     def obtener_historial(self, usuario, fecha_desde, fecha_hasta, caficultor_id, estado, vehiculo_id, pagina):
         if fecha_desde and fecha_hasta and fecha_hasta < fecha_desde:
@@ -71,18 +187,34 @@ class EntregaService:
         }
 
     def _contexto_gps(self, entrega_id: UUID, conductor_id: int):
-        # Serializa los escritores de una entrega. Esto evita perder incrementos
-        # de distancia o aceptar dos veces el mismo reintento concurrente.
-        registro = self.repository.get_vehiculo_entrega(entrega_id, for_update=True)
+        registro = self.repository.get_vehiculo_entrega(entrega_id)
         if not registro:
             raise HTTPException(status_code=404, detail="Entrega con vehículo asignado no encontrada")
         entrega, vehiculo = registro
+        # Viaje siempre se bloquea antes que entrega, igual que en completar(),
+        # y serializa puntos enviados desde cargas distintas del mismo viaje.
+        viaje = None
+        if entrega.viaje_id:
+            viaje = self.repository.bloquear_viaje(entrega.viaje_id)
+            if viaje is None:
+                raise HTTPException(status_code=409, detail="El viaje de la entrega ya no está disponible")
+            if viaje.estado_viaje != "en_camino":
+                raise HTTPException(status_code=409, detail="El GPS solo puede actualizarse durante el viaje activo")
+            registro = self.repository.get_vehiculo_entrega(entrega_id, for_update=True)
+            if not registro:
+                raise HTTPException(status_code=409, detail="La entrega ya no está disponible")
+            entrega, vehiculo = registro
+        else:
+            registro = self.repository.get_vehiculo_entrega(entrega_id, for_update=True)
+            if not registro:
+                raise HTTPException(status_code=409, detail="La entrega ya no está disponible")
+            entrega, vehiculo = registro
         conductor_asignado = entrega.viaje.conductor_id if entrega.viaje_id else vehiculo.conductor_id
         if conductor_asignado != conductor_id:
             raise HTTPException(status_code=403, detail="Solo el conductor asignado puede enviar la ubicación")
         if entrega.estado_entrega != "en camino":
             raise HTTPException(status_code=400, detail="El GPS solo puede actualizarse cuando la entrega está en camino")
-        return entrega, vehiculo
+        return entrega, vehiculo, viaje
 
     @staticmethod
     def _rechazar_punto(entrega_id: UUID, punto: RegistrarUbicacionRequest, detail: str):
@@ -97,17 +229,29 @@ class EntregaService:
         )
         raise HTTPException(status_code=422, detail=detail)
 
-    def _registrar_punto_validado(self, entrega, vehiculo, punto: RegistrarUbicacionRequest, commit: bool = True):
+    @staticmethod
+    def _distancia_acumulada(entrega, viaje=None):
+        valor = getattr(viaje, "distancia_recorrida_m", 0) if viaje is not None else getattr(entrega, "distancia_recorrida_m", 0)
+        return float(valor or 0)
+
+    def _registrar_punto_validado(self, entrega, vehiculo, punto: RegistrarUbicacionRequest, commit: bool = True, viaje=None):
         entrega_id = entrega.id_entrega
         existente = self.repository.get_ubicacion_por_client_point_id(punto.client_point_id)
         if existente:
-            if existente.entrega_id != entrega_id:
-                raise HTTPException(status_code=409, detail="El identificador del punto ya pertenece a otra entrega")
+            mismo_contexto = (
+                getattr(entrega, "viaje_id", None) is not None
+                and existente.viaje_id == entrega.viaje_id
+            ) or (
+                getattr(entrega, "viaje_id", None) is None
+                and existente.entrega_id == entrega_id
+            )
+            if not mismo_contexto:
+                raise HTTPException(status_code=409, detail="El identificador del punto ya pertenece a otro viaje o entrega")
             return {
                 "estado": "duplicado", "id_ubicacion": existente.id_ubicacion,
                 "client_point_id": existente.client_point_id,
                 "registrada_en": as_utc_aware(existente.registrada_en),
-                "distancia_recorrida_m": float(getattr(entrega, "distancia_recorrida_m", 0) or 0),
+                "distancia_recorrida_m": self._distancia_acumulada(entrega, viaje),
             }
 
         if punto.precision_m is not None and punto.precision_m > MAX_PRECISION_METROS:
@@ -126,7 +270,10 @@ class EntregaService:
         if capturada_en > ahora + timedelta(minutes=5):
             self._rechazar_punto(entrega_id, punto, "Punto descartado: la hora de captura está en el futuro")
 
-        anterior, siguiente = self.repository.get_puntos_vecinos(entrega_id, capturada_en)
+        anterior, siguiente = (
+            self.repository.get_puntos_vecinos_viaje(entrega.viaje_id, capturada_en)
+            if entrega.viaje_id else self.repository.get_puntos_vecinos(entrega_id, capturada_en)
+        )
         for vecino in (anterior, siguiente):
             if vecino is None:
                 continue
@@ -139,7 +286,7 @@ class EntregaService:
                     "estado": "duplicado", "id_ubicacion": vecino.id_ubicacion,
                     "client_point_id": punto.client_point_id,
                     "registrada_en": as_utc_aware(vecino.registrada_en),
-                    "distancia_recorrida_m": float(getattr(entrega, "distancia_recorrida_m", 0) or 0),
+                    "distancia_recorrida_m": self._distancia_acumulada(entrega, viaje),
                 }
             if segundos == 0:
                 self._rechazar_punto(
@@ -147,33 +294,38 @@ class EntregaService:
                     punto,
                     "Punto descartado: dos posiciones incompatibles tienen la misma hora de captura",
                 )
-            if segundos > 0 and distancia / segundos > MAX_VELOCIDAD_METROS_SEGUNDO:
+            distancia_efectiva = _distancia_efectiva_metros(
+                float(vecino.latitud), float(vecino.longitud), getattr(vecino, "precision_m", None),
+                punto.latitud, punto.longitud, punto.precision_m,
+            )
+            if segundos > 0 and distancia_efectiva / segundos > MAX_VELOCIDAD_METROS_SEGUNDO:
                 self._rechazar_punto(
                     entrega_id, punto, "Punto descartado: salto de ubicación físicamente improbable"
                 )
 
         delta_distancia = 0.0
         if anterior is not None:
-            delta_distancia += _distancia_metros(
-                float(anterior.latitud), float(anterior.longitud), punto.latitud, punto.longitud
+            delta_distancia += _distancia_efectiva_metros(
+                float(anterior.latitud), float(anterior.longitud), getattr(anterior, "precision_m", None),
+                punto.latitud, punto.longitud, punto.precision_m,
             )
         if siguiente is not None:
-            delta_distancia += _distancia_metros(
-                punto.latitud, punto.longitud, float(siguiente.latitud), float(siguiente.longitud)
+            delta_distancia += _distancia_efectiva_metros(
+                punto.latitud, punto.longitud, punto.precision_m,
+                float(siguiente.latitud), float(siguiente.longitud), getattr(siguiente, "precision_m", None),
             )
         if anterior is not None and siguiente is not None:
-            delta_distancia -= _distancia_metros(
-                float(anterior.latitud), float(anterior.longitud),
-                float(siguiente.latitud), float(siguiente.longitud),
-            )
-        entrega.distancia_recorrida_m = max(
-            0.0,
-            float(getattr(entrega, "distancia_recorrida_m", 0) or 0) + delta_distancia,
-        )
+            delta_distancia -= _distancia_efectiva_puntos(anterior, siguiente)
+        distancia_acumulada = max(0.0, self._distancia_acumulada(entrega, viaje) + delta_distancia)
+        if viaje is not None:
+            viaje.distancia_recorrida_m = distancia_acumulada
+        else:
+            entrega.distancia_recorrida_m = distancia_acumulada
 
         ubicacion = self.repository.registrar_ubicacion(SeguimientoUbicacion(
             client_point_id=punto.client_point_id,
-            entrega_id=entrega.id_entrega, vehiculo_id=vehiculo.id_vehiculo,
+            entrega_id=entrega.id_entrega, viaje_id=getattr(entrega, "viaje_id", None),
+            vehiculo_id=vehiculo.id_vehiculo,
             latitud=punto.latitud, longitud=punto.longitud,
             precision_m=punto.precision_m, velocidad_m_s=punto.velocidad_m_s,
             rumbo_grados=punto.rumbo_grados, registrada_en=capturada_en, recibida_en=ahora,
@@ -182,19 +334,19 @@ class EntregaService:
             "estado": "guardado", "id_ubicacion": ubicacion.id_ubicacion,
             "client_point_id": ubicacion.client_point_id,
             "registrada_en": as_utc_aware(ubicacion.registrada_en),
-            "distancia_recorrida_m": entrega.distancia_recorrida_m,
+            "distancia_recorrida_m": distancia_acumulada,
         }
 
     def registrar_ubicacion(self, entrega_id: UUID, punto: RegistrarUbicacionRequest, conductor_id: int):
-        entrega, vehiculo = self._contexto_gps(entrega_id, conductor_id)
-        result = self._registrar_punto_validado(entrega, vehiculo, punto)
+        entrega, vehiculo, viaje = self._contexto_gps(entrega_id, conductor_id)
+        result = self._registrar_punto_validado(entrega, vehiculo, punto, viaje=viaje)
         process_metrics.increment(
             "gps_points_saved" if result["estado"] == "guardado" else "gps_points_duplicate"
         )
         return result
 
     def sincronizar_ubicaciones(self, entrega_id: UUID, lote: SincronizarUbicacionesRequest, conductor_id: int):
-        entrega, vehiculo = self._contexto_gps(entrega_id, conductor_id)
+        entrega, vehiculo, viaje = self._contexto_gps(entrega_id, conductor_id)
         puntos = sorted(
             lote.puntos,
             key=lambda item: _fecha_utc_sin_zona(item.capturada_en) if item.capturada_en else datetime.min,
@@ -206,7 +358,9 @@ class EntregaService:
         try:
             for punto in puntos:
                 try:
-                    resultado = self._registrar_punto_validado(entrega, vehiculo, punto, commit=False)
+                    resultado = self._registrar_punto_validado(
+                        entrega, vehiculo, punto, commit=False, viaje=viaje
+                    )
                     guardados += int(resultado["estado"] == "guardado")
                     duplicados += int(resultado["estado"] == "duplicado")
                     resultados.append(resultado)
@@ -231,7 +385,7 @@ class EntregaService:
             "duplicados": duplicados,
             "rechazados": rechazados,
             "resultados": resultados,
-            "distancia_recorrida_m": float(getattr(entrega, "distancia_recorrida_m", 0) or 0),
+            "distancia_recorrida_m": self._distancia_acumulada(entrega, viaje),
         }
 
     def obtener_seguimiento(self, entrega_id: UUID, usuario):
@@ -245,6 +399,9 @@ class EntregaService:
         conductor_asignado = entrega.viaje.conductor_id if entrega.viaje_id else vehiculo.conductor_id
         if role == "conductor" and (not usuario.conductor or conductor_asignado != usuario.conductor.id_conductor):
             raise HTTPException(status_code=403, detail="No tienes acceso a esta entrega")
+        entrega, vehiculo, viaje_bloqueado = self._recuperar_snapshots_legacy(
+            entrega_id, entrega
+        )
         puntos, total_puntos = (
             self.repository.get_puntos_ruta_viaje(entrega.viaje_id)
             if entrega.viaje_id else self.repository.get_puntos_ruta(entrega_id)
@@ -252,14 +409,11 @@ class EntregaService:
         carga = entrega.solicitud.carga if entrega.solicitud else None
         cooperativa = carga.cooperativa if carga else None
         ubicacion_cooperativa = cooperativa.ubicacion if cooperativa else None
-        recoleccion_latitud = float(entrega.caficultor.latitud_finca) if entrega.caficultor and entrega.caficultor.latitud_finca is not None else None
-        recoleccion_longitud = float(entrega.caficultor.longitud_finca) if entrega.caficultor and entrega.caficultor.longitud_finca is not None else None
+        recoleccion_latitud = entrega.finca_latitud_snapshot
+        recoleccion_longitud = entrega.finca_longitud_snapshot
         recoleccion = ", ".join(filter(None, [
             f"{entrega.caficultor.nombre_usuario} {entrega.caficultor.apellido}".strip() if entrega.caficultor else None,
-            getattr(entrega.caficultor, "direccion_finca", None) if entrega.caficultor else None,
-            entrega.caficultor.vereda if entrega.caficultor else None,
-            entrega.caficultor.municipio if entrega.caficultor else None,
-            entrega.caficultor.departamento if entrega.caficultor else None,
+            entrega.finca_direccion_snapshot,
         ]))
         cooperativa_destino = ", ".join(filter(None, [
             cooperativa.nombre if cooperativa else None,
@@ -267,8 +421,15 @@ class EntregaService:
             ubicacion_cooperativa.ciudad if ubicacion_cooperativa else None,
             ubicacion_cooperativa.departamento if ubicacion_cooperativa else None,
         ]))
-        cooperativa_latitud = float(ubicacion_cooperativa.y) if ubicacion_cooperativa and ubicacion_cooperativa.y is not None else None
-        cooperativa_longitud = float(ubicacion_cooperativa.x) if ubicacion_cooperativa and ubicacion_cooperativa.x is not None else None
+        viaje = viaje_bloqueado or entrega.viaje
+        cooperativa_latitud = getattr(viaje, "cooperativa_latitud_snapshot", None)
+        cooperativa_longitud = getattr(viaje, "cooperativa_longitud_snapshot", None)
+        if not entrega.viaje_id and cooperativa_latitud is None and ubicacion_cooperativa and ubicacion_cooperativa.y is not None:
+            cooperativa_latitud = float(ubicacion_cooperativa.y)
+        if not entrega.viaje_id and cooperativa_longitud is None and ubicacion_cooperativa and ubicacion_cooperativa.x is not None:
+            cooperativa_longitud = float(ubicacion_cooperativa.x)
+        if entrega.viaje_id:
+            cooperativa_destino = getattr(viaje, "cooperativa_direccion_snapshot", None)
         hacia_cooperativa = entrega.carga_recogida_en is not None
         destino = cooperativa_destino if hacia_cooperativa else recoleccion
         destino_latitud = cooperativa_latitud if hacia_cooperativa else recoleccion_latitud
@@ -279,25 +440,26 @@ class EntregaService:
             distancia_recoleccion = _distancia_metros(
                 float(ultimo.latitud), float(ultimo.longitud), recoleccion_latitud, recoleccion_longitud
             )
-        ubicacion_reciente = bool(
-            ultimo
-            and (utc_now_naive() - to_utc_naive(ultimo.registrada_en)).total_seconds()
-            <= MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS
+        antiguedad_ultimo = (
+            (utc_now_naive() - to_utc_naive(ultimo.registrada_en)).total_seconds()
+            if ultimo else None
         )
-        distancia_viaje = sum(
-            _distancia_metros(
-                float(anterior.latitud), float(anterior.longitud),
-                float(actual.latitud), float(actual.longitud),
-            )
-            for anterior, actual in zip(puntos, puntos[1:])
-        ) if entrega.viaje_id else float(entrega.distancia_recorrida_m or 0)
+        ubicacion_reciente = bool(
+            antiguedad_ultimo is not None
+            and -TOLERANCIA_FUTURO_GEOCERCA_SEGUNDOS <= antiguedad_ultimo <= MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS
+            and ultimo.precision_m is not None
+            and float(ultimo.precision_m) <= MAX_PRECISION_METROS
+        )
+        distancia_viaje = self._distancia_acumulada(
+            entrega, viaje if entrega.viaje_id else None
+        )
         return {
             "entrega_id": entrega.id_entrega, "estado_entrega": entrega.estado_entrega,
             "vehiculo_id": vehiculo.id_vehiculo, "vehiculo_placa": vehiculo.placa,
             "destino": destino,
             "destino_latitud": destino_latitud,
             "destino_longitud": destino_longitud,
-            "destino_actualizado_en": entrega.caficultor.ubicacion_finca_actualizada_en if entrega.caficultor else None,
+            "destino_actualizado_en": entrega.finca_ubicacion_snapshot_en,
             "etapa_viaje": "hacia_cooperativa" if hacia_cooperativa else "hacia_finca",
             "carga_recogida_en": entrega.carga_recogida_en,
             "recoleccion": recoleccion,
@@ -362,7 +524,7 @@ class EntregaService:
         if cantidad_kg <= 0:
             raise HTTPException(status_code=400, detail="La solicitud no tiene un peso de carga válido")
 
-        return self.repository.create_entrega(Entrega(
+        entrega = Entrega(
             solicitud_id=solicitud.id_solicitud,
             caficultor_id=solicitud.caficultor_id,
             # El peso siempre procede de la carga creada en la solicitud.
@@ -370,7 +532,62 @@ class EntregaService:
             fecha_hora_entrega=datos.fecha_hora_entrega,
             observaciones=datos.observaciones,
             estado_entrega="pendiente", actualizado_en=utc_now_naive(),
+        )
+        self._guardar_snapshot_finca(entrega, solicitud.caficultor)
+        return self.repository.create_entrega(entrega)
+
+    def cancelar_recoleccion(self, entrega_id: UUID, coordinador_id: int):
+        db = self.repository.db
+        referencia = db.query(Entrega.viaje_id).filter(Entrega.id_entrega == entrega_id).first()
+        if referencia is None:
+            raise HTTPException(status_code=404, detail="Recolección no encontrada")
+
+        viaje = None
+        if referencia[0] is not None:
+            viaje = db.query(Viaje).filter(Viaje.id_viaje == referencia[0]).with_for_update().first()
+        entrega = db.query(Entrega).filter(Entrega.id_entrega == entrega_id).with_for_update().first()
+        if entrega is None:
+            raise HTTPException(status_code=404, detail="Recolección no encontrada")
+        if entrega.estado_entrega != "pendiente" or entrega.carga_recogida_en is not None:
+            raise HTTPException(status_code=409, detail="Solo puedes cancelar una recolección pendiente que aún no fue recogida")
+        if viaje is not None and viaje.estado_viaje not in {"asignado", "en_cola"}:
+            raise HTTPException(status_code=409, detail="El viaje ya inició; la recolección no puede cancelarse")
+
+        ahora = utc_now_naive()
+        solicitud = entrega.solicitud
+        carga = solicitud.carga if solicitud else None
+        db.add(HistorialEstadoEntrega(
+            entrega_id=entrega.id_entrega,
+            estado_anterior=entrega.estado_entrega,
+            estado_nuevo="cancelado",
+            usuario_id=coordinador_id,
+            fecha_hora_cambio=ahora,
         ))
+        entrega.estado_entrega = "cancelado"
+        entrega.actualizado_en = ahora
+        entrega.viaje_id = None
+        entrega.orden_recoleccion = None
+        if solicitud is not None:
+            solicitud.estado_solicitud = "cancelado"
+        if carga is not None:
+            carga.vehiculo_id = None
+            carga.cooperativa_id = None
+
+        if viaje is not None:
+            restantes = db.query(Entrega).filter(
+                Entrega.viaje_id == viaje.id_viaje,
+                Entrega.id_entrega != entrega.id_entrega,
+                Entrega.estado_entrega == "pendiente",
+            ).order_by(Entrega.orden_recoleccion).with_for_update().all()
+            for orden, restante in enumerate(restantes, 1):
+                restante.orden_recoleccion = orden
+            if not restantes:
+                viaje.estado_viaje = "cancelado"
+                db.flush()
+                renumerar_cola_vehiculo(db, viaje.vehiculo_id)
+        db.commit()
+        db.refresh(entrega)
+        return entrega
 
     def obtener_pendientes_asignacion(self):
         return [
@@ -396,7 +613,7 @@ class EntregaService:
                 "capacidad_kg": float(vehiculo.capacidad_kg),
                 "carga_actual_kg": carga_actual,
                 "capacidad_disponible_kg": max(
-                    0, float(vehiculo.capacidad_kg)
+                    0, float(vehiculo.capacidad_kg) - carga_actual
                 ),
                 "estado_vehiculo": vehiculo.estado_vehiculo or "disponible",
             })
@@ -641,13 +858,19 @@ class EntregaService:
             raise HTTPException(status_code=400, detail="El conductor seleccionado no existe")
         if not conductor.foto_licencia:
             raise HTTPException(status_code=400, detail="El conductor debe tener una foto de licencia registrada")
+        usuario_conductor = conductor.usuarios
+        if (
+            not usuario_conductor.habilitado or not usuario_conductor.rol
+            or usuario_conductor.rol.descripcion_rol.lower() != "conductor"
+        ):
+            raise HTTPException(status_code=400, detail="El conductor debe estar habilitado y tener rol de conductor")
         if self.repository.conductor_tiene_viaje_activo(conductor_id, vehiculo_id):
             raise HTTPException(status_code=400, detail="El conductor ya tiene un vehículo en camino")
         cooperativa = self.repository.db.query(Cooperativa).filter(
             Cooperativa.id_cooperativa == cooperativa_id
         ).first()
-        if cooperativa is None or cooperativa.ubicacion is None:
-            raise HTTPException(status_code=400, detail="La cooperativa seleccionada no tiene una ubicación válida")
+        self._coordenadas_cooperativa(cooperativa)
+        self._guardar_snapshot_finca(entrega, entrega.caficultor)
 
         carga_actual = self.repository.get_peso_cargado_vehiculo(vehiculo_id)
         peso_nuevo = float(entrega.cantidad_kg)
@@ -680,18 +903,25 @@ class EntregaService:
         carga = solicitud.carga if solicitud else None
         if carga is None or carga.cooperativa is None or carga.cooperativa.ubicacion is None:
             raise HTTPException(status_code=400, detail="La entrega no tiene una cooperativa de destino asignada")
-        caficultor = entrega.caficultor
-        if caficultor is None or caficultor.latitud_finca is None or caficultor.longitud_finca is None:
-            raise HTTPException(status_code=400, detail="El caficultor no tiene una ubicación de recolección registrada")
-        ultimo = self.repository.get_ultimo_punto_ruta(entrega_id)
+        self._guardar_snapshot_finca(entrega, entrega.caficultor, requerido=False)
+        if entrega.finca_latitud_snapshot is None or entrega.finca_longitud_snapshot is None:
+            raise HTTPException(status_code=400, detail="La entrega no tiene una ubicación de recolección congelada")
+        ultimo = (
+            self.repository.get_ultimo_punto_ruta_viaje(entrega.viaje_id)
+            if entrega.viaje_id else self.repository.get_ultimo_punto_ruta(entrega_id)
+        )
         if ultimo is None:
             raise HTTPException(status_code=400, detail="Activa el GPS para confirmar que llegaste al punto de recolección")
         antiguedad = (utc_now_naive() - to_utc_naive(ultimo.registrada_en)).total_seconds()
+        if antiguedad < -TOLERANCIA_FUTURO_GEOCERCA_SEGUNDOS:
+            raise HTTPException(status_code=400, detail="La ubicación GPS tiene una hora futura no válida para confirmar la carga")
         if antiguedad > MAX_ANTIGUEDAD_CONFIRMACION_SEGUNDOS:
             raise HTTPException(status_code=400, detail="Actualiza tu ubicación GPS antes de confirmar la carga")
+        if ultimo.precision_m is None or float(ultimo.precision_m) > MAX_PRECISION_METROS:
+            raise HTTPException(status_code=400, detail="La ubicación GPS no tiene precisión suficiente para confirmar la carga")
         distancia = _distancia_metros(
             float(ultimo.latitud), float(ultimo.longitud),
-            float(caficultor.latitud_finca), float(caficultor.longitud_finca),
+            float(entrega.finca_latitud_snapshot), float(entrega.finca_longitud_snapshot),
         )
         if distancia > RADIO_CONFIRMACION_CARGA_METROS:
             raise HTTPException(

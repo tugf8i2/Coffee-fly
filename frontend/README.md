@@ -23,14 +23,13 @@ El APK de desarrollo anterior permanece archivado en `artifacts/`, pero no es
 necesario para el flujo actual. Expo Go incluye el mapa compatible para las
 pruebas en primer plano.
 
-### APK nativo archivado
+### Mapas móviles abiertos
 
-`react-native-maps` necesita una clave habilitada para **Maps SDK for Android**.
-Si no existe, Coffee Fly muestra un panel seguro y mantiene GPS, ruta,
-sincronización y segundo plano sin montar el mapa, evitando que Android cierre
-la pantalla. Para habilitar el mapa en un APK nuevo, configure el secreto de
-compilación `GOOGLE_MAPS_ANDROID_API_KEY` en EAS y vuelva a generar el APK. La
-clave no debe guardarse en `.env` ni confirmarse en Git.
+Todos los mapas móviles y web usan MapLibre GL, OpenFreeMap y datos de
+OpenStreetMap. En móvil se ejecutan dentro de `react-native-webview` y funcionan
+en Expo Go y en un APK propio sin claves comerciales. El mapa de navegación recibe directamente el GPS local;
+los mapas de seguimiento reciben el último punto del canal WebSocket y el mapa
+de flota muestra las coordenadas más recientes del resumen operativo.
 
 El teléfono y el PC deben estar en la misma red Wi-Fi. El backend se mantiene en el puerto `8000`.
 

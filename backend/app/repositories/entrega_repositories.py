@@ -60,7 +60,7 @@ class EntregaRepository:
             Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
         ).filter(Entrega.id_entrega == entrega_id)
         if for_update:
-            query = query.with_for_update(of=Entrega)
+            query = query.populate_existing().with_for_update(of=Entrega)
         return query.first()
 
     def registrar_ubicacion(self, ubicacion: SeguimientoUbicacion, commit: bool = True):
@@ -94,6 +94,22 @@ class EntregaRepository:
         ).order_by(SeguimientoUbicacion.registrada_en.asc()).first()
         return anterior, siguiente
 
+    def get_puntos_vecinos_viaje(self, viaje_id: UUID, registrada_en: datetime):
+        anterior = self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.viaje_id == viaje_id,
+            SeguimientoUbicacion.registrada_en <= registrada_en,
+        ).order_by(SeguimientoUbicacion.registrada_en.desc()).first()
+        siguiente = self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.viaje_id == viaje_id,
+            SeguimientoUbicacion.registrada_en > registrada_en,
+        ).order_by(SeguimientoUbicacion.registrada_en.asc()).first()
+        return anterior, siguiente
+
+    def bloquear_viaje(self, viaje_id: UUID):
+        return self.db.query(Viaje).filter(
+            Viaje.id_viaje == viaje_id
+        ).populate_existing().with_for_update().first()
+
     def get_puntos_ruta(self, entrega_id: UUID, limit: int = 2000):
         query = self.db.query(SeguimientoUbicacion).filter(
             SeguimientoUbicacion.entrega_id == entrega_id
@@ -103,9 +119,9 @@ class EntregaRepository:
         return list(reversed(recientes)), total
 
     def get_puntos_ruta_viaje(self, viaje_id: UUID, limit: int = 2000):
-        query = self.db.query(SeguimientoUbicacion).join(
-            Entrega, SeguimientoUbicacion.entrega_id == Entrega.id_entrega
-        ).filter(Entrega.viaje_id == viaje_id)
+        query = self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.viaje_id == viaje_id
+        )
         total = query.count()
         recientes = query.order_by(SeguimientoUbicacion.registrada_en.desc()).limit(limit).all()
         return list(reversed(recientes)), total
@@ -113,6 +129,11 @@ class EntregaRepository:
     def get_ultimo_punto_ruta(self, entrega_id: UUID):
         return self.db.query(SeguimientoUbicacion).filter(
             SeguimientoUbicacion.entrega_id == entrega_id
+        ).order_by(SeguimientoUbicacion.registrada_en.desc()).first()
+
+    def get_ultimo_punto_ruta_viaje(self, viaje_id: UUID):
+        return self.db.query(SeguimientoUbicacion).filter(
+            SeguimientoUbicacion.viaje_id == viaje_id
         ).order_by(SeguimientoUbicacion.registrada_en.desc()).first()
 
     def get_solicitud_activa(self, solicitud_id: UUID) -> Solicitud | None:
@@ -230,9 +251,14 @@ class EntregaRepository:
                 Carga, Solicitud.carga_id == Carga.id_carga
             ).join(
                 Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo
+            ).outerjoin(
+                Viaje, Entrega.viaje_id == Viaje.id_viaje
             ).filter(
                 Entrega.id_entrega.in_(entrega_ids),
-                Vehiculo.conductor_id == conductor_id,
+                or_(
+                    (Entrega.viaje_id.isnot(None)) & (Viaje.conductor_id == conductor_id),
+                    (Entrega.viaje_id.is_(None)) & (Vehiculo.conductor_id == conductor_id),
+                ),
             ).all()
         }
 
