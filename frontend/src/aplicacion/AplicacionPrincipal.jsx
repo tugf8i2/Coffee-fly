@@ -1,6 +1,6 @@
 import FeedbackMessage from '../componentes/comunes/MensajeRetroalimentacion';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -11,7 +11,7 @@ import DeliveryHistory from '../modulos/entregas/HistorialEntregas';
 import DeliveryManagement from '../modulos/entregas/RegistrarRecoleccionCafe';
 import AppErrorBoundary from '../componentes/comunes/LimiteErrorAplicacion';
 import Encabezado from '../componentes/comunes/Encabezado';
-import FondoCafeAnimado from '../componentes/comunes/FondoCafeAnimado';
+import NavegacionPrincipal from '../componentes/comunes/NavegacionPrincipal';
 import IniciarSesion from '../modulos/autenticacion/IniciarSesion';
 import MiActividad from '../modulos/caficultor/MiActividad';
 import OperationalMonitoring from '../modulos/seguimiento/MonitoreoOperativo';
@@ -75,6 +75,7 @@ async function validateSavedSession(saved) {
 }
 
 export default function AplicacionPrincipal() {
+  const { width } = useWindowDimensions();
   const [screen, setScreen] = useState('login');
   const [user, setUser] = useState(null);
   const [syncMessage, setSyncMessageText] = useState('');
@@ -190,8 +191,8 @@ export default function AplicacionPrincipal() {
         <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
       </View> : null}
       {syncMessage ? <FeedbackMessage type={syncMessageType}>{syncMessage}</FeedbackMessage> : null}
-      <View style={styles.screenStage}>
-        {user ? <FondoCafeAnimado /> : null}
+      <View style={[styles.screenStage, { flexDirection: width >= 1000 ? 'row' : 'column' }]}>
+        {user ? <NavegacionPrincipal user={user} screen={screen} go={setScreen} /> : null}
         <View style={styles.screenContent}>
           <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
             {screens[screen] || screens.dashboard}

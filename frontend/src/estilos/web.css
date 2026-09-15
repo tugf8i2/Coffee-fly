@@ -6,7 +6,7 @@ body,
 }
 
 body {
-  background: #dce8b4;
+  background: #f4f6f2;
   color: #23372a;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
@@ -32,13 +32,12 @@ textarea {
 
 button,
 [role="button"] {
-  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+  transition: filter 150ms ease, box-shadow 150ms ease;
 }
 
 button:not(:disabled):hover,
 [role="button"]:not([aria-disabled="true"]):hover {
   filter: brightness(0.97);
-  transform: translateY(-1px);
 }
 
 button:focus-visible,
@@ -46,7 +45,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgba(56, 102, 65, 0.3) !important;
+  outline: 3px solid #287457 !important;
   outline-offset: 2px;
 }
 
@@ -61,5 +60,26 @@ textarea::placeholder {
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
+
+/* El foco se muestra en el contenedor completo de los campos de acceso. */
+[data-login-field="true"]:focus-within {
+  border-color: #287457 !important;
+  box-shadow: 0 0 0 3px rgba(40, 116, 87, 0.16);
+}
+
+[data-login-field="true"] input:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+
+[data-login-field="true"] [role="button"]:focus-visible {
+  outline-offset: -3px;
+}
+
+input, textarea { caret-color: #287457; }
+input:disabled, textarea:disabled { cursor: not-allowed; }
+[aria-disabled="true"] { cursor: not-allowed; }

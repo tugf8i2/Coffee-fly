@@ -25,7 +25,7 @@ export default function Encabezado({ user, onLogout, screen, go }) {
     {user ? <View style={styles.headerActions}>
       {screen !== 'dashboard' ? <TouchableOpacity accessibilityRole="button" accessibilityLabel="Volver al panel principal" style={styles.backButton} onPress={() => go('dashboard')}><Text style={styles.backButtonText}>← Panel</Text></TouchableOpacity> : null}
       <View style={styles.userBadge}><Text style={styles.userName}>{user.nombre || user.nombre_usuario || 'Usuario'}</Text><Text style={styles.userRole}>{user.rol || ''}</Text></View>
-      <TouchableOpacity accessibilityRole="button" onPress={onLogout}><Text style={styles.headerButton}>Salir</Text></TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={onLogout}><Text style={styles.headerButton}>Cerrar sesión</Text></TouchableOpacity>
     </View> : null}
   </View></View>;
 }

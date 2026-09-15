@@ -6,9 +6,18 @@ const {
   ROLE_CARDS,
   findNavigationErrors,
   navigationTargets,
+  gruposPorRol,
 } = require('../src/configuracion/navegacion');
 
 describe('navegación por roles', () => {
+  test('el menú agrupado conserva todos los accesos autorizados sin duplicarlos', () => {
+    Object.entries(ROLE_CARDS).forEach(([role, cards]) => {
+      const targets = gruposPorRol(role).flatMap((group) => group.cards.map(([, screen]) => screen));
+      expect(targets.sort()).toEqual(cards.map(([, screen]) => screen).sort());
+      expect(new Set(targets).size).toBe(targets.length);
+    });
+    expect(gruposPorRol('desconocido')).toEqual([]);
+  });
   test('cada acceso visible apunta a una pantalla registrada', () => {
     expect(findNavigationErrors(APP_SCREEN_KEYS)).toEqual([]);
   });

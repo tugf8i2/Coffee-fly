@@ -3,6 +3,12 @@ import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CampoFormulario({ label, icon, value, onChangeText, secureTextEntry = false, styles, ...inputProps }) {
   const [visible, setVisible] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const focusProps = {
+    onFocus: (event) => { setFocused(true); inputProps.onFocus?.(event); },
+    onBlur: (event) => { setFocused(false); inputProps.onBlur?.(event); },
+  };
+  const focusStyle = focused ? { borderColor: '#287457', backgroundColor: '#F8FCF9' } : null;
   const visibilityButton = secureTextEntry ? <TouchableOpacity
     accessibilityRole="button"
     accessibilityLabel={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
@@ -16,21 +22,19 @@ export default function CampoFormulario({ label, icon, value, onChangeText, secu
     </View>
   </TouchableOpacity> : null;
 
-  if (icon) return <View style={styles.field}><View style={styles.loginInputShell}>
+  if (icon) return <View style={styles.field}><View dataSet={{ 'login-field': 'true' }} style={[styles.loginInputShell, focusStyle]}>
     <View style={styles.loginInputIcon}><Text style={styles.loginInputIconText}>{icon}</Text></View>
     <View style={styles.loginInputContent}>
       <Text style={styles.loginInputLabel}>{label}</Text>
-      <View style={{ position: 'relative' }}>
-        <TextInput autoCapitalize={secureTextEntry ? 'none' : undefined} autoCorrect={secureTextEntry ? false : undefined} {...inputProps} accessibilityLabel={label} style={[styles.loginInput, secureTextEntry && { paddingRight: 54 }]} value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry && !visible} />
-        {visibilityButton}
-      </View>
+      <TextInput autoCapitalize={secureTextEntry ? 'none' : undefined} autoCorrect={secureTextEntry ? false : undefined} {...inputProps} {...focusProps} accessibilityLabel={label} style={styles.loginInput} value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry && !visible} />
     </View>
+    {visibilityButton}
   </View></View>;
 
   return <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <View style={{ position: 'relative' }}>
-      <TextInput autoCapitalize={secureTextEntry ? 'none' : undefined} autoCorrect={secureTextEntry ? false : undefined} {...inputProps} accessibilityLabel={label} style={[styles.input, secureTextEntry && { paddingRight: 60 }]} value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry && !visible} placeholder={inputProps.placeholder || label} />
+      <TextInput autoCapitalize={secureTextEntry ? 'none' : undefined} autoCorrect={secureTextEntry ? false : undefined} {...inputProps} {...focusProps} accessibilityLabel={label} style={[styles.input, focusStyle, secureTextEntry && { paddingRight: 60 }]} value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry && !visible} placeholder={inputProps.placeholder || label} />
       {visibilityButton}
     </View>
   </View>;

@@ -1,4 +1,5 @@
 import FeedbackMessage from '../comunes/MensajeRetroalimentacion';
+import SelectorFormulario from '../comunes/SelectorFormulario';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -17,7 +18,6 @@ const options = [
 
 export default function ReportadorNovedadConductor({ deliveryId, token, styles }) {
   const [events, setEvents] = useState([]);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState('');
   const [message, setMessage] = useState('');
@@ -48,23 +48,19 @@ export default function ReportadorNovedadConductor({ deliveryId, token, styles }
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo notificar el evento.');
       setMessage('Evento notificado correctamente al sistema.');
-      setSelected(''); setDetail(''); setMenuOpen(false);
+      setSelected(''); setDetail('');
       await load();
     } catch (reason) { setError(reason.message); } finally { setSaving(false); }
   };
-  const selectedLabel = options.find(([value]) => value === selected)?.[1];
 
-  return <View style={styles.card}>
+  // Este formulario está en una columna: no debe heredar el flexBasis de las tarjetas de cuadrícula.
+  return <View style={[styles.fullCard, { flexShrink: 0 }]}>
     <Text style={styles.cardTitle}>Notificar evento del viaje</Text>
     <Text style={styles.muted}>Reporta una novedad mientras recorres la ruta.</Text>
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
     {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
-    <TouchableOpacity style={styles.statusButton} onPress={() => setMenuOpen((open) => !open)}>
-      <Text style={styles.statusButtonText}>{selectedLabel || 'Seleccionar tipo de evento'} ▾</Text>
-    </TouchableOpacity>
-    {menuOpen ? <View style={styles.card}>
-      {options.map(([value, label]) => <TouchableOpacity key={value} onPress={() => { setSelected(value); setMenuOpen(false); }}><Text style={styles.link}>{label}</Text></TouchableOpacity>)}
-    </View> : null}
+    <Text style={styles.label}>Tipo de evento</Text>
+    <SelectorFormulario label="Tipo de evento" value={selected} onValueChange={setSelected} options={options} placeholder="Selecciona un evento" disabled={saving} />
     {selected ? <>
       <Text style={styles.label}>Detalle opcional</Text>
       <TextInput style={[styles.input, styles.textArea]} value={detail} onChangeText={setDetail} maxLength={250} multiline placeholder="Describe brevemente lo ocurrido" />
