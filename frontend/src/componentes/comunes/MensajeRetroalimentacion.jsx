@@ -8,7 +8,7 @@ const variants = {
   warning: { title: '⚠ Atención', color: '#78350f', backgroundColor: '#fef3c7', borderColor: '#b45309' },
 };
 
-const defaultDuration = { success: 4000, info: 6000, warning: 8000, error: 10000 };
+const defaultDuration = { success: 6000, info: 8000, warning: 0, error: 0 };
 
 export default function MensajeRetroalimentacion({ children, type = 'info', durationMs, onDismiss }) {
   const notice = useRef(null);
@@ -49,12 +49,9 @@ export default function MensajeRetroalimentacion({ children, type = 'info', dura
 
 const styles = StyleSheet.create({
   box: {
-    ...Platform.select({
-      web: { position: 'fixed', top: 82, right: 18, width: 390 },
-      default: { position: 'relative', width: '100%', alignSelf: 'center' },
-    }),
+    position: 'relative', width: '100%', alignSelf: 'center',
     zIndex: 9999,
-    maxWidth: Platform.OS === 'web' ? 390 : '100%',
+    maxWidth: '100%',
     paddingHorizontal: 11,
     paddingVertical: 9,
     borderWidth: 1,
@@ -69,6 +66,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   message: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  closeButton: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  closeButton: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: 25, lineHeight: 28, fontWeight: '600' },
 });

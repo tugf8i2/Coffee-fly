@@ -4,7 +4,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import EventMessageInbox from '../../componentes/entregas/BandejaMensajesEventos';
-import { ROLE_CARDS } from '../../configuracion/navegacion';
+import { gruposPorRol } from '../../configuracion/navegacion';
 import usePolling from '../../ganchos/usarSondeo';
 import { guardarCacheDashboard, guardarUltimaSincronizacion, obtenerCacheDashboard, obtenerUltimaSincronizacion } from '../../servicios/sinConexion';
 import { styles } from './PanelPorRol.styles';
@@ -55,21 +55,23 @@ export default function PanelPorRol({ user, token, go }) {
   return <ScrollView contentContainerStyle={styles.page}>
     <View style={styles.dashboardIntro}>
       <Text style={styles.dashboardEyebrow}>Vista general</Text>
-      <Text style={styles.title}>Panel del {role || 'usuario'}</Text>
-      <Text style={styles.muted}>Hola, {user?.nombre}. Aquí encuentras el estado de tu operación y tus tareas principales.</Text>
-      {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : <Text style={[styles.success, styles.dashboardStatus]}>Actualizado: {data?.actualizado_en ? new Date(data.actualizado_en).toLocaleString() : 'ahora'}</Text>}
+      <Text style={styles.title}>Hola, {user?.nombre || user?.nombre_usuario || 'bienvenido'}</Text>
+      <Text style={styles.muted}>Este es tu espacio de trabajo como {role || 'usuario'}. Elige una tarea para continuar.</Text>
+      {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : <Text style={[styles.success, styles.dashboardStatus]}>{data ? (data.actualizado_en ? `Actualizado: ${new Date(data.actualizado_en).toLocaleString()}` : 'Resumen disponible') : 'Cargando tu resumen…'}</Text>}
     </View>
     <Text style={styles.section}>Resumen operativo</Text>
     <View style={styles.grid}>{Object.entries(metrics).map(([key, value]) => <View key={key} style={styles.metric}><Text style={styles.metricLabel}>{key.replaceAll('_', ' ')}</Text><Text style={styles.metricValue}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}</View>
+    {data && !Object.keys(metrics).length ? <Text style={styles.muted}>Todavía no hay movimientos para mostrar. Puedes comenzar con una de las tareas de abajo.</Text> : null}
     {['coordinador', 'caficultor'].includes(role) ? <EventMessageInbox token={token} styles={styles} role={role} /> : null}
-    <Text style={styles.section}>Accesos directos</Text>
-    <View style={styles.grid}>{(ROLE_CARDS[role] || []).map(([label, screen]) => {
+    {gruposPorRol(role).map(({ title, cards }) => <View key={title} style={{ gap: 14 }}>
+    <Text style={styles.section}>{title}</Text>
+    <View style={styles.grid}>{cards.map(([label, screen]) => {
       const [icon, description] = ACCESS_DETAILS[screen] || ['→', 'Abre este módulo de Coffee Fly.'];
       return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Abrir ${label}`} key={screen} style={[styles.card, styles.actionCard]} onPress={() => go(screen)}>
         <View style={styles.actionTop}><View style={styles.actionIcon}><Text style={styles.actionIconText}>{icon}</Text></View><Text style={styles.cardTitle}>{label}</Text><Text style={styles.actionDescription}>{description}</Text></View>
         <View style={styles.actionLinkRow}><Text style={styles.cardLink}>Abrir módulo</Text><Text style={styles.actionArrow}>→</Text></View>
       </TouchableOpacity>;
-    })}</View>
+    })}</View></View>)}
     <TouchableOpacity style={[styles.primary, styles.refreshButton]} onPress={load}><Text style={styles.primaryText}>Actualizar panel</Text></TouchableOpacity>
   </ScrollView>;
 }

@@ -75,6 +75,22 @@ export function navigationTargets() {
   return Object.values(ROLE_CARDS).flatMap((cards) => cards.map(([, screen]) => screen));
 }
 
+const MODULE_GROUPS = [
+  { title: 'Recolección y viajes', screens: ['farmLocation', 'request', 'deliveries', 'vehicleAssignment', 'assignedDeliveries'] },
+  { title: 'Seguimiento', screens: ['farmerDashboard', 'tracking', 'vehicleStatus', 'monitoring'] },
+  { title: 'Historial e informes', screens: ['deliveryHistory', 'assignmentHistory', 'reports'] },
+  { title: 'Administración', screens: ['users', 'cooperatives', 'vehicles'] },
+  { title: 'Ayuda y comunicación', screens: ['support'] },
+];
+
+export function gruposPorRol(role) {
+  const cards = ROLE_CARDS[String(role || '').toLowerCase()] || [];
+  return MODULE_GROUPS.map((group) => ({
+    title: group.title,
+    cards: cards.filter(([, screen]) => group.screens.includes(screen)),
+  })).filter((group) => group.cards.length);
+}
+
 export function findNavigationErrors(registeredScreens) {
   const registered = new Set(registeredScreens);
   return [...new Set(navigationTargets().filter((screen) => !registered.has(screen)))];

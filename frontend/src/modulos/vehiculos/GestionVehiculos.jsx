@@ -1,4 +1,5 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
+import SelectorFormulario from '../../componentes/comunes/SelectorFormulario';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -18,7 +19,6 @@ export default function GestionVehiculos({ go, token }) {
   const [messageType, setMessageType] = useState('info');
   const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
   const [saving, setSaving] = useState(false);
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = async () => {
@@ -60,7 +60,6 @@ export default function GestionVehiculos({ go, token }) {
       if (!response.ok) throw Error(data.detail || 'No se pudo guardar el vehículo.');
       setMessage(editing ? 'Vehículo actualizado correctamente.' : `Vehículo ${data.placa} registrado correctamente.`, 'success');
       setForm(empty);
-      setTypeMenuOpen(false);
       setEditing(null);
       await load();
     } catch (error) { setMessage(error.message); } finally { setSaving(false); }
@@ -93,8 +92,7 @@ export default function GestionVehiculos({ go, token }) {
       <Text style={styles.label}>Placa</Text>
       <TextInput style={styles.input} value={form.placa} onChangeText={(value) => set('placa', value)} maxLength={7} autoCapitalize="characters" placeholder="ABC123" />
       <Text style={styles.label}>Tipo de vehículo</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setTypeMenuOpen((current) => !current)}><Text>{form.tipo_vehiculo || 'Selecciona un tipo'} ▾</Text></TouchableOpacity>
-      {typeMenuOpen ? <View style={styles.card}>{vehicleTypes.map((type) => <TouchableOpacity key={type} onPress={() => { set('tipo_vehiculo', type); setTypeMenuOpen(false); }}><Text style={styles.link}>{type}</Text></TouchableOpacity>)}</View> : null}
+      <SelectorFormulario label="Tipo de vehículo" value={form.tipo_vehiculo} onValueChange={(value) => set('tipo_vehiculo', value)} options={vehicleTypes.map((type) => [type, type])} placeholder="Selecciona un tipo" disabled={saving} />
       <Text style={styles.label}>Año del modelo</Text>
       <TextInput style={styles.input} value={form.modelo} onChangeText={(value) => set('modelo', value.replace(/[^0-9]/g, ''))} keyboardType="number-pad" maxLength={4} placeholder="Ej. 2024" />
       <Text style={styles.muted}>Se permiten modelos del año 2000 en adelante.</Text>

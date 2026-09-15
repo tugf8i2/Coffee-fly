@@ -52,11 +52,13 @@ export default function SolicitarRecoleccion({ go, token }) {
     <Text style={styles.title}>Solicitar recolección</Text>
     <Text style={styles.muted}>Agrupa los bultos que tengan el mismo peso. Puedes agregar todos los grupos diferentes que necesites.</Text>
     <View style={styles.formCard}>
-      <Text style={styles.cardTitle}>Punto de recogida obligatorio</Text>
-      <Text style={styles.muted}>La ubicación guardada de tu finca se congela al registrar la recolección para que la ruta no cambie durante el viaje.</Text>
+      <Text style={styles.cardTitle}>1. Confirma el punto de recogida</Text>
+      <Text style={styles.muted}>Revisa que la ubicación de tu finca sea correcta. Será el punto al que llegará el conductor para recoger tu café.</Text>
       <TouchableOpacity accessibilityRole="button" style={styles.secondary} onPress={() => go('farmLocation')}><Text style={styles.secondaryText}>Revisar ubicación de mi finca</Text></TouchableOpacity>
     </View>
     <View style={styles.formCard}>
+      <Text style={styles.cardTitle}>2. Describe tu carga</Text>
+      <Text style={styles.muted}>Por ejemplo: 10 bultos de 50 kg. Si tienes bultos de otro peso, agrega un nuevo grupo.</Text>
       {groups.map((group, index) => <View key={group.id} style={styles.bagGroup}>
         <Text style={styles.cardTitle}>Grupo {index + 1}</Text>
         <View style={styles.formRow}>
