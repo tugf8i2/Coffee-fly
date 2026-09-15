@@ -185,7 +185,7 @@ export default function AplicacionPrincipal() {
   </SafeAreaProvider>;
   return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}>
-      <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} />
+      {user ? <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} /> : null}
       {user ? <View style={styles.connectionBanner}>
         <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
       </View> : null}
@@ -198,7 +198,7 @@ export default function AplicacionPrincipal() {
           </AppErrorBoundary>
         </View>
       </View>
-      <StatusBar style="light" />
+      <StatusBar style={user ? 'light' : 'dark'} />
     </SafeAreaView>
   </SafeAreaProvider>;
 }
