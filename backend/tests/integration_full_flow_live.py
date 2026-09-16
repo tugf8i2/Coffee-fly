@@ -25,6 +25,7 @@ from app.models.ubicacion_models import Ubicacion
 from app.models.usuario_models import Usuario
 from app.models.vehiculo_models import Vehiculo
 from app.models.viaje_models import Viaje
+from app.models.auditoria_operativa_models import AuditoriaOperativa
 
 
 API_URL = "http://127.0.0.1:8000"
@@ -49,24 +50,29 @@ def cleanup(ids):
     db = SessionLocal()
     try:
         user_ids = ids.get("user_ids", [])
+        audit_entities = [str(value) for value in (ids.get("vehicle_id"), ids.get("trip_id"), ids.get("driver_id")) if value]
+        if audit_entities:
+            db.query(AuditoriaOperativa).filter(AuditoriaOperativa.entidad_id.in_(audit_entities)).delete(synchronize_session=False)
+        if user_ids:
+            db.query(AuditoriaOperativa).filter(AuditoriaOperativa.usuario_id.in_(user_ids)).delete(synchronize_session=False)
         if user_ids:
             db.query(AuthSession).filter(AuthSession.user_id.in_(user_ids)).delete(synchronize_session=False)
-        delivery_id = ids.get("delivery_id")
-        if delivery_id:
-            db.query(SeguimientoUbicacion).filter(SeguimientoUbicacion.entrega_id == delivery_id).delete(synchronize_session=False)
-            db.query(HistorialEvento).filter(HistorialEvento.entrega_id == delivery_id).delete(synchronize_session=False)
-            db.query(HistorialEstadoEntrega).filter(HistorialEstadoEntrega.entrega_id == delivery_id).delete(synchronize_session=False)
-            db.query(HistorialAsignacion).filter(HistorialAsignacion.entrega_id == delivery_id).delete(synchronize_session=False)
-            db.query(Entrega).filter(Entrega.id_entrega == delivery_id).delete(synchronize_session=False)
+        for delivery_id in (ids.get("delivery_id"), ids.get("second_delivery_id")):
+            if delivery_id:
+                db.query(SeguimientoUbicacion).filter(SeguimientoUbicacion.entrega_id == delivery_id).delete(synchronize_session=False)
+                db.query(HistorialEvento).filter(HistorialEvento.entrega_id == delivery_id).delete(synchronize_session=False)
+                db.query(HistorialEstadoEntrega).filter(HistorialEstadoEntrega.entrega_id == delivery_id).delete(synchronize_session=False)
+                db.query(HistorialAsignacion).filter(HistorialAsignacion.entrega_id == delivery_id).delete(synchronize_session=False)
+                db.query(Entrega).filter(Entrega.id_entrega == delivery_id).delete(synchronize_session=False)
         trip_id = ids.get("trip_id")
         if trip_id:
             db.query(Viaje).filter(Viaje.id_viaje == trip_id).delete(synchronize_session=False)
-        request_id = ids.get("request_id")
-        if request_id:
-            db.query(Solicitud).filter(Solicitud.id_solicitud == request_id).delete(synchronize_session=False)
-        load_id = ids.get("load_id")
-        if load_id:
-            db.query(Carga).filter(Carga.id_carga == load_id).delete(synchronize_session=False)
+        for request_id in (ids.get("request_id"), ids.get("second_request_id")):
+            if request_id:
+                db.query(Solicitud).filter(Solicitud.id_solicitud == request_id).delete(synchronize_session=False)
+        for load_id in (ids.get("load_id"), ids.get("second_load_id")):
+            if load_id:
+                db.query(Carga).filter(Carga.id_carga == load_id).delete(synchronize_session=False)
         vehicle_id = ids.get("vehicle_id")
         if vehicle_id:
             db.query(Vehiculo).filter(Vehiculo.id_vehiculo == vehicle_id).delete(synchronize_session=False)
@@ -154,6 +160,9 @@ def main():
                 "nombre_usuario": "Conductor", "apellido": suffix,
                 "correo_usuario": driver_email, "rol_id": roles["conductor"],
                 "licencia": "C2", "foto_licencia": "data:image/png;base64,iVBORw0KGgo=",
+                "numero_licencia": f"LIC-{suffix}",
+                "fecha_expedicion_licencia": (datetime.now(timezone.utc).date() - timedelta(days=100)).isoformat(),
+                "fecha_vencimiento_licencia": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),
             }))
             ids["user_ids"].append(driver["id_usuario"])
             available_drivers = expect(client.get("/vehiculos/conductores-disponibles", headers=registrador_headers))
@@ -162,10 +171,17 @@ def main():
 
             vehicle = expect(client.post("/vehiculos/", headers=registrador_headers, json={
                 "placa": f"E{suffix}"[:7], "tipo_vehiculo": "Camión", "modelo": "2024",
-                "capacidad_kg": 5000, "estado_vehiculo": "disponible",
-                "conductor_id": ids["driver_id"],
+                "marca": "Chevrolet", "modelo_comercial": "NPR", "tipo_servicio": "PUBLICO",
+                "configuracion": "C2", "tara_kg": 6300, "pbv_homologado_kg": 17000,
+                "soat_vencimiento": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),
+                "tecnomecanica_vencimiento": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),
+                "seguro_vencimiento": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),
+                "estado_vehiculo": "disponible",
             }))
             ids["vehicle_id"] = vehicle["id_vehiculo"]
+            assert vehicle["capacidad_kg"] == 10700
+            catalog = expect(client.get("/vehiculos/catalogo", headers=registrador_headers))
+            assert next(item for item in catalog if item["codigo"] == "C2")["pbv_maximo_legal_kg"] == 17000
 
             farmer_token = expect(client.post("/login", json={"email": farmer_email, "password": PASSWORD}))["access_token"]
             farmer_headers = headers(farmer_token)
@@ -185,9 +201,21 @@ def main():
             ids["request_id"], ids["load_id"] = request["solicitud_id"], request["carga_id"]
             duplicate_request = expect(client.post("/solicitudes/sincronizar", headers=farmer_headers, json=request_payload))
             assert duplicate_request["estado"] == "duplicada"
+            second_request = expect(client.post("/solicitudes/sincronizar", headers=farmer_headers, json={
+                **request_payload, "client_request_id": str(uuid4()), "observacion": "Segunda carga E2E",
+            }))
+            ids["second_request_id"], ids["second_load_id"] = second_request["solicitud_id"], second_request["carga_id"]
 
             coordinator_token = expect(client.post("/login", json={"email": coordinator_email, "password": PASSWORD}))["access_token"]
             coordinator_headers = headers(coordinator_token)
+            compatibles = expect(client.get("/vehiculos/compatibilidad?peso_kg=8500", headers=coordinator_headers))
+            assert next(item for item in compatibles if item["id_vehiculo"] == ids["vehicle_id"])["compatible"]
+            incompatibles = expect(client.get("/vehiculos/compatibilidad?peso_kg=12000", headers=coordinator_headers))
+            assert not next(item for item in incompatibles if item["id_vehiculo"] == ids["vehicle_id"])["compatible"]
+            conductores = expect(client.get(
+                f"/vehiculos/{ids['vehicle_id']}/conductores-compatibles", headers=coordinator_headers
+            ))
+            assert next(item for item in conductores if item["id_conductor"] == ids["driver_id"])["compatible"]
             active_requests = expect(client.get("/entregas/solicitudes-activas", headers=coordinator_headers))
             assert any(item["id_solicitud"] == ids["request_id"] for item in active_requests)
             delivery = expect(client.post("/entregas/", headers=coordinator_headers, json={
@@ -196,15 +224,26 @@ def main():
                 "observaciones": "Recolección E2E",
             }), 201)
             ids["delivery_id"] = delivery["id_entrega"]
+            second_delivery = expect(client.post("/entregas/", headers=coordinator_headers, json={
+                "solicitud_id": ids["second_request_id"],
+                "fecha_hora_entrega": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "observaciones": "Segunda recolección E2E",
+            }), 201)
+            ids["second_delivery_id"] = second_delivery["id_entrega"]
             pending = expect(client.get("/entregas/pendientes-asignacion", headers=coordinator_headers))
             assert any(item["id_entrega"] == ids["delivery_id"] for item in pending)
 
             trip = expect(client.post("/viajes/", headers=coordinator_headers, json={
-                "entrega_ids": [ids["delivery_id"]], "vehiculo_id": ids["vehicle_id"],
+                "entrega_ids": [ids["delivery_id"], ids["second_delivery_id"]], "vehiculo_id": ids["vehicle_id"],
                 "conductor_id": ids["driver_id"], "cooperativa_id": ids["cooperative_id"],
             }), 201)
             ids["trip_id"] = trip["id_viaje"]
             assert trip["estado_viaje"] == "asignado" and trip["puede_iniciar"]
+            assert len(trip["cargas"]) == 2 and trip["peso_total_kg"] == 1200
+            assert client.post("/viajes/", headers=coordinator_headers, json={
+                "entrega_ids": [ids["delivery_id"]], "vehiculo_id": ids["vehicle_id"],
+                "conductor_id": ids["driver_id"], "cooperativa_id": ids["cooperative_id"],
+            }).status_code == 409
 
             driver_token = expect(client.post("/login", json={"email": driver_email, "password": PASSWORD}))["access_token"]
             driver_headers = headers(driver_token)
@@ -235,6 +274,10 @@ def main():
                 f"/entregas/{ids['delivery_id']}/confirmar-carga", headers=driver_headers
             ))
             assert pickup["etapa_viaje"] == "hacia_cooperativa"
+            second_pickup = expect(client.post(
+                f"/entregas/{ids['second_delivery_id']}/confirmar-carga", headers=driver_headers
+            ))
+            assert second_pickup["etapa_viaje"] == "hacia_cooperativa"
 
             cooperative_point = {
                 "client_point_id": str(uuid4()), **COOPERATIVE, "precision_m": 3,
@@ -246,7 +289,8 @@ def main():
             ))
             completed = expect(client.post(f"/viajes/{ids['trip_id']}/completar", headers=driver_headers))
             assert completed["estado_viaje"] == "completado"
-            assert completed["cargas"][0]["estado_entrega"] == "entregado"
+            assert len(completed["cargas"]) == 2
+            assert all(item["estado_entrega"] == "entregado" for item in completed["cargas"])
 
             coordinator_history = expect(client.get(
                 "/entregas/historial?estado=entregado", headers=coordinator_headers
@@ -263,7 +307,7 @@ def main():
             assert expect(client.get("/viajes/mi-activo", headers=driver_headers)) == []
 
             print(
-                "LIVE_FULL_FLOW_OK registro + solicitud idempotente + asignacion + "
+                "LIVE_FULL_FLOW_OK registro + solicitud idempotente + dos cargas sin duplicar + "
                 "GPS idempotente + geocercas + cierre + historiales + liberacion"
             )
     finally:

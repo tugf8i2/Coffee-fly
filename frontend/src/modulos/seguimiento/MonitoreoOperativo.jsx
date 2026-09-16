@@ -1,11 +1,12 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import FleetMap from '../../componentes/mapas/MapaFlota';
 import usePolling from '../../ganchos/usarSondeo';
-import { styles } from './MonitoreoOperativo.styles';
+import { styles as defaultStyles } from './MonitoreoOperativo.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 
 const labels = {
   actualizado: 'GPS actualizado',
@@ -13,7 +14,8 @@ const labels = {
   sin_ubicacion: 'Sin ubicación GPS',
 };
 
-export default function MonitoreoOperativo({ go, token }) {
+export default function MonitoreoOperativo({ go, token, user }) {
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);

@@ -18,12 +18,14 @@ import OperationalMonitoring from '../modulos/seguimiento/MonitoreoOperativo';
 import Reports from '../modulos/reportes/Reportes';
 import RoleDashboard from '../modulos/panel/PanelPorRol';
 import RegistradorLayout from '../modulos/panel/RegistradorLayout';
+import ConductorLayout from '../modulos/conductor/ConductorLayout';
 import SeguimientoVehiculo from '../modulos/seguimiento/SeguimientoVehiculo';
 import ServicioCliente from '../modulos/soporte/ServicioCliente';
 import SolicitarRecoleccion from '../modulos/caficultor/SolicitarRecoleccion';
 import UbicacionFinca from '../modulos/caficultor/UbicacionFinca';
 import UserManagement from '../modulos/usuarios/GestionUsuarios';
 import VehicleAssignment from '../modulos/vehiculos/AsignacionVehiculos';
+import CoordinadorLayout from '../modulos/coordinador/CoordinadorLayout';
 import VehicleManagement from '../modulos/vehiculos/GestionVehiculos';
 import VehicleStatus from '../modulos/vehiculos/EstadoVehiculos';
 import { API_BASE_URL, fetchApi, subscribeSessionExpired } from '../configuracion';
@@ -184,6 +186,20 @@ export default function AplicacionPrincipal() {
   };
   if (restoring) return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}><Text style={styles.muted}>Restaurando sesión segura…</Text></SafeAreaView>
+  </SafeAreaProvider>;
+  if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9f1' }}>
+      <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+        <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
+      </AppErrorBoundary>
+      <StatusBar style="dark" />
+    </SafeAreaView>
+  </SafeAreaProvider>;
+  if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'coordinador') return <SafeAreaProvider>
+    <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+      <CoordinadorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} operationsScreens={screens} />
+    </AppErrorBoundary>
+    <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
     <RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>

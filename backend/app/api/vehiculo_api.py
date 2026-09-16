@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -6,7 +6,9 @@ from app.core.database import get_db
 from app.schemas.vehiculo_schemas import (
     VehiculoCreate,
     VehiculoUpdate,
-    VehiculoResponse
+    VehiculoResponse,
+    ConfiguracionVehicularResponse,
+    ConfiguracionVehicularUpdate,
 )
 
 from app.services.vehiculo_services import (
@@ -16,12 +18,43 @@ from app.core.auth import require_registrador, require_roles
 from app.models.conductor_models import Conductor
 from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
+from app.services.compatibilidad_transporte import evaluar_conductor
 
 
 router = APIRouter(
     prefix="/vehiculos",
     tags=["Vehiculos"]
 )
+
+
+@router.get("/catalogo", response_model=list[ConfiguracionVehicularResponse])
+def catalogo_vehicular(db: Session = Depends(get_db), _usuario: Usuario = Depends(require_roles("registrador", "coordinador"))):
+    return VehiculoService(db).catalogo()
+
+
+@router.put("/catalogo/{codigo}", response_model=ConfiguracionVehicularResponse)
+def actualizar_catalogo(codigo: str, datos: ConfiguracionVehicularUpdate,
+                       db: Session = Depends(get_db), registrador: Usuario = Depends(require_registrador)):
+    return VehiculoService(db).actualizar_catalogo(codigo, datos, registrador.id_usuario)
+
+
+@router.get("/compatibilidad")
+def compatibilidad_vehiculos(peso_kg: float = Query(gt=0), cooperativa_id: int | None = None,
+                            db: Session = Depends(get_db), _coordinador: Usuario = Depends(require_roles("coordinador"))):
+    return VehiculoService(db).compatibilidad(peso_kg, cooperativa_id)
+
+
+@router.get("/{id_vehiculo}/conductores-compatibles")
+def compatibilidad_conductores(id_vehiculo: int, cooperativa_id: int | None = None,
+                              db: Session = Depends(get_db), _coordinador: Usuario = Depends(require_roles("coordinador"))):
+    vehiculo = VehiculoService(db).obtener_vehiculo(id_vehiculo)
+    return [dict(id_conductor=conductor.id_conductor,
+                 nombre_conductor=f"{conductor.usuarios.nombre_usuario} {conductor.usuarios.apellido}".strip(),
+                 licencia=conductor.licencia,
+                 fecha_vencimiento_licencia=conductor.fecha_vencimiento_licencia,
+                 tiene_foto_licencia=bool(conductor.foto_licencia),
+                 **evaluar_conductor(db, conductor, vehiculo, cooperativa_id))
+            for conductor in db.query(Conductor).order_by(Conductor.id_conductor).all()]
 
 
 @router.get("/conductores-disponibles")
@@ -92,14 +125,12 @@ def obtener_vehiculo(
 def crear_vehiculo(
     vehiculo: VehiculoCreate,
     db: Session = Depends(get_db),
-    _registrador = Depends(require_registrador),
+    registrador: Usuario = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
 
-    return service.crear_vehiculo(
-        vehiculo
-    )
+    return service.crear_vehiculo(vehiculo, registrador.id_usuario)
 
 
 @router.put(
@@ -110,14 +141,15 @@ def actualizar_vehiculo(
     id_vehiculo: int,
     vehiculo: VehiculoUpdate,
     db: Session = Depends(get_db),
-    _registrador = Depends(require_registrador),
+    registrador: Usuario = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
 
     return service.actualizar_vehiculo(
         id_vehiculo,
-        vehiculo
+        vehiculo,
+        registrador.id_usuario,
     )
 
 
@@ -127,11 +159,12 @@ def actualizar_vehiculo(
 def eliminar_vehiculo(
     id_vehiculo: int,
     db: Session = Depends(get_db),
-    _registrador = Depends(require_registrador),
+    registrador: Usuario = Depends(require_registrador),
 ):
 
     service = VehiculoService(db)
 
     return service.eliminar_vehiculo(
-        id_vehiculo
+        id_vehiculo,
+        registrador.id_usuario,
     )

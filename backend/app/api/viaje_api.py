@@ -34,6 +34,11 @@ def mi_viaje_activo(db: Session = Depends(get_db), conductor: Usuario = Depends(
     return ViajeService(db).listar_conductor(_perfil_conductor(conductor), activos=True)
 
 
+@router.get("/mi-historial", response_model=list[ViajeResponse])
+def mi_historial(db: Session = Depends(get_db), conductor: Usuario = Depends(require_roles("conductor"))):
+    return ViajeService(db).historial_conductor(_perfil_conductor(conductor))
+
+
 @router.post("/{viaje_id}/iniciar", response_model=ViajeResponse)
 def iniciar_viaje(viaje_id: UUID, db: Session = Depends(get_db), conductor: Usuario = Depends(require_roles("conductor"))):
     return ViajeService(db).iniciar(viaje_id, _perfil_conductor(conductor), conductor.id_usuario)

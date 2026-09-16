@@ -7,7 +7,7 @@ import { weight } from '../../servicios/presentacionCarga';
 import usePolling from '../../ganchos/usarSondeo';
 import { styles } from './EstadoVehiculos.styles';
 
-const labels = { disponible: 'Disponible', 'en camino': 'En camino', 'en mantenimiento': 'En mantenimiento' };
+const labels = { disponible: 'Disponible', 'en camino': 'En camino', 'en mantenimiento': 'En mantenimiento', inactivo: 'Inactivo' };
 
 export default function EstadoVehiculos({ go, token }) {
   const [vehicles, setVehicles] = useState([]);
@@ -27,7 +27,8 @@ export default function EstadoVehiculos({ go, token }) {
     {message ? <FeedbackMessage type="error">{message}</FeedbackMessage> : null}
     <View style={styles.grid}>{vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
       <Text style={styles.cardTitle}>{vehicle.placa} · {vehicle.tipo_vehiculo}</Text>
-      <Text>Capacidad: {weight(vehicle.capacidad_kg)}</Text>
+      <Text>Capacidad útil: {vehicle.documentacion_completa ? weight(vehicle.capacidad_kg) : 'Documentación técnica pendiente'}</Text>
+      <Text>Configuración: {vehicle.configuracion || 'Pendiente'} · Licencia: {vehicle.licencia_minima_requerida || 'Pendiente'}</Text>
       <Text style={styles.muted}>Estado: {labels[vehicle.estado_vehiculo] || vehicle.estado_vehiculo}</Text>
     </View>)}</View>
     {!vehicles.length ? <Text style={styles.muted}>No hay vehículos registrados.</Text> : null}

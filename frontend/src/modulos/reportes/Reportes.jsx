@@ -6,9 +6,13 @@ import * as Sharing from 'expo-sharing';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
 import { fechaLocal, validarPeriodo, queryPeriodo } from '../../servicios/periodoReporte';
-import { styles } from './Reportes.styles';
+import { styles as defaultStyles } from './Reportes.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
+import GraficosCoordinador from '../coordinador/GraficosCoordinador';
 
-export default function Reportes({ token }) {
+export default function Reportes({ token, user }) {
+  const coordinator = Platform.OS === 'web' && user?.rol === 'coordinador';
+  const styles = coordinator ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
   const [from, setFrom] = useState(fechaLocal);
   const [to, setTo] = useState(fechaLocal);
   const [report, setReport] = useState(null);
@@ -83,6 +87,7 @@ export default function Reportes({ token }) {
       </TouchableOpacity>
     </View>
     {report ? <>
+      {coordinator ? <GraficosCoordinador report={report}/> : null}
       <View style={styles.fullCard}>
         <Text style={styles.cardTitle}>2. Descarga el reporte</Text>
         <Text style={styles.muted}>Período consultado: {report.periodo.desde} a {report.periodo.hasta}</Text>

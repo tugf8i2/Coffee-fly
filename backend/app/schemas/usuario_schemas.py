@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional
@@ -42,6 +42,10 @@ class UsuarioBase(BaseModel):
     rol_id: Optional[int] = None
     licencia: Optional[str] = Field(default=None, max_length=20)
     foto_licencia: Optional[str] = None
+    numero_licencia: Optional[str] = Field(default=None, max_length=40)
+    fecha_expedicion_licencia: Optional[date] = None
+    fecha_vencimiento_licencia: Optional[date] = None
+    cooperativa_id_conductor: Optional[int] = None
 
 class UsuarioCreate(UsuarioBase):
     pass
@@ -84,6 +88,10 @@ class UsuarioUpdate(BaseModel):
     rol_id: Optional[int] = None
     licencia: Optional[str] = Field(default=None, max_length=20)
     foto_licencia: Optional[str] = None
+    numero_licencia: Optional[str] = Field(default=None, max_length=40)
+    fecha_expedicion_licencia: Optional[date] = None
+    fecha_vencimiento_licencia: Optional[date] = None
+    cooperativa_id_conductor: Optional[int] = None
 
 class UsuarioResponse(BaseModel):
     id_usuario: int
@@ -97,6 +105,12 @@ class UsuarioResponse(BaseModel):
     vereda: Optional[str] = None
     licencia: Optional[str] = None
     tiene_foto_licencia: bool = False
+    numero_licencia: Optional[str] = None
+    fecha_expedicion_licencia: Optional[date] = None
+    fecha_vencimiento_licencia: Optional[date] = None
+    estado_conductor: Optional[str] = None
+    estado_licencia: Optional[str] = None
+    cooperativa_id_conductor: Optional[int] = None
     habilitado: bool = True
     intentos_fallidos: int = 0
     bloqueado_hasta: Optional[datetime] = None

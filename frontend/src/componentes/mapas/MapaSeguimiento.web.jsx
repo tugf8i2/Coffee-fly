@@ -5,7 +5,7 @@ import MapaAbierto from './MapaAbierto';
 import { trackingFitKey } from '../../servicios/presentacionSeguimiento';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 
-export default function MapaSeguimiento({ deliveryId, destination, navigationRoute = [], points = [] }) {
+export default function MapaSeguimiento({ deliveryId, destination, navigationRoute = [], points = [], driverTheme = false, coordinatorTheme = false }) {
   const [follow, setFollow] = useState(true);
   const [fitRequest, setFitRequest] = useState(0);
   useEffect(() => { setFollow(true); setFitRequest(0); }, [deliveryId]);
@@ -24,10 +24,11 @@ export default function MapaSeguimiento({ deliveryId, destination, navigationRou
     destination ? { id: 'destination', coordinate: destination, color: '#c5221f', title: 'Destino' } : null,
   ].filter(Boolean);
 
-  return <View style={{ width: '100%', height: 460, marginTop: 14, marginBottom: 8, borderRadius: 14, overflow: 'hidden' }}>
+  return <View style={{ width: '100%', height: driverTheme ? 330 : 460, marginTop: driverTheme ? 0 : 14, marginBottom: driverTheme ? 0 : 8, borderRadius: driverTheme ? 0 : 14, overflow: 'hidden' }}>
     <MapaAbierto
       style={{ flex: 1 }}
       route={route}
+      routeColor={driverTheme || coordinatorTheme ? '#159447' : '#3214d6'}
       markers={markers}
       camera={{ fitMode: 'route', fitKey: `${trackingFitKey(deliveryId, destination)}:${fitRequest}`, follow, followMarkerId: 'vehicle', bearing: last?.rumbo_grados, zoom: 16, maxZoom: 17, padding: 36 }}
       onManualMove={() => setFollow(false)}

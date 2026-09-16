@@ -35,4 +35,5 @@ class ViajeResponse(BaseModel):
     creado_en: datetime
     iniciado_en: Optional[datetime] = None
     completado_en: Optional[datetime] = None
+    distancia_recorrida_m: float = Field(default=0, ge=0)
     cargas: list[CargaViajeResponse]

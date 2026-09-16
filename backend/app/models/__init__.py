@@ -5,6 +5,8 @@ from app.models.ubicacion_models import Ubicacion
 from app.models.cooperativa_models import Cooperativa
 from app.models.ruta_models import Ruta
 from app.models.vehiculo_models import Vehiculo
+from app.models.configuracion_vehicular_models import ConfiguracionVehicular
+from app.models.auditoria_operativa_models import AuditoriaOperativa
 from app.models.carga_models import Carga
 from app.models.solicitud_models import Solicitud
 from app.models.viaje_models import Viaje

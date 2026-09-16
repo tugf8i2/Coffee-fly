@@ -1,16 +1,21 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
-import { useCallback, useRef, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import AsignacionVista from '../coordinador/AsignacionVista';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { tonnes, weight } from '../../servicios/presentacionCarga';
 import { styles } from './AsignacionVehiculos.styles';
 import usePolling from '../../ganchos/usarSondeo';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 
-export default function AsignacionVehiculos({ go, token }) {
+export default function AsignacionVehiculos({ go, token, user, initialDeliveryId }) {
   const [deliveries, setDeliveries] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [vehicleEligibility, setVehicleEligibility] = useState({});
+  const [driverEligibility, setDriverEligibility] = useState({});
+  const [checkingVehicles, setCheckingVehicles] = useState(false);
+  const [checkingDrivers, setCheckingDrivers] = useState(false);
   const [cooperatives, setCooperatives] = useState([]);
   const [selectedDeliveries, setSelectedDeliveries] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -57,12 +62,21 @@ export default function AsignacionVehiculos({ go, token }) {
   }, [token]);
 
   usePolling(load, 30000);
+  const initialApplied = useRef(false);
+  useEffect(() => {
+    if (initialApplied.current || !initialDeliveryId) return;
+    const item = deliveries.find((delivery) => delivery.id_entrega === initialDeliveryId);
+    if (item) { setSelectedDeliveries([item]); initialApplied.current = true; }
+  }, [deliveries, initialDeliveryId]);
 
   const assign = async () => {
     if (savingRef.current) return;
     if (!selectedDeliveries.length || !selectedVehicle || !selectedDriver || !selectedCooperative) {
       return setMessage('Selecciona una o varias cargas, un vehículo, un conductor y la cooperativa de destino.');
     }
+    if (!selectedDriver.id_conductor || !selectedDriver.tiene_foto_licencia) return setMessage('El conductor necesita completar sus datos de licencia antes de asignarlo.');
+    if (vehicleEligibility[selectedVehicle.id_vehiculo]?.compatible !== true) return setMessage('El vehículo no es compatible. Revisa la capacidad, los documentos y el estado.');
+    if (driverEligibility[selectedDriver.id_conductor]?.compatible !== true) return setMessage('El conductor no es compatible. Revisa categoría y vigencia de licencia.');
     const totalWeight = selectedDeliveries.reduce((total, delivery) => total + delivery.cantidad_kg, 0);
     if (totalWeight > selectedVehicle.capacidad_kg) {
       return setMessage(`Las cargas superan las ${(selectedVehicle.capacidad_kg / 1000).toFixed(2)} t del vehículo.`);
@@ -96,13 +110,47 @@ export default function AsignacionVehiculos({ go, token }) {
   };
 
   const selectedWeight = selectedDeliveries.reduce((total, delivery) => total + delivery.cantidad_kg, 0);
-  const compatibleVehicles = selectedDeliveries.length
-    ? vehicles.filter((vehicle) => selectedWeight <= vehicle.capacidad_kg)
-    : vehicles;
+  useEffect(() => {
+    if (!selectedDeliveries.length) { setVehicleEligibility({}); return; }
+    let active = true;
+    setCheckingVehicles(true);
+    const cooperative = selectedCooperative ? `&cooperativa_id=${selectedCooperative.id_cooperativa}` : '';
+    fetchApi(`${API_BASE_URL}/vehiculos/compatibilidad?peso_kg=${selectedWeight}${cooperative}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw Error(apiErrorMessage(data, 'No se pudo verificar la capacidad.'));
+      if (active) setVehicleEligibility(Object.fromEntries(data.map((item) => [item.id_vehiculo, item])));
+    }).catch((error) => { if (active) setMessage(error.message); })
+      .finally(() => { if (active) setCheckingVehicles(false); });
+    return () => { active = false; };
+  }, [selectedWeight, selectedDeliveries.length, selectedCooperative?.id_cooperativa, vehicles, token]);
+  useEffect(() => {
+    if (!selectedVehicle) { setDriverEligibility({}); return; }
+    let active = true;
+    setCheckingDrivers(true);
+    const cooperative = selectedCooperative ? `?cooperativa_id=${selectedCooperative.id_cooperativa}` : '';
+    fetchApi(`${API_BASE_URL}/vehiculos/${selectedVehicle.id_vehiculo}/conductores-compatibles${cooperative}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw Error(apiErrorMessage(data, 'No se pudo verificar la licencia.'));
+      if (active) setDriverEligibility(Object.fromEntries(data.map((item) => [item.id_conductor, item])));
+    }).catch((error) => { if (active) setMessage(error.message); })
+      .finally(() => { if (active) setCheckingDrivers(false); });
+    return () => { active = false; };
+  }, [selectedVehicle?.id_vehiculo, selectedCooperative?.id_cooperativa, drivers, token]);
+  const compatibleVehicles = vehicles;
 
+  if (Platform.OS === 'web' && user?.rol === 'coordinador') return <AsignacionVista
+    {...{deliveries, vehicles, drivers, cooperatives, selectedDeliveries, selectedVehicle, selectedDriver, selectedCooperative, setSelectedDeliveries, setSelectedVehicle, setSelectedDriver, setSelectedCooperative, selectedWeight, saving, refreshing, message, messageType, vehicleEligibility, driverEligibility, checkingVehicles, checkingDrivers}}
+    onAssign={assign} onRefresh={load} onCancel={() => go('deliveries')}
+    onHistory={() => go('assignmentHistory')}
+    onIncomplete={(driver) => setMessage(`${driver.nombre_conductor} necesita completar el tipo y la foto de licencia en Administración de usuarios antes de asignarlo.`)}
+  />;
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Asignación de vehículo y conductor</Text>
-    <Text style={styles.muted}>Selecciona varias cargas para un viaje. Si el vehículo está ocupado, la nueva asignación quedará en espera con el conductor elegido.</Text>
+    <Text style={styles.muted}>Selecciona varias cargas para un viaje. Un vehículo en ruta admite otro viaje en cola cuando mantiene capacidad por viaje y documentación vigente.</Text>
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <Text style={styles.section}>Entregas pendientes</Text>
     <View style={styles.grid}>{deliveries.map((delivery) => {
@@ -116,7 +164,7 @@ export default function AsignacionVehiculos({ go, token }) {
     {selectedDeliveries.length ? <Text style={styles.label}>{selectedDeliveries.length} carga(s) · Total: {weight(selectedWeight)}</Text> : null}
     {!deliveries.length ? <Text style={styles.muted}>No hay entregas pendientes de asignación.</Text> : null}
     <Text style={styles.section}>1. Asignar vehículo</Text>
-    <View style={styles.grid}>{compatibleVehicles.map((vehicle) => <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedVehicle?.id_vehiculo === vehicle.id_vehiculo, disabled: saving }} disabled={saving} key={vehicle.id_vehiculo} style={[styles.card, selectedVehicle?.id_vehiculo === vehicle.id_vehiculo && styles.cardSelected]} onPress={() => {
+    <View style={styles.grid}>{compatibleVehicles.map((vehicle) => <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedVehicle?.id_vehiculo === vehicle.id_vehiculo, disabled: saving || (selectedDeliveries.length > 0 && vehicleEligibility[vehicle.id_vehiculo]?.compatible !== true) }} disabled={saving || (selectedDeliveries.length > 0 && vehicleEligibility[vehicle.id_vehiculo]?.compatible !== true)} key={vehicle.id_vehiculo} style={[styles.card, selectedVehicle?.id_vehiculo === vehicle.id_vehiculo && styles.cardSelected]} onPress={() => {
       setSelectedVehicle(vehicle);
       setSelectedDriver(null);
     }}>
@@ -125,22 +173,21 @@ export default function AsignacionVehiculos({ go, token }) {
       {vehicle.modelo ? <Text>Modelo: {vehicle.modelo}</Text> : null}
       <Text>Capacidad máxima: {vehicle.capacidad_kg / 1000} t</Text>
       <Text>Capacidad por viaje: {vehicle.capacidad_disponible_kg / 1000} t</Text>
-       {selectedWeight > vehicle.capacidad_kg ? <Text style={styles.error}>No tiene capacidad para estas cargas.</Text> : null}
+      {selectedDeliveries.length ? <Text>Resto estimado: {vehicleEligibility[vehicle.id_vehiculo]?.capacidad_restante_kg?.toLocaleString('es-CO') ?? '—'} kg</Text> : null}
+      {vehicleEligibility[vehicle.id_vehiculo]?.motivos?.map((reason) => <Text key={reason} style={styles.error}>{reason}</Text>)}
     </TouchableOpacity>)}</View>
-    {selectedDeliveries.length && !compatibleVehicles.length ? <Text style={styles.error}>No hay vehículos con capacidad suficiente para estas cargas.</Text> : null}
+    {checkingVehicles ? <Text style={styles.muted}>Verificando vehículos con el servidor…</Text> : null}
     {!selectedDeliveries.length && !vehicles.length ? <Text style={styles.muted}>No hay vehículos programables.</Text> : null}
     {selectedVehicle ? <>
       <Text style={styles.section}>2. Asignar conductor</Text>
-      <View style={styles.grid}>{drivers.map((driver, index) => <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedDriver?.id_conductor === driver.id_conductor, disabled: saving }} accessibilityHint={!driver.id_conductor || !driver.tiene_foto_licencia ? 'Abre información sobre los datos de licencia pendientes.' : undefined} disabled={saving} key={driver.id_conductor || `incomplete-${index}`} style={[styles.card, selectedDriver?.id_conductor === driver.id_conductor && styles.cardSelected]} onPress={() => {
-        if (!driver.id_conductor || !driver.tiene_foto_licencia) {
-          setMessage(`${driver.nombre_conductor} necesita completar el tipo y la foto de licencia en Administración de usuarios antes de asignarlo.`);
-          return;
-        }
+      <View style={styles.grid}>{drivers.map((driver, index) => <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedDriver?.id_conductor === driver.id_conductor, disabled: saving || driverEligibility[driver.id_conductor]?.compatible !== true }} disabled={saving || driverEligibility[driver.id_conductor]?.compatible !== true} key={driver.id_conductor || `incomplete-${index}`} style={[styles.card, selectedDriver?.id_conductor === driver.id_conductor && styles.cardSelected]} onPress={() => {
         setSelectedDriver(driver);
       }}>
         <Text style={styles.cardTitle}>{driver.nombre_conductor}</Text>
-        {driver.id_conductor && driver.tiene_foto_licencia ? <Text>Licencia: {driver.licencia} · Foto verificada</Text> : <Text style={styles.error}>Perfil de conductor incompleto: faltan tipo o foto de licencia.</Text>}
+        <Text>Licencia: {driver.licencia || 'No registrada'} · Vence: {driverEligibility[driver.id_conductor]?.fecha_vencimiento_licencia || 'sin fecha'}</Text>
+        {driverEligibility[driver.id_conductor]?.motivos?.map((reason) => <Text key={reason} style={styles.error}>{reason}</Text>)}
       </TouchableOpacity>)}</View>
+      {checkingDrivers ? <Text style={styles.muted}>Verificando licencias con el servidor…</Text> : null}
       {!drivers.length ? <Text style={styles.muted}>No hay conductores registrados para asignar.</Text> : null}
     </> : null}
     <Text style={styles.section}>3. Cooperativa de destino</Text>
