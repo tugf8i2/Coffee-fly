@@ -1,4 +1,5 @@
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
+import SelectorFormulario from '../../componentes/comunes/SelectorFormulario';
 import { isValidPassword, PASSWORD_HELP } from '../../servicios/politicaContrasena';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useEffect, useRef, useState } from 'react';
@@ -191,10 +192,11 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
   const countByRole = (roleId) => users.filter((user) => Number(user.rol_id) === roleId).length;
 
   return <ScrollView ref={pageRef} contentContainerStyle={styles.page}>
-    <Text style={styles.title}>{editingId ? 'Editar perfil de usuario' : 'Administrar perfiles'}</Text>
-    <Text style={styles.muted}>Selecciona “Editar perfil” en un usuario para cargar sus datos aquí.</Text>
+    <Text style={styles.title}>{editingId ? 'Editar usuario' : 'Gestión de usuarios'}</Text>
+    <Text style={styles.muted}>Crea aquí caficultores, conductores, coordinadores y registradores. El rol determina los datos que debes completar.</Text>
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
     <View style={styles.formCard}>
+      <Text style={styles.cardTitle}>{editingId ? 'Datos del usuario' : 'Crear usuario'}</Text>
       {field('Nombre', 'nombre_usuario')}
       {field('Apellido', 'apellido')}
       <Text style={styles.label}>Correo institucional</Text>
@@ -246,16 +248,9 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       {editingId ? <TouchableOpacity onPress={cancelEdit}><Text style={styles.link}>Cancelar edición</Text></TouchableOpacity> : null}
     </View>
     <Text style={styles.section}>Usuarios registrados</Text>
-    <View style={styles.roleSummary}>
-      <TouchableOpacity style={[styles.roleFilter, roleFilter === 'all' && styles.roleFilterActive]} onPress={() => setRoleFilter('all')}>
-        <Text style={[styles.roleFilterLabel, roleFilter === 'all' && styles.roleFilterLabelActive]}>Todos</Text>
-        <Text style={[styles.roleFilterCount, roleFilter === 'all' && styles.roleFilterLabelActive]}>{users.length}</Text>
-      </TouchableOpacity>
-      {roles.map((role) => <TouchableOpacity key={role.id} style={[styles.roleFilter, Number(roleFilter) === role.id && styles.roleFilterActive]} onPress={() => setRoleFilter(role.id)}>
-        <Text style={[styles.roleFilterLabel, Number(roleFilter) === role.id && styles.roleFilterLabelActive]}>{role.label}</Text>
-        <Text style={[styles.roleFilterCount, Number(roleFilter) === role.id && styles.roleFilterLabelActive]}>{countByRole(role.id)}</Text>
-      </TouchableOpacity>)}
-    </View>
+    <Text style={styles.label}>Filtrar usuarios por rol</Text>
+    <SelectorFormulario label="Filtrar usuarios por rol" value={String(roleFilter)} onValueChange={setRoleFilter}
+      options={ [['all', `Todos (${users.length})`], ...roles.map((role) => [String(role.id), `${role.label} (${countByRole(role.id)})`])] } />
     <Text style={styles.muted}>Mostrando {filteredUsers.length} de {users.length} usuarios.</Text>
     <View style={styles.grid}>{filteredUsers.map((user) => {
       const state = statusByUser[user.id_usuario] || {};

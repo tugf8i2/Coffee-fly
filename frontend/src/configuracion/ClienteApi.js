@@ -63,6 +63,7 @@ export async function fetchApi(input, options = {}) {
     timeoutMs = 15000,
     retries = 2,
     retryDelayMs = 350,
+    allowNonJson = false,
     signal: callerSignal,
     ...fetchOptions
   } = options;
@@ -90,7 +91,7 @@ export async function fetchApi(input, options = {}) {
         sessionExpiredListeners.forEach((listener) => listener());
       }
       const contentType = response.headers?.get?.('content-type') || '';
-      if (response.status !== 204 && contentType && !contentType.toLowerCase().includes('application/json')) {
+      if (!allowNonJson && response.status !== 204 && contentType && !contentType.toLowerCase().includes('application/json')) {
         const invalidResponse = new Error(
           `Coffee Fly recibió una respuesta inválida del servidor (HTTP ${response.status}). `
           + 'Verifica que la API esté disponible y que la dirección configurada no apunte al sitio web.',

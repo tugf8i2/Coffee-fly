@@ -29,6 +29,8 @@ const ACCESS_DETAILS = {
 };
 
 export default function PanelPorRol({ user, token, go }) {
+  const [showAll, setShowAll] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const [data, setData] = useState(null);
   const [lastSync, setLastSync] = useState(null);
   const [error, setError] = useState('');
@@ -52,6 +54,14 @@ export default function PanelPorRol({ user, token, go }) {
   }, [token]);
   usePolling(load, 30000);
   const metrics = data?.metricas || {};
+  const primaryScreens = {
+    registrador: ['users', 'cooperatives', 'vehicles'],
+    coordinador: ['deliveries', 'vehicleAssignment', 'reports'],
+    caficultor: ['request', 'farmerDashboard', 'farmLocation'],
+    conductor: ['assignedDeliveries', 'tracking'],
+  }[role] || [];
+  const groups = gruposPorRol(role);
+  const visibleGroups = showAll ? groups : [{ title: 'Tareas principales', cards: groups.flatMap((group) => group.cards).filter(([, screen]) => primaryScreens.includes(screen)) }];
   return <ScrollView contentContainerStyle={styles.page}>
     <View style={styles.dashboardIntro}>
       <Text style={styles.dashboardEyebrow}>Vista general</Text>
@@ -62,8 +72,7 @@ export default function PanelPorRol({ user, token, go }) {
     <Text style={styles.section}>Resumen operativo</Text>
     <View style={styles.grid}>{Object.entries(metrics).map(([key, value]) => <View key={key} style={styles.metric}><Text style={styles.metricLabel}>{key.replaceAll('_', ' ')}</Text><Text style={styles.metricValue}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}</View>
     {data && !Object.keys(metrics).length ? <Text style={styles.muted}>Todavía no hay movimientos para mostrar. Puedes comenzar con una de las tareas de abajo.</Text> : null}
-    {['coordinador', 'caficultor'].includes(role) ? <EventMessageInbox token={token} styles={styles} role={role} /> : null}
-    {gruposPorRol(role).map(({ title, cards }) => <View key={title} style={{ gap: 14 }}>
+    {visibleGroups.map(({ title, cards }) => <View key={title} style={{ gap: 14 }}>
     <Text style={styles.section}>{title}</Text>
     <View style={styles.grid}>{cards.map(([label, screen]) => {
       const [icon, description] = ACCESS_DETAILS[screen] || ['→', 'Abre este módulo de Coffee Fly.'];
@@ -72,6 +81,11 @@ export default function PanelPorRol({ user, token, go }) {
         <View style={styles.actionLinkRow}><Text style={styles.cardLink}>Abrir módulo</Text><Text style={styles.actionArrow}>→</Text></View>
       </TouchableOpacity>;
     })}</View></View>)}
-    <TouchableOpacity style={[styles.primary, styles.refreshButton]} onPress={load}><Text style={styles.primaryText}>Actualizar panel</Text></TouchableOpacity>
+    {groups.flatMap((group) => group.cards).length > primaryScreens.length ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showAll }} style={styles.secondary} onPress={() => setShowAll(!showAll)}><Text style={styles.secondaryText}>{showAll ? 'Mostrar solo tareas principales' : 'Ver todas las herramientas'}</Text></TouchableOpacity> : null}
+    {['coordinador', 'caficultor'].includes(role) ? <>
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showMessages }} style={styles.secondary} onPress={() => setShowMessages(!showMessages)}><Text style={styles.secondaryText}>{showMessages ? 'Ocultar mensajes y novedades' : 'Consultar mensajes y novedades'}</Text></TouchableOpacity>
+      {showMessages ? <EventMessageInbox token={token} styles={styles} role={role} /> : null}
+    </> : null}
+    <TouchableOpacity accessibilityRole="button" style={[styles.secondary, styles.refreshButton]} onPress={load}><Text style={styles.secondaryText}>Actualizar resumen</Text></TouchableOpacity>
   </ScrollView>;
 }

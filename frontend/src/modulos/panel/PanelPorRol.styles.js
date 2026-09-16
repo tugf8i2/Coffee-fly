@@ -12,4 +12,6 @@ export const styles = crearEstilosModulo({
   actionLinkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 },
   actionArrow: { color: '#6A994E', fontSize: 20, fontWeight: '900' },
   refreshButton: { alignSelf: 'flex-start', minWidth: 190 },
+  secondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#B7CBBE', borderRadius: 10, minHeight: 48, paddingHorizontal: 18, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  secondaryText: { color: '#123F34', fontWeight: '700', textAlign: 'center' },
 });

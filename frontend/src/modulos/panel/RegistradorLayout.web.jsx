@@ -46,5 +46,5 @@ export default function RegistradorLayout({ token, ...props }) {
     finally { setLoading(false); }
   }, [token]);
   usePolling(load, 30000);
-  return <PanelRegistrador {...props} summary={summary} loading={loading} error={error} onRefresh={load}/>;
+  return <PanelRegistrador {...props} token={token} summary={summary} loading={loading} error={error} onRefresh={load}/>;
 }

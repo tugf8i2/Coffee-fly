@@ -3,6 +3,7 @@ import { Image } from 'react-native';
 import reference from '../../assets/brand/registrador-reference.png';
 import Icon from './IconoRegistrador.web';
 import './PanelRegistrador.css';
+import { API_BASE_URL, fetchApi } from '../../configuracion';
 
 const referenceUrl = Image.resolveAssetSource ? Image.resolveAssetSource(reference)?.uri : reference;
 const assetUrl = typeof reference === 'string' ? reference : reference?.uri || referenceUrl;
@@ -14,29 +15,30 @@ export function ReferenceCrop({ x, y, w, h, className = '', label }) {
 
 const menu = [
   ['home', 'Inicio', 'dashboard'], ['coop', 'Cooperativas', 'cooperatives'],
-  ['people', 'Caficultores', 'registrarFarmers'], ['truck', 'Vehículos', 'vehicles'],
-  ['user', 'Conductores', 'registrarDrivers'], ['people', 'Usuarios y Roles', 'users'],
-  ['file', 'Solicitudes', 'requests'], ['pin', 'Rutas y Zonas', 'zones'],
+  ['truck', 'Vehículos', 'vehicles'],
+  ['people', 'Usuarios', 'users'],
+
   ['file', 'Reportes', 'registryReports'], ['gear', 'Configuración', 'settings'],
 ];
 const metricCards = [
-  ['people', 'cooperativas', 'Cooperativas registradas', 'Ver cooperativas', 'cooperatives'],
-  ['farmer', 'caficultores', 'Caficultores registrados', 'Ver caficultores', 'registrarFarmers'],
-  ['truck', 'vehiculos', 'Vehículos registrados', 'Ver vehículos', 'vehicles'],
-  ['driver', 'conductores', 'Conductores registrados', 'Ver conductores', 'registrarDrivers'],
+  ['people', 'cooperativas', 'Cooperativas registradas'],
+  ['farmer', 'caficultores', 'Caficultores registrados'],
+  ['truck', 'vehiculos', 'Vehículos registrados'],
+  ['driver', 'conductores', 'Conductores registrados'],
 ];
 const quickActions = [
   ['people', 'Registrar Cooperativa', 'Crea una nueva cooperativa', 'cooperatives'],
-  ['farmer', 'Registrar Caficultor', 'Añade un nuevo caficultor', 'registrarFarmers'],
+  ['people', 'Crear usuario', 'Caficultor, conductor y otros roles', 'users'],
   ['truck', 'Registrar Vehículo', 'Registra un vehículo de transporte', 'vehicles'],
-  ['driver', 'Registrar Conductor', 'Añade un nuevo conductor', 'registrarDrivers'],
+
 ];
-const roles = [['user', 'Registradores', 'registradores'], ['people', 'Coordinadores', 'coordinadores'], ['user', 'Conductores', 'conductores'], ['people', 'Caficultores', 'caficultores'], ['user', 'Administradores', 'administradores']];
 const Header = ({ icon, title, action, onAction }) => <div className="reg-card-heading"><h2><Icon name={icon}/>{title}</h2>{action && <button onClick={onAction} className="reg-text-button">{action}</button>}</div>;
 const Badge = ({ children, tone = 'green' }) => <span className={`reg-badge ${tone}`}><span>✓</span>{children}</span>;
 
-export default function PanelRegistrador({ user, summary, loading, error, connectionStatus, screen = 'dashboard', go, onLogout, onRefresh, children, notice }) {
-  const [collapsed, setCollapsed] = useState(false);
+export default function PanelRegistrador({ token, user, summary, loading, error, connectionStatus, screen = 'dashboard', go, onLogout, onRefresh, children, notice }) {
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);
+  const [exporting, setExporting] = useState('');
+  const [exportError, setExportError] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [section, setSection] = useState(null);
@@ -48,21 +50,29 @@ export default function PanelRegistrador({ user, summary, loading, error, connec
   }, []);
   const name = [user?.nombre || user?.nombre_usuario || 'Registrador', user?.apellido].filter(Boolean).join(' ');
   const navigate = (target) => {
-    if (['requests', 'zones', 'registryReports', 'settings'].includes(target)) { setSection(target); return; }
-    setSection(null); go(target);
+    if (['registryReports', 'settings'].includes(target)) { setSection(target); return; }
+    setSection(null); go(target); if (window.innerWidth < 850) setCollapsed(true);
   };
   const active = section || screen;
   const totals = summary?.totals || {};
   const coops = summary?.cooperatives || [];
-  const requests = summary?.requests || [];
+
   const activity = summary?.activity || [];
   const online = connectionStatus === 'online';
   const count = (key) => loading && !summary ? '—' : totals[key] ?? '—';
-  const exportRegistry = () => {
-    const lines = [['Categoría', 'Cantidad'], ...metricCards.map(([, key, title]) => [title, totals[key] ?? 0])];
-    const csv = '\uFEFF' + lines.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a'); link.href = url; link.download = 'Coffee-Fly-registros.csv'; link.click(); URL.revokeObjectURL(url);
+  const exportRegistry = async (format) => {
+    if (exporting) return;
+    setExporting(format); setExportError('');
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/reportes/registros/exportar?formato=${format}`, { headers: { Authorization: `Bearer ${token}` }, timeoutMs: 30000, allowNonJson: true });
+      if (!response.ok) throw Error('No se pudo descargar el resumen. Intenta nuevamente.');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url; link.download = `CoffeeFly_registros.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+      document.body.appendChild(link);
+      try { link.click(); } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+    } catch (reason) { setExportError(reason.message); }
+    finally { setExporting(''); }
   };
   return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''}`}>
     <aside className="reg-sidebar" aria-label="Navegación del registrador">
@@ -80,13 +90,10 @@ export default function PanelRegistrador({ user, summary, loading, error, connec
         {error && <div className="reg-alert" role="alert">{error}<button onClick={onRefresh}>Reintentar</button></div>}
         {screen === 'dashboard' ? <>
           <section className="reg-hero" aria-label="Construyendo la cadena del café. Registra, organiza y conecta a todos los actores del transporte cafetero."><ReferenceCrop x={263} y={89} w={1254} h={187}/><h1 className="reg-sr-only">Construyendo la cadena del café</h1></section>
-          <section className="reg-metrics" aria-label="Resumen de registros">{metricCards.map(([icon, key, label, link, target], index) => <article className="reg-metric" key={key}><div className={`reg-disc disc-${index}`}><Icon name={icon} size={39}/></div><div><strong className="reg-metric-value">{count(key)}</strong><p>{label}</p><button className="reg-text-button" onClick={() => navigate(target)}>{link}<Icon name="arrow" size={16}/></button></div></article>)}</section>
+          <section className="reg-metrics" aria-label="Resumen de registros">{metricCards.map(([icon, key, label], index) => <article className="reg-metric" key={key}><div className={`reg-disc disc-${index}`}><Icon name={icon} size={39}/></div><div><strong className="reg-metric-value">{count(key)}</strong><p>{label}</p></div></article>)}</section>
           <div className="reg-dashboard-grid">
             <section className="reg-card reg-actions"><Header icon="clipboard" title="Acciones rápidas"/><div className="reg-action-grid">{quickActions.map(([icon, title, description, target], index) => <button key={target} className={`reg-quick quick-${index}`} onClick={() => navigate(target)}><Icon name={icon} size={48}/><strong>{title}</strong><span>{description}</span></button>)}</div></section>
-            <section className="reg-card reg-roles"><Header icon="people" title="Usuarios y roles" action={<Icon name="gear" size={16}/>} onAction={() => navigate('users')}/><p className="reg-subtitle">Gestiona los accesos al sistema.</p><div className="reg-role-list">{roles.map(([icon, label, key]) => <button key={key} onClick={() => navigate(key === 'caficultores' ? 'registrarFarmers' : key === 'conductores' ? 'registrarDrivers' : 'users')}><Icon name={icon} size={18}/><span>{label}</span><span>{key === 'administradores' ? '—' : count(key)}</span></button>)}</div><button className="reg-green-button" onClick={() => navigate('users')}>Gestionar usuarios <Icon name="arrow" size={15}/></button></section>
-            <section className="reg-card reg-system"><Header icon="pulse" title="Estado del sistema" action={<Badge tone={online ? 'green' : 'amber'}>{online ? 'Operativo' : 'Revisar'}</Badge>} onAction={onRefresh}/><div className="reg-system-list">{[['database', 'Plataforma', online ? 'En línea' : 'Sin conexión', online], ['database', 'Base de datos', summary && !error ? 'Disponible' : 'Sin verificar', summary && !error], ['pin', 'Servicios GPS', 'Según dispositivo', false], ['bell', 'Notificaciones', 'Disponible', true]].map(([icon, label, status, okay]) => <div key={label}><Icon name={icon} size={17}/><span>{label}</span><span className="reg-system-state"><i className={okay ? 'ok' : ''}>{okay ? '✓' : '•'}</i>{status}</span></div>)}</div></section>
             <section className="reg-card reg-coops"><Header icon="people" title="Cooperativas recientes" action="Ver todas" onAction={() => navigate('cooperatives')}/><div className="reg-table-scroll"><table><thead><tr><th>Nombre</th><th>NIT</th><th>Caficultores</th><th>Ubicación</th><th>Estado</th></tr></thead><tbody>{coops.slice(0, 5).map((coop, index) => <tr key={coop.id_cooperativa}><td><span className={`reg-coop-logo coop-logo-${index}`}><Icon name="leaf" size={18}/></span>{coop.nombre}</td><td>{coop.nit || '—'}</td><td>{coop.caficultores ?? '—'}</td><td>{coop.ubicacion_texto || [coop.ubicacion?.ciudad, coop.ubicacion?.departamento].filter(Boolean).join(', ') || 'Sin ubicación'}</td><td><Badge>{coop.estado || 'Registrada'}</Badge></td></tr>)}{!coops.length && <tr><td colSpan={5} className="reg-empty">{loading ? 'Cargando cooperativas…' : 'Aún no hay cooperativas registradas.'}</td></tr>}</tbody></table></div></section>
-            <section className="reg-card reg-requests"><Header icon="clipboard" title="Solicitudes de transporte" action="Ver todas" onAction={() => navigate('requests')}/><div className="reg-table-scroll"><table><thead><tr><th># Solicitud</th><th>Caficultor</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>{requests.slice(0, 5).map((request) => <tr key={request.id}><td>{request.id}</td><td>{request.caficultor}</td><td>{request.fecha}</td><td><Badge tone={request.tone}>{request.estado}</Badge></td></tr>)}{!requests.length && <tr><td colSpan={4} className="reg-empty">Las solicitudes de transporte son gestionadas por el coordinador.</td></tr>}</tbody></table></div></section>
             <section className="reg-card reg-activity"><Header icon="clock" title="Actividad reciente" action="Ver todas" onAction={() => setSection('activity')}/><div className="reg-activity-list">{activity.slice(0, 5).map((item, index) => <div className="reg-activity-item" key={item.id || index}><span className={`reg-disc disc-${index % 4}`}><Icon name={item.icon} size={24}/></span><div><strong>{item.title}</strong><span>{item.detail}</span><small>{item.time || 'Registro disponible'}</small></div></div>)}{!activity.length && <p className="reg-empty">Los registros aparecerán aquí.</p>}</div></section>
           </div>
         </> : <section className="reg-module">{children}</section>}
@@ -94,9 +101,7 @@ export default function PanelRegistrador({ user, summary, loading, error, connec
       </main>
     </div>
     {section && <div className="reg-modal-backdrop" onClick={() => setSection(null)}><section className="reg-modal" role="dialog" aria-modal="true" aria-labelledby="reg-modal-title" onClick={(event) => event.stopPropagation()}><button autoFocus className="reg-modal-close" onClick={() => setSection(null)} aria-label="Cerrar">×</button><h2 id="reg-modal-title">{menu.find(([, , key]) => key === section)?.[1] || 'Actividad reciente'}</h2>
-      {section === 'requests' && <p>El coordinador gestiona las solicitudes y asigna el transporte. Desde tu perfil puedes mantener actualizados los caficultores, conductores, cooperativas y vehículos.</p>}
-      {section === 'zones' && <><p>Gestiona las ubicaciones de las cooperativas que sirven como destinos de transporte.</p><button className="reg-green-button" onClick={() => navigate('cooperatives')}>Abrir cooperativas y ubicación</button></>}
-      {section === 'registryReports' && <><p>Descarga el resumen de registros actualmente disponibles en tu panel.</p><button className="reg-green-button" disabled={!summary} onClick={exportRegistry}>Descargar resumen CSV</button></>}
+      {section === 'registryReports' && <><p>Descarga el resumen de registros actualmente disponibles en tu panel.</p><p>Incluye cooperativas, vehículos y usuarios por rol. Los totales corresponden al momento de la descarga.</p>{exportError && <p role="alert">{exportError}</p>}<div className="reg-export-actions">{[["pdf", "Descargar PDF"], ["excel", "Descargar Excel (.xlsx)"]].map(([format, label]) => <button key={format} className="reg-green-button" disabled={Boolean(exporting)} onClick={() => exportRegistry(format)}>{exporting === format ? "Preparando…" : label}</button>)}</div></>}
       {section === 'settings' && <><p><strong>{name}</strong><br/>{user?.correo_usuario}<br/>Rol: Registrador</p><p>Gestiona los datos y accesos desde Usuarios y Roles.</p><button className="reg-green-button" onClick={() => navigate('users')}>Gestionar cuentas</button><button className="reg-text-button" onClick={onRefresh}>Actualizar datos del panel</button><button className="reg-text-button" onClick={onLogout}>Cerrar sesión</button></>}
       {section === 'activity' && <><p>Últimos registros disponibles. No se muestran horas de creación porque el sistema no las registra para estas entidades.</p>{activity.map((item, index) => <p key={index}><strong>{item.title}</strong><br/>{item.detail}</p>)}</>}
     </section></div>}
