@@ -326,7 +326,7 @@ class EntregaRepository:
             (Entrega.solicitud_id == Solicitud.id_solicitud)
             & Entrega.estado_entrega.in_(["pendiente", "en camino"]),
         ).filter(
-            Vehiculo.estado_vehiculo != "en mantenimiento"
+            Vehiculo.estado_vehiculo.in_(["disponible", "en camino"])
         ).group_by(Vehiculo.id_vehiculo).order_by(Vehiculo.placa).all()
 
     def get_vehiculo_disponible(self, vehiculo_id: int, for_update: bool = False):

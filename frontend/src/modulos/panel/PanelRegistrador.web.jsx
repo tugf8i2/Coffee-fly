@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import reference from '../../assets/brand/registrador-reference.png';
+import regular from '../../assets/fonts/RobotoCondensed-Regular.ttf';
+import bold from '../../assets/fonts/RobotoCondensed-Bold.ttf';
 import Icon from './IconoRegistrador.web';
 import './PanelRegistrador.css';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 
 const referenceUrl = Image.resolveAssetSource ? Image.resolveAssetSource(reference)?.uri : reference;
 const assetUrl = typeof reference === 'string' ? reference : reference?.uri || referenceUrl;
+const fontUrl = (font) => typeof font === 'string' ? font : font?.uri || Image.resolveAssetSource?.(font)?.uri;
 export function ReferenceCrop({ x, y, w, h, className = '', label }) {
   return <span className={`reg-crop ${className}`} style={{ aspectRatio: `${w}/${h}` }} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
     <img src={assetUrl} alt="" draggable="false" style={{ width: `${1536 / w * 100}%`, left: `${-x / w * 100}%`, top: `${-y / h * 100}%` }}/>
@@ -75,6 +78,7 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
     finally { setExporting(''); }
   };
   return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''}`}>
+    <style>{`@font-face{font-family:Registrar;src:url('${fontUrl(regular)}');font-weight:400;font-display:swap}@font-face{font-family:Registrar;src:url('${fontUrl(bold)}');font-weight:600 900;font-display:swap}`}</style>
     <aside className="reg-sidebar" aria-label="Navegación del registrador">
       <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><ReferenceCrop x={55} y={5} w={133} h={89} label="Coffee Fly · Tu café viaja"/></button>
       <div className="reg-sidebar-user"><ReferenceCrop x={25} y={120} w={64} h={64} className="reg-avatar"/><div><strong>{name}</strong><small>Registrador</small><span className="reg-online"><i className={online ? '' : 'offline'}/>{online ? 'En línea' : 'Sin conexión'}</span></div></div>

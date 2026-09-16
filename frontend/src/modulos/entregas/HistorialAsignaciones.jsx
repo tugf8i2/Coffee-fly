@@ -1,13 +1,15 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
-import { styles } from './HistorialAsignaciones.styles';
+import { styles as defaultStyles } from './HistorialAsignaciones.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
-export default function HistorialAsignaciones({ go, token }) {
+export default function HistorialAsignaciones({ go, token, user }) {
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
   const [assignments, setAssignments] = useState([]);
   const [error, setError] = useState('');
 

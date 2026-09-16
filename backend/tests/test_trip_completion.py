@@ -59,6 +59,7 @@ class FakeTripRepository:
             ubicacion=SimpleNamespace(y=4.711, x=-74.0721)
         )
         self.vehicle = SimpleNamespace(estado_vehiculo="en camino", conductor_id=8)
+        self.driver = SimpleNamespace(estado_conductor="en ruta")
 
     def get_viaje_for_update(self, _trip_id):
         return self.trip
@@ -74,6 +75,9 @@ class FakeTripRepository:
 
     def get_vehiculo(self, _vehicle_id, for_update=False):
         return self.vehicle
+
+    def get_conductor(self, _driver_id, for_update=False):
+        return self.driver
 
     def siguiente_en_cola(self, _vehicle_id):
         return None

@@ -17,6 +17,8 @@ from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
 from app.models.viaje_models import Viaje
 from app.repositories.viaje_repositories import ViajeRepository
 from app.repositories.cola_viajes import renumerar_cola_vehiculo
+from app.services.compatibilidad_transporte import evaluar_conductor, evaluar_vehiculo, hoy_colombia, licencia_compatible
+from app.services.auditoria_operativa import registrar_auditoria
 
 
 class ViajeService:
@@ -39,6 +41,7 @@ class ViajeService:
             "puede_iniciar": viaje.estado_viaje == "asignado",
             "creado_en": viaje.creado_en, "iniciado_en": viaje.iniciado_en,
             "completado_en": viaje.completado_en,
+            "distancia_recorrida_m": float(viaje.distancia_recorrida_m or 0),
             "cargas": [{
                 "id_entrega": entrega.id_entrega,
                 "caficultor_nombre": f"{caficultor.nombre_usuario} {caficultor.apellido}".strip(),
@@ -55,24 +58,21 @@ class ViajeService:
         db = self.repository.db
         try:
             vehiculo = self.repository.get_vehiculo(datos.vehiculo_id, for_update=True)
-            if vehiculo is None or vehiculo.estado_vehiculo == "en mantenimiento":
-                raise HTTPException(status_code=400, detail="El vehículo no está disponible para programación")
+            if vehiculo is None:
+                raise HTTPException(status_code=404, detail="Vehículo no encontrado")
             entregas = self.repository.get_entregas_for_update(ids)
             if len(entregas) != len(ids) or any(item.estado_entrega != "pendiente" or item.viaje_id for item in entregas):
                 raise HTTPException(status_code=409, detail="Una o más cargas ya fueron asignadas")
             entregas_por_id = {item.id_entrega: item for item in entregas}
             entregas = [entregas_por_id[entrega_id] for entrega_id in ids]
-            if sum(float(item.cantidad_kg) for item in entregas) > float(vehiculo.capacidad_kg):
-                raise HTTPException(status_code=400, detail="Las cargas superan la capacidad del vehículo")
-            conductor = self.repository.get_conductor(datos.conductor_id)
-            if conductor is None or not conductor.foto_licencia:
-                raise HTTPException(status_code=400, detail="El conductor no tiene perfil y licencia completos")
-            usuario_conductor = conductor.usuarios
-            if (
-                not usuario_conductor.habilitado or not usuario_conductor.rol
-                or usuario_conductor.rol.descripcion_rol.lower() != "conductor"
-            ):
-                raise HTTPException(status_code=400, detail="El conductor debe estar habilitado y tener rol de conductor")
+            peso_total = sum(float(item.cantidad_kg) for item in entregas)
+            evaluacion_vehiculo = evaluar_vehiculo(db, vehiculo, peso_total, datos.cooperativa_id)
+            if not evaluacion_vehiculo["compatible"]:
+                raise HTTPException(status_code=409, detail=" ".join(evaluacion_vehiculo["motivos"]))
+            conductor = self.repository.get_conductor(datos.conductor_id, for_update=True)
+            evaluacion_conductor = evaluar_conductor(db, conductor, vehiculo, datos.cooperativa_id)
+            if not evaluacion_conductor["compatible"]:
+                raise HTTPException(status_code=409, detail=" ".join(evaluacion_conductor["motivos"]))
             cooperativa = self.repository.get_cooperativa(datos.cooperativa_id)
             if cooperativa is None:
                 raise HTTPException(status_code=404, detail="Cooperativa no encontrada")
@@ -91,6 +91,9 @@ class ViajeService:
                 entrega.solicitud.carga.vehiculo_id = vehiculo.id_vehiculo
                 entrega.solicitud.carga.cooperativa_id = datos.cooperativa_id
                 self.repository.agregar_historial(entrega, viaje, coordinador_id)
+            registrar_auditoria(db, "viaje", viaje.id_viaje, "asignar", coordinador_id,
+                                despues={"vehiculo_id": vehiculo.id_vehiculo, "conductor_id": conductor.id_conductor,
+                                         "peso_total_kg": peso_total, "entrega_ids": [str(item) for item in ids]})
             db.commit()
             return self._respuesta(viaje)
         except Exception:
@@ -101,6 +104,9 @@ class ViajeService:
         estados = ["en_camino"] if activos else ["asignado", "en_cola"]
         return [self._respuesta(viaje) for viaje in self.repository.get_viajes_conductor(conductor_id, estados)]
 
+    def historial_conductor(self, conductor_id: int):
+        return [self._respuesta(viaje) for viaje in self.repository.get_historial_conductor(conductor_id)]
+
     def iniciar(self, viaje_id: UUID, conductor_id: int, usuario_id: int):
         viaje = self.repository.get_viaje_for_update(viaje_id)
         if viaje is None or viaje.conductor_id != conductor_id:
@@ -109,11 +115,26 @@ class ViajeService:
             raise HTTPException(status_code=409, detail="El viaje está en espera o ya fue iniciado")
         if self.repository.viaje_activo_vehiculo_o_conductor(viaje.vehiculo_id, conductor_id):
             raise HTTPException(status_code=409, detail="El vehículo o conductor todavía tiene un viaje activo")
-        ahora = utc_now_naive(); viaje.estado_viaje = "en_camino"; viaje.iniciado_en = ahora
+        ahora = utc_now_naive()
         vehiculo = self.repository.get_vehiculo(viaje.vehiculo_id, for_update=True)
         if vehiculo.estado_vehiculo == "en mantenimiento":
             raise HTTPException(status_code=409, detail="El vehículo está en mantenimiento")
+        conductor = self.repository.get_conductor(conductor_id, for_update=True)
+        evaluacion_vehiculo = evaluar_vehiculo(self.repository.db, vehiculo, sum(float(item.cantidad_kg) for item, _ in self.repository.get_cargas_viaje(viaje.id_viaje)))
+        # El viaje reservado y el estado "asignado" son propios de este viaje; al iniciar
+        # se revalidan peso, documentos y vigencia sin bloquearse a sí mismo.
+        motivos_fisicos = [motivo for motivo in evaluacion_vehiculo["motivos"] if not any(x in motivo for x in ("no está disponible", "ya tiene un viaje"))]
+        if motivos_fisicos:
+            raise HTTPException(status_code=409, detail=" ".join(motivos_fisicos))
+        if conductor.fecha_vencimiento_licencia is None or conductor.fecha_vencimiento_licencia < hoy_colombia():
+            raise HTTPException(status_code=409, detail="La licencia del conductor está vencida o sin fecha registrada")
+        if not licencia_compatible(conductor.licencia, vehiculo.licencia_minima_requerida):
+            raise HTTPException(status_code=409, detail="La licencia del conductor ya no es compatible con el vehículo")
+        viaje.estado_viaje = "en_camino"; viaje.iniciado_en = ahora
         vehiculo.estado_vehiculo = "en camino"; vehiculo.conductor_id = conductor_id
+        conductor.estado_conductor = "en ruta"
+        registrar_auditoria(self.repository.db, "viaje", viaje.id_viaje, "iniciar", usuario_id,
+                            antes={"estado": "asignado"}, despues={"estado": "en_camino"})
         for entrega, _ in self.repository.get_cargas_viaje(viaje.id_viaje):
             self.repository.db.add(HistorialEstadoEntrega(entrega_id=entrega.id_entrega, estado_anterior=entrega.estado_entrega, estado_nuevo="en camino", usuario_id=usuario_id, fecha_hora_cambio=ahora))
             entrega.estado_entrega = "en camino"; entrega.actualizado_en = ahora
@@ -161,6 +182,10 @@ class ViajeService:
         viaje.estado_viaje = "completado"; viaje.completado_en = ahora
         vehiculo = self.repository.get_vehiculo(viaje.vehiculo_id, for_update=True)
         vehiculo.estado_vehiculo = "disponible"; vehiculo.conductor_id = None
+        conductor = self.repository.get_conductor(conductor_id, for_update=True)
+        conductor.estado_conductor = "disponible"
+        registrar_auditoria(self.repository.db, "viaje", viaje.id_viaje, "completar", usuario_id,
+                            antes={"estado": "en_camino"}, despues={"estado": "completado", "distancia_recorrida_m": getattr(viaje, "distancia_recorrida_m", 0) or 0})
         self.repository.db.flush()
         renumerar_cola_vehiculo(self.repository.db, viaje.vehiculo_id)
         self.repository.db.commit()

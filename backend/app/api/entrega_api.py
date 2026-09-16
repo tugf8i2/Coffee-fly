@@ -173,10 +173,16 @@ def asignar_vehiculo(
     db: Session = Depends(get_db),
     coordinador: Usuario = Depends(require_roles("coordinador")),
 ):
-    return EntregaService(db).asignar_vehiculo(
-        UUID(entrega_id), asignacion.vehiculo_id, asignacion.conductor_id,
-        asignacion.cooperativa_id, coordinador.id_usuario
-    )
+    # El endpoint heredado comparte exactamente la validación transaccional
+    # del viaje; de otro modo podría saltarse pesos, documentos o licencias.
+    from app.schemas.viaje_schemas import ViajeAsignarRequest
+    from app.services.viaje_services import ViajeService
+    from app.models.entrega_models import Entrega
+    ViajeService(db).asignar(ViajeAsignarRequest(
+        entrega_ids=[UUID(entrega_id)], vehiculo_id=asignacion.vehiculo_id,
+        conductor_id=asignacion.conductor_id, cooperativa_id=asignacion.cooperativa_id,
+    ), coordinador.id_usuario)
+    return db.get(Entrega, UUID(entrega_id))
 
 
 @router.post("/{entrega_id}/confirmar-carga", response_model=ConfirmarCargaResponse)

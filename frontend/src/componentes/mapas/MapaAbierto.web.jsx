@@ -8,6 +8,7 @@ import {
   DEFAULT_MAP_ZOOM,
   MAPLIBRE_WORKER_URL,
   OPEN_MAP_STYLE_URL,
+  OPEN_MAP_DARK_STYLE_URL,
 } from '../../configuracion/mapaAbierto';
 
 const validCoordinate = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
@@ -15,12 +16,13 @@ const validCoordinate = (coordinate) => Number.isFinite(Number(coordinate?.latit
   && Number(coordinate.latitude) >= -90 && Number(coordinate.latitude) <= 90
   && Number(coordinate.longitude) >= -180 && Number(coordinate.longitude) <= 180;
 const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.latitude)];
-const markerSignature = (marker) => [marker.kind, marker.color, marker.draggable, Boolean(marker.title || marker.description)].join('|');
+const markerSignature = (marker) => [marker.kind, marker.size, marker.color, marker.draggable, Boolean(marker.title || marker.description)].join('|');
 const MAX_LOAD_RETRIES = 2;
 
-export default function MapaAbierto({ camera = {}, fallback, markers = [], onError, onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
+export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day', showNavigationControls = true, fallback, markers = [], onError, onManualMove, onMapPress, onMarkerDragEnd, route = [], routeColor = '#3214d6', routeWidth = 7, style }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const loadedMapRef = useRef(null);
   const markerRecordsRef = useRef(new Map());
   const routeFitKeyRef = useRef(null);
   const markerFitKeyRef = useRef(null);
@@ -37,6 +39,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
     let disposed = false;
+    loadedMapRef.current = null;
     let loaded = false;
     let failed = false;
     let map;
@@ -71,7 +74,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
       maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: OPEN_MAP_STYLE_URL,
+        style: mapTheme === 'dark' ? OPEN_MAP_DARK_STYLE_URL : OPEN_MAP_STYLE_URL,
         center: initialCoordinate ? lngLat(initialCoordinate) : DEFAULT_MAP_CENTER,
         zoom: initialCoordinate ? 15 : DEFAULT_MAP_ZOOM,
         attributionControl: false,
@@ -87,7 +90,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
     markerFitKeyRef.current = null;
     const loadTimer = setTimeout(() => reportFatal('No fue posible cargar el mapa abierto.'), 12000);
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '© OpenStreetMap contributors · OpenFreeMap' }));
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: true }), 'bottom-right');
+    if (showNavigationControls) map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: true }), 'bottom-right');
     [
       ['.maplibregl-ctrl-zoom-in', 'Acercar mapa'],
       ['.maplibregl-ctrl-zoom-out', 'Alejar mapa'],
@@ -99,6 +102,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
     });
     map.getCanvas().setAttribute('aria-label', 'Superficie interactiva del mapa');
     map.on('load', () => {
+      loadedMapRef.current = map;
       loaded = true;
       failed = false;
       clearTimeout(loadTimer);
@@ -166,12 +170,24 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
       markerRecordsRef.current.clear();
       map.remove();
       mapRef.current = null;
+      if (loadedMapRef.current === map) loadedMapRef.current = null;
     };
-  }, [retryCount]);
+  }, [retryCount, mapTheme]);
+
+  useEffect(() => {
+    if (!ready || !controlsRef || !mapRef.current) return undefined;
+    const map=mapRef.current;
+    controlsRef.current={
+      zoomIn:()=>{callbackRef.current.onManualMove?.('zoom');map.zoomIn();},
+      zoomOut:()=>{callbackRef.current.onManualMove?.('zoom');map.zoomOut();},
+      north:()=>{callbackRef.current.onManualMove?.('rotate');map.resetNorth();},
+    };
+    return () => {controlsRef.current=null;};
+  },[ready,controlsRef]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map) return;
+    if (!ready || !map || loadedMapRef.current !== map) return;
     const coordinates = route.filter(validCoordinate).map(lngLat);
     const data = coordinates.length > 1
       ? { type: 'Feature', geometry: { type: 'LineString', coordinates }, properties: {} }
@@ -180,18 +196,21 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
     else {
       map.addSource('coffee-fly-route', { type: 'geojson', data });
       map.addLayer({ id: 'coffee-fly-route-border', type: 'line', source: 'coffee-fly-route', paint: { 'line-color': '#fff', 'line-width': 11, 'line-opacity': 0.94 } });
-      map.addLayer({ id: 'coffee-fly-route-line', type: 'line', source: 'coffee-fly-route', paint: { 'line-color': '#3214d6', 'line-width': 7 } });
+      map.addLayer({ id: 'coffee-fly-route-line', type: 'line', source: 'coffee-fly-route', paint: { 'line-color': routeColor, 'line-width': 7 } });
     }
+    map.setPaintProperty('coffee-fly-route-line', 'line-color', routeColor);
+    map.setPaintProperty('coffee-fly-route-line', 'line-width', routeWidth);
+    map.setPaintProperty('coffee-fly-route-border', 'line-width', routeWidth + 4);
     if (camera.fitMode === 'route' && coordinates.length > 1 && routeFitKeyRef.current !== camera.fitKey) {
       routeFitKeyRef.current = camera.fitKey;
       const bounds = coordinates.reduce((value, coordinate) => value.extend(coordinate), new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
       map.fitBounds(bounds, { padding: camera.padding || 60, maxZoom: camera.maxZoom || 18, duration: 500 });
     }
-  }, [camera.fitKey, camera.fitMode, camera.maxZoom, camera.padding, ready, route]);
+  }, [camera.fitKey, camera.fitMode, camera.maxZoom, camera.padding, ready, route, routeColor, routeWidth]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map) return;
+    if (!ready || !map || loadedMapRef.current !== map) return;
     const visible = markers.filter((item) => item.id != null && validCoordinate(item.coordinate));
     const active = new Set(visible.map((item) => String(item.id)));
     markerRecordsRef.current.forEach((record, id) => {
@@ -207,9 +226,20 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
       if (!record) {
         const element = document.createElement('div');
         if (item.kind === 'vehicle') {
-          element.style.cssText = 'width:46px;height:46px;border-radius:50%;background:#fffffff5;box-shadow:0 2px 10px #0005;display:flex;align-items:center;justify-content:center';
+          const size = item.size || 46;
+          element.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:#fffffff5;box-shadow:0 2px 10px #0005;display:flex;align-items:center;justify-content:center`;
           const arrow = document.createElement('span');
-          arrow.textContent = '▲'; arrow.style.cssText = `font-size:31px;line-height:1;color:${item.color || '#155eef'}`; element.appendChild(arrow);
+          arrow.textContent = '▲'; arrow.style.cssText = `font-size:${Math.round(size * 0.67)}px;line-height:1;color:${item.color || '#155eef'}`; element.appendChild(arrow);
+        } else if (item.kind === 'destination') {
+          element.style.cssText = 'width:44px;height:58px;filter:drop-shadow(0 2px 4px #0004)';
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('viewBox', '0 0 44 58');
+          const pin = document.createElementNS(svg.namespaceURI, 'path');
+          pin.setAttribute('d', 'M22 56S2 34 2 22a20 20 0 0 1 40 0c0 12-20 34-20 34Z');
+          pin.setAttribute('fill', item.color || '#c7333b'); pin.setAttribute('stroke', '#fff'); pin.setAttribute('stroke-width', '3');
+          const center = document.createElementNS(svg.namespaceURI, 'circle');
+          center.setAttribute('cx', '22'); center.setAttribute('cy', '22'); center.setAttribute('r', '8'); center.setAttribute('fill', '#fff');
+          svg.append(pin, center); element.appendChild(svg);
         } else {
           const size = item.kind === 'selected' ? 28 : 22;
           element.style.cssText = `width:${size}px;height:${size}px;border:3px solid #fff;border-radius:50%;background:${item.color || '#b42318'};box-shadow:0 2px 7px #0006`;
@@ -218,7 +248,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
         element.setAttribute('role', interactive ? 'button' : 'img');
         element.setAttribute('aria-label', `${item.title || 'Punto del mapa'}${item.draggable ? ', marcador arrastrable' : ''}`);
         if (interactive) element.tabIndex = 0;
-        const marker = new maplibregl.Marker({ element, anchor: 'center', draggable: Boolean(item.draggable) }).setLngLat(coordinate).addTo(map);
+        const marker = new maplibregl.Marker({ element, anchor: item.kind === 'destination' ? 'bottom' : 'center', draggable: Boolean(item.draggable) }).setLngLat(coordinate).addTo(map);
         let titleElement;
         let descriptionElement;
         if (item.title || item.description) {

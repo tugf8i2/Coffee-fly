@@ -1,14 +1,16 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
-import { styles } from './HistorialEntregas.styles';
+import { styles as defaultStyles } from './HistorialEntregas.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 
 const statuses = ['todos', 'pendiente', 'en camino', 'entregado', 'cancelado'];
 
-export default function HistorialEntregas({ token, go }) {
+export default function HistorialEntregas({ token, go, user }) {
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const [farmer, setFarmer] = useState(''); const [vehicle, setVehicle] = useState('');
   const [status, setStatus] = useState('todos'); const [page, setPage] = useState(1);

@@ -10,6 +10,7 @@ export default function MapaNavegacionAbierto({ completedRoute, destination, fal
     style={style}
     fallback={fallback}
     route={route}
+    routeColor="#159447"
     completedRoute={completedRoute}
     mapTheme={mapTheme}
     markers={markers}

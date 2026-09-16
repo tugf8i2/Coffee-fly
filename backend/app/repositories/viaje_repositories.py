@@ -25,8 +25,9 @@ class ViajeRepository:
         query = self.db.query(Vehiculo).filter(Vehiculo.id_vehiculo == vehiculo_id)
         return query.with_for_update().first() if for_update else query.first()
 
-    def get_conductor(self, conductor_id: int):
-        return self.db.query(Conductor).filter(Conductor.id_conductor == conductor_id).first()
+    def get_conductor(self, conductor_id: int, for_update=False):
+        query = self.db.query(Conductor).filter(Conductor.id_conductor == conductor_id)
+        return query.with_for_update().first() if for_update else query.first()
 
     def get_cooperativa(self, cooperativa_id: int):
         return self.db.query(Cooperativa).filter(Cooperativa.id_cooperativa == cooperativa_id).first()
@@ -42,6 +43,12 @@ class ViajeRepository:
 
     def get_viajes_conductor(self, conductor_id: int, estados: list[str]):
         return self.db.query(Viaje).filter(Viaje.conductor_id == conductor_id, Viaje.estado_viaje.in_(estados)).order_by(Viaje.orden_cola).all()
+
+    def get_historial_conductor(self, conductor_id: int):
+        return self.db.query(Viaje).filter(
+            Viaje.conductor_id == conductor_id,
+            Viaje.estado_viaje.in_(["completado", "cancelado"]),
+        ).order_by(Viaje.completado_en.desc().nullslast(), Viaje.creado_en.desc()).limit(100).all()
 
     def get_cargas_viaje(self, viaje_id: UUID):
         return self.db.query(Entrega, Usuario).join(Usuario, Entrega.caficultor_id == Usuario.id_usuario).filter(Entrega.viaje_id == viaje_id).order_by(Entrega.orden_recoleccion).all()

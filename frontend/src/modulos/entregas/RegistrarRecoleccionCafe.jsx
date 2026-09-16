@@ -5,12 +5,14 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import { fetchDeliveryHistories } from '../../servicios/historialEntregas';
 import { bagSummary, tonnes, weight } from '../../servicios/presentacionCarga';
-import { styles } from './RegistrarRecoleccionCafe.styles';
+import { styles as defaultStyles } from './RegistrarRecoleccionCafe.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 
 const formatDate = (value) => new Date(value).toLocaleString();
 
-export default function RegistrarRecoleccionCafe({ go, token }) {
+export default function RegistrarRecoleccionCafe({ go, token, user, initialRequestId }) {
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? { ...defaultStyles, ...coordinatorModuleStyles } : defaultStyles;
   const [requests, setRequests] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -37,13 +39,13 @@ export default function RegistrarRecoleccionCafe({ go, token }) {
       setRequests(requestsData);
       setSelected((current) => current
         ? requestsData.find((request) => request.id_solicitud === current.id_solicitud) || null
-        : null);
+        : requestsData.find((request) => request.id_solicitud === initialRequestId) || null);
       setDeliveries(deliveriesData);
       setHistory(await fetchDeliveryHistories(deliveriesData, token));
     } catch (reason) {
       setError(reason.message);
     }
-  }, [token]);
+  }, [token, initialRequestId]);
 
   usePolling(load, 15000);
 

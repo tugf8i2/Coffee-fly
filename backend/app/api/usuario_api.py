@@ -98,9 +98,7 @@ def crear_usuario(
 
     service = UsuarioService(db)
 
-    return service.crear_usuario(
-        usuario
-    )
+    return service.crear_usuario(usuario, actor_id=_registrador.id_usuario)
 
 
 @router.put(
@@ -116,10 +114,7 @@ def actualizar_usuario(
 
     service = UsuarioService(db)
 
-    return service.actualizar_usuario(
-        id_usuario,
-        usuario
-    )
+    return service.actualizar_usuario(id_usuario, usuario, actor_id=_registrador.id_usuario)
 
 
 @router.delete(

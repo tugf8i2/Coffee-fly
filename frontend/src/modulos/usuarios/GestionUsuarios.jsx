@@ -7,11 +7,13 @@ import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, 
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { accountStatesByUser } from '../../servicios/estadoCuenta';
+import { alertaVencimiento } from '../../servicios/alertasDocumentales';
 import { styles } from './GestionUsuarios.styles';
 
 const emptyForm = {
   nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
-  licencia: '', foto_licencia: '', tiene_foto_licencia: false, departamento: '', municipio: '', vereda: '',
+  licencia: '', numero_licencia: '', fecha_expedicion_licencia: '', fecha_vencimiento_licencia: '',
+  foto_licencia: '', tiene_foto_licencia: false, departamento: '', municipio: '', vereda: '',
 };
 
 const domain = '@coffeeFly.com';
@@ -107,8 +109,8 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       if ((!editingId || form.contrasena) && !isValidPassword(form.contrasena)) return setMessage(PASSWORD_HELP);
       const roleId = Number(form.rol_id);
       if (![1, 2, 3, 4].includes(roleId)) return setMessage('Selecciona un rol válido entre 1 y 4.');
-      if (roleId === 2 && (!form.licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
-        return setMessage('Para el conductor debes seleccionar el tipo y agregar la foto de la licencia.');
+      if (roleId === 2 && (!form.licencia || !form.numero_licencia?.trim() || !form.fecha_vencimiento_licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
+        return setMessage('Para el conductor registra categoría, número, vencimiento y foto de licencia.');
       }
       if (roleId === 4 && (!form.departamento.trim() || !form.municipio.trim() || !form.vereda.trim())) {
         return setMessage('Para el caficultor debes completar departamento, municipio y vereda.');
@@ -119,7 +121,12 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       if (editingId && !payload.foto_licencia) delete payload.foto_licencia;
       if (roleId !== 2) {
         delete payload.licencia;
+        delete payload.numero_licencia;
+        delete payload.fecha_expedicion_licencia;
+        delete payload.fecha_vencimiento_licencia;
         delete payload.foto_licencia;
+      } else if (!payload.fecha_expedicion_licencia) {
+        delete payload.fecha_expedicion_licencia;
       }
       const original = users.find((user) => user.id_usuario === editingId);
       if (editingId && original && original.nombre_usuario === payload.nombre_usuario && original.apellido === payload.apellido) {
@@ -230,10 +237,14 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
           style={{ ...styles.input, ...styles.fullWidthInput }}
         >
           <option value="">Selecciona el tipo de licencia</option>
-          {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <option key={type} value={type}>{type}</option>)}
+          {['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <option key={type} value={type}>{type}</option>)}
         </select> : <View style={styles.options}>
-          {['B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <TouchableOpacity key={type} style={[styles.role, form.licencia === type && styles.roleActive]} onPress={() => updateField('licencia', type)}><Text>{type}</Text></TouchableOpacity>)}
+          {['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <TouchableOpacity key={type} style={[styles.role, form.licencia === type && styles.roleActive]} onPress={() => updateField('licencia', type)}><Text>{type}</Text></TouchableOpacity>)}
         </View>}
+        {field('Número de licencia', 'numero_licencia', { maxLength: 40 })}
+        {field('Fecha de expedición (AAAA-MM-DD)', 'fecha_expedicion_licencia')}
+        {field('Fecha de vencimiento (AAAA-MM-DD)', 'fecha_vencimiento_licencia')}
+        <Text style={styles.muted}>Una licencia vencida o sin fecha no habilita asignaciones.</Text>
         <Text style={styles.label}>Foto de la licencia de conducir</Text>
         {Platform.OS === 'web' ? <input type="file" accept="image/*" onChange={selectLicensePhoto} style={styles.fileInput} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}
         {form.foto_licencia ? <Image source={{ uri: form.foto_licencia }} style={styles.licensePreview} /> : form.tiene_foto_licencia ? <Text style={styles.muted}>Ya hay una foto guardada. Selecciona otra para reemplazarla.</Text> : <Text style={styles.muted}>Formatos permitidos: imagen. Tamaño máximo: 3 MB.</Text>}
@@ -258,6 +269,7 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       return <View style={styles.card} key={user.id_usuario}>
         <Text style={styles.cardTitle}>{user.nombre_usuario} {user.apellido}</Text>
         <Text>{user.correo_usuario}</Text><Text style={styles.muted}>{label}</Text>
+        {Number(user.rol_id) === 2 ? <Text style={styles.muted}>Licencia {user.licencia || 'pendiente'} · {alertaVencimiento(user.fecha_vencimiento_licencia)}</Text> : null}
         <TouchableOpacity style={styles.primary} onPress={() => startEdit(user)}><Text style={styles.primaryText}>Editar perfil</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => changeStatus(user.id_usuario, state.habilitado === false)}><Text style={styles.link}>{state.habilitado === false ? 'Habilitar y desbloquear' : 'Deshabilitar perfil'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => confirmRemove(user)}><Text style={styles.error}>Eliminar perfil</Text></TouchableOpacity>

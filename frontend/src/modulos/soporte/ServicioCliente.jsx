@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
-import { styles } from './ServicioCliente.styles';
+import { styles as defaultStyles } from './ServicioCliente.styles';
+import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 
 const estadoVisible = {
   pendiente: 'Pendiente',
@@ -18,6 +19,7 @@ const fechaCorta = (value) => value
   : '';
 
 export default function ServicioCliente({ go, token, user }) {
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);

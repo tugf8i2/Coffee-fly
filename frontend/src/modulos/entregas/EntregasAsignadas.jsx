@@ -4,10 +4,12 @@ import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import { weight } from '../../servicios/presentacionCarga';
-import { styles } from './EntregasAsignadas.styles';
+import { styles as defaultStyles } from './EntregasAsignadas.styles';
+import { conductorModuleStyles } from '../conductor/Conductor.styles';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 
-export default function EntregasAsignadas({ go, token }) {
+export default function EntregasAsignadas({ go, token, user }) {
+  const styles = user?.rol === 'conductor' ? { ...defaultStyles, ...conductorModuleStyles, page: { ...conductorModuleStyles.page, padding: 0 } } : defaultStyles;
   const [trips, setTrips] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');

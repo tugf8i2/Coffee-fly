@@ -5,7 +5,6 @@ import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 
 import MapaAbierto from '../../componentes/mapas/MapaAbierto.native';
-import MapaNavegacionAbierto from '../../componentes/mapas/MapaNavegacionAbierto.native';
 import RoutePreview from '../../componentes/mapas/VistaPreviaRuta';
 import DriverEventReporter from '../../componentes/entregas/ReportadorNovedadConductor';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
@@ -21,7 +20,8 @@ import {
 } from '../../servicios/ubicacionSegundoPlano';
 import { canStartTrackingFromGpsResult } from '../../servicios/calidadGps';
 import { estaEnLinea, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
-import { styles } from './SeguimientoVehiculo.styles';
+import { styles as defaultStyles } from './SeguimientoVehiculo.styles';
+import { conductorModuleStyles } from '../conductor/Conductor.styles';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { canCompleteTrip, realtimeLabel, trackingModeLabel } from '../../servicios/presentacionSeguimiento';
 import { formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions, spanishVoiceCapability } from '../../servicios/navegacionVoz';
@@ -29,6 +29,8 @@ import { obtenerCalleActual } from '../../servicios/calleActual';
 import { createNavigationEngine } from '../../servicios/motorNavegacionGps';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { createLatestRequestController } from '../../servicios/controlSolicitudes';
+import VistaGpsConductor from '../conductor/VistaGpsConductor';
+import MapaGpsConductor from '../conductor/MapaGpsConductor';
 
 const toCoordinate = (latitud, longitud) => ({ latitude: Number(latitud), longitude: Number(longitud) });
 const distanceMeters = (first, second) => {
@@ -44,16 +46,9 @@ const distanceMeters = (first, second) => {
 const logGpsStage = (stage, details = {}) => {
   if (__DEV__) console.info(`[Coffee Fly GPS] ${stage}`, details);
 };
-const maneuverSymbol = (text = '') => {
-  const normalized = text.toLowerCase();
-  if (normalized.includes('izquierda')) return '↰';
-  if (normalized.includes('derecha')) return '↱';
-  if (normalized.includes('glorieta')) return '↻';
-  if (normalized.includes('llegado')) return '◎';
-  return '↑';
-};
 
-export default function SeguimientoVehiculo({ go, token, user }) {
+export default function SeguimientoVehiculo({ go, token, user, onDriverRoute, onDriverAction }) {
+  const gpsControlsRef = useRef(null);
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [activeTrip, setActiveTrip] = useState(null);
@@ -92,6 +87,8 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   if (!trackingRequestsRef.current) trackingRequestsRef.current = createLatestRequestController();
   if (!routeRequestsRef.current) routeRequestsRef.current = createLatestRequestController();
   const role = String(user?.rol || '').toLowerCase();
+  const styles = role === 'conductor' ? { ...defaultStyles, ...conductorModuleStyles } : defaultStyles;
+  useEffect(() => { if (route?.proveedor) onDriverRoute?.(route); }, [route, onDriverRoute]);
   const pickup = tracking?.recoleccion_latitud != null && tracking?.recoleccion_longitud != null
     ? toCoordinate(tracking.recoleccion_latitud, tracking.recoleccion_longitud)
     : null;
@@ -331,6 +328,7 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       if (!response.ok || !data.puntos?.length) throw Error(apiErrorMessage(data, 'No se encontró una ruta vial para estas coordenadas.'));
       const next = {
         ...data,
+        entrega_id: routeDeliveryId,
         etapa: data.etapa || stage,
         calculada_en: Date.now(),
       };
@@ -656,65 +654,24 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   const remainingDuration = engineRemainingDistance != null && routeSpeed > 0
     ? engineRemainingDistance / routeSpeed
     : stepsDuration + (routeSpeed > 0 ? approachDistance / routeSpeed : 0);
-  const arrivalTime = new Date(Date.now() + remainingDuration * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  if (role === 'conductor' && tracking) return <View style={styles.navigationScreen}>
-    <MapaNavegacionAbierto
-      style={styles.navigationMap}
-      route={displayedRoute}
-      completedRoute={completedRoute}
-      mapTheme={mapTheme}
-      vehicle={vehicle}
-      vehicleDescription={exactVehicle ? `GPS exacto ${exactVehicle.latitude.toFixed(6)}, ${exactVehicle.longitude.toFixed(6)}${navigationPosition?.accuracyM != null ? ` · precisión ±${Math.round(navigationPosition.accuracyM)} m` : ''}` : 'Esperando ubicación GPS'}
-      destination={destination}
-      heading={vehicleHeading}
-      follow={followVehicle}
-      fitKey={`${delivery}:${tracking.etapa_viaje}:${routeFitRequest}`}
-      fallback={<RoutePreview route={displayedRoute} vehicle={vehicle} destination={destination} />}
-      onManualMove={() => setFollowVehicle(false)}
-    />
-
-    <View style={styles.navigationTop} pointerEvents="box-none">
-      <View style={styles.turnCard}>
-        <Text maxFontSizeMultiplier={1.15} style={styles.turnIcon}>{maneuverSymbol(currentInstruction?.texto)}</Text>
-        <View style={styles.turnCopy}>
-          <Text maxFontSizeMultiplier={1.15} style={styles.turnDistance}>{currentTurnDistance != null ? formatDistance(currentTurnDistance) : 'Ruta activa'}</Text>
-          <Text maxFontSizeMultiplier={1.15} numberOfLines={3} style={styles.turnText}>{currentInstruction?.texto || 'Continúa hacia el destino'}</Text>
-        </View>
-      </View>
-      {nextInstruction ? <View style={styles.nextTurnCard}><Text maxFontSizeMultiplier={1.15} numberOfLines={2} style={styles.nextTurnText}>Después {maneuverSymbol(nextInstruction.texto)} {nextInstruction.texto}</Text></View> : null}
-    </View>
-
-    <View style={styles.currentRoadPill}>
-      <Text maxFontSizeMultiplier={1.15} style={styles.currentRoadLabel}>CALLE ACTUAL</Text>
-      <Text maxFontSizeMultiplier={1.15} numberOfLines={2} style={styles.currentRoadText}>{currentRoad}</Text>
-      {navigationPosition ? <Text maxFontSizeMultiplier={1.15} style={styles.gpsQualityText}>
-        GPS ±{Math.round(navigationPosition.accuracyM)} m · {Math.round(navigationPosition.speedMps * 3.6)} km/h · {navigationPosition.routeStatus === 'on-route' ? 'en ruta' : 'ajustando'}
-      </Text> : null}
-      <Text maxFontSizeMultiplier={1.1} numberOfLines={2} style={styles.gpsQualityText}>{voiceStatus}</Text>
-    </View>
-
-    <View style={styles.navigationControls}>
-      <TouchableOpacity style={styles.roundControl} onPress={() => { setVoiceEnabled((current) => { if (current) Speech.stop(); return !current; }); }}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>{voiceEnabled ? 'Voz' : 'Mudo'}</Text></TouchableOpacity>
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !currentInstruction }} disabled={!currentInstruction} style={[styles.roundControl, !currentInstruction && styles.unavailable]} onPress={() => speak(currentInstruction.texto)}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Repetir</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.roundControl} onPress={() => setMapTheme((current) => current === 'dark' ? 'day' : 'dark')}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>{mapTheme === 'dark' ? 'Día' : 'Noche'}</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.roundControl} onPress={() => { setFollowVehicle(false); setRouteFitRequest((value) => value + 1); }}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Ruta</Text></TouchableOpacity>
-      <TouchableOpacity style={[styles.roundControl, followVehicle && styles.roundControlActive]} onPress={() => setFollowVehicle(true)}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Centrar</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.roundControl} onPress={() => go('dashboard')}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Salir</Text></TouchableOpacity>
-    </View>
-
-    <View style={styles.navigationBottom}>
-      <View style={styles.tripSummary}>
-        <Text maxFontSizeMultiplier={1.15} style={styles.tripTime}>{formatDuration(remainingDuration)}</Text>
-        <Text maxFontSizeMultiplier={1.15} style={styles.tripMeta}>{formatDistance(remainingDistance)} · llegada {arrivalTime}</Text>
-        <Text maxFontSizeMultiplier={1.15} style={styles.tripDestination} numberOfLines={1}>{tracking.destino || 'Destino del viaje'}</Text>
-      </View>
-      {tracking.etapa_viaje === 'hacia_finca' ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !canConfirmPickup || confirmingPickup, busy: confirmingPickup }} style={[styles.navigationAction, (!canConfirmPickup || confirmingPickup) && styles.unavailable]} disabled={!canConfirmPickup || confirmingPickup} onPress={confirmPickup}><Text style={styles.navigationActionText}>{confirmingPickup ? 'Confirmando carga…' : canConfirmPickup ? 'Confirmar carga' : 'Acércate a la finca'}</Text></TouchableOpacity> : <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !allLoadsPicked || completingTrip, busy: completingTrip }} disabled={!allLoadsPicked || completingTrip} style={[styles.navigationAction, (!allLoadsPicked || completingTrip) && styles.unavailable]} onPress={completeTrip}><Text style={styles.navigationActionText}>{completingTrip ? 'Completando viaje…' : 'Completar viaje'}</Text></TouchableOpacity>}
-      {navigationError ? <TouchableOpacity accessibilityRole="button" style={styles.navigationRetry} onPress={retryNavigation}><Text style={styles.navigationRetryText}>Reintentar GPS</Text></TouchableOpacity> : null}
-      {message && messageType === 'error' ? <Text style={styles.navigationError}>{message}</Text> : null}
-    </View>
-  </View>;
-
+  if (role === 'conductor' && tracking) return <VistaGpsConductor
+    trip={activeTrip} deliveryId={delivery} tracking={tracking} controlsRef={gpsControlsRef}
+    currentInstruction={currentInstruction} nextInstruction={nextInstruction} turnDistance={currentTurnDistance}
+    remainingDistance={remainingDistance} remainingDuration={remainingDuration} routeAvailable={Boolean(route?.puntos?.length > 1)}
+    voiceEnabled={voiceEnabled} voiceStatus={voiceStatus}
+    onVoice={() => { if (voiceEnabled) Speech.stop(); setVoiceEnabled((current) => !current); }}
+    onRepeat={() => currentInstruction && speak(currentInstruction.texto)}
+    onTheme={() => setMapTheme((current) => current === 'dark' ? 'day' : 'dark')} mapTheme={mapTheme}
+    map={<MapaGpsConductor controlsRef={gpsControlsRef} route={displayedRoute} completedRoute={completedRoute} destination={destination} vehicle={vehicle} heading={vehicleHeading} deliveryId={`${delivery}:${tracking.etapa_viaje}`} mapTheme={mapTheme}/>}
+    onAction={onDriverAction} onExit={() => go('dashboard')}
+    onSelectStop={(id)=>{selectDelivery(id);loadTracking(id).catch((error)=>setMessage(error.message));}}
+    onFinish={tracking.etapa_viaje === 'hacia_cooperativa' ? completeTrip : confirmPickup}
+    finishDisabled={tracking.etapa_viaje === 'hacia_cooperativa' ? !allLoadsPicked : !canConfirmPickup}
+    finishBusy={confirmingPickup || completingTrip}
+    gpsStatus={`${currentRoad} · ${locationFreshness}${navigationPosition?.accuracyM != null ? ` · GPS ±${Math.round(navigationPosition.accuracyM)} m` : ''} · ${trackingMode}`}
+    message={message || navigationError} onRetry={navigationError ? retryNavigation : undefined}
+  />;
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <Text style={styles.title}>{role === 'conductor' ? 'Destino, ruta y viaje' : 'Seguimiento de vehículo'}</Text>
