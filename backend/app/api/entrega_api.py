@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_roles
@@ -10,8 +10,9 @@ from app.core.database import get_db
 from app.core.realtime import tracking_connections
 from app.models.entrega_models import Entrega
 from app.models.usuario_models import Usuario
-from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
+from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, CalcularRutaNavegacionRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, RutaNavegacionResponse, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
+from app.services.navegacion_services import calculate_navigation_route
 
 
 router = APIRouter(prefix="/entregas", tags=["Entregas"])
@@ -286,6 +287,23 @@ def consultar_seguimiento_entrega(
     usuario: Usuario = Depends(require_roles("coordinador", "conductor", "caficultor")),
 ):
     return EntregaService(db).obtener_seguimiento(entrega_id, usuario)
+
+
+@router.post("/{entrega_id}/ruta-navegacion", response_model=RutaNavegacionResponse)
+async def calcular_ruta_navegacion(
+    entrega_id: UUID,
+    origen: CalcularRutaNavegacionRequest,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("coordinador", "conductor", "caficultor")),
+):
+    seguimiento = EntregaService(db).obtener_seguimiento(entrega_id, usuario)
+    if seguimiento["destino_latitud"] is None or seguimiento["destino_longitud"] is None:
+        raise HTTPException(status_code=409, detail="El destino del viaje no tiene coordenadas válidas")
+    return await calculate_navigation_route(
+        {"latitude": origen.latitud_origen, "longitude": origen.longitud_origen},
+        {"latitude": seguimiento["destino_latitud"], "longitude": seguimiento["destino_longitud"]},
+        seguimiento["etapa_viaje"],
+    )
 
 
 @router.get("/{entrega_id}/historial-estados", response_model=list[HistorialEstadoEntregaResponse])

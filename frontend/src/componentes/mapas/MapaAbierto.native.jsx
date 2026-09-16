@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { OPEN_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
+import { OPEN_MAP_DARK_STYLE_URL, OPEN_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
 import { RUNNING_IN_EXPO_GO } from '../../configuracion/mapasNativos';
 import MapaAbiertoWebView from './MapaAbiertoWebView.native';
 
@@ -20,16 +20,22 @@ const valid = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
   && Number(coordinate.longitude) >= -180 && Number(coordinate.longitude) <= 180;
 const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.latitude)];
 
-function MapaNativo({ camera = {}, markers = [], onError, onManualMove, onMapPress, route = [], style }) {
+function MapaNativo({ camera = {}, completedRoute = [], mapTheme = 'day', markers = [], onError, onManualMove, onMapPress, route = [], style }) {
   const cameraRef = useRef(null);
   const appliedFitKeyRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const routeCoordinates = route.filter(valid).map(lngLat);
+  const completedCoordinates = completedRoute.filter(valid).map(lngLat);
   const followed = markers.find((marker) => String(marker.id) === String(camera.followMarkerId) && valid(marker.coordinate));
   const routeShape = {
     type: 'Feature',
     properties: {},
     geometry: { type: 'LineString', coordinates: routeCoordinates },
+  };
+  const completedShape = {
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'LineString', coordinates: completedCoordinates },
   };
 
   useEffect(() => {
@@ -60,7 +66,7 @@ function MapaNativo({ camera = {}, markers = [], onError, onManualMove, onMapPre
   const { Camera, GeoJSONSource, Layer, Map, Marker } = MapLibre;
   return <Map
     style={style}
-    mapStyle={OPEN_MAP_STYLE_URL}
+    mapStyle={mapTheme === 'dark' ? OPEN_MAP_DARK_STYLE_URL : OPEN_MAP_STYLE_URL}
     attribution
     logo={false}
     compass
@@ -77,6 +83,9 @@ function MapaNativo({ camera = {}, markers = [], onError, onManualMove, onMapPre
     {routeCoordinates.length > 1 ? <GeoJSONSource id="coffee-fly-route" data={routeShape}>
       <Layer id="coffee-fly-route-border" type="line" paint={{ 'line-color': '#fff', 'line-width': 10, 'line-opacity': 0.94 }} />
       <Layer id="coffee-fly-route-line" type="line" paint={{ 'line-color': '#3214d6', 'line-width': 6 }} />
+    </GeoJSONSource> : null}
+    {completedCoordinates.length > 1 ? <GeoJSONSource id="coffee-fly-completed-route" data={completedShape}>
+      <Layer id="coffee-fly-completed-route-line" type="line" paint={{ 'line-color': '#7b8f80', 'line-width': 7, 'line-opacity': 0.95 }} />
     </GeoJSONSource> : null}
     {markers.filter((marker) => marker.id != null && valid(marker.coordinate)).map((marker) => <Marker key={String(marker.id)} id={String(marker.id)} lngLat={lngLat(marker.coordinate)}>
       {marker.kind === 'vehicle'

@@ -6,12 +6,12 @@ import TrackingMap from '../../componentes/mapas/MapaSeguimiento';
 import DriverEventReporter from '../../componentes/entregas/ReportadorNovedadConductor';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
+import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { canCompleteTrip, realtimeLabel } from '../../servicios/presentacionSeguimiento';
 import { styles } from './SeguimientoVehiculo.styles';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { createGpsPoint, evaluateGpsPoint, MAX_GPS_ACCURACY_METERS } from '../../servicios/calidadGps';
-import { OSRM_BASE_URL } from '../../configuracion/osrm';
 import { createLatestRequestController } from '../../servicios/controlSolicitudes';
 
 const freshnessOf = (point) => {
@@ -195,7 +195,8 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   }, [activeTrip?.id_viaje, delivery, role, token]);
 
   const points = tracking?.puntos || [];
-  const last = points.at(-1);
+  const remotePosition = useTrackingPosition(points);
+  const last = remotePosition.point;
   const destination = useMemo(() => {
     if (tracking?.destino_latitud == null || tracking?.destino_longitud == null) return null;
     return {
@@ -210,17 +211,22 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     const controller = new AbortController();
     let disposed = false;
     const timeout = setTimeout(() => controller.abort(), 12000);
-    const coordinates = `${Number(last.longitud)},${Number(last.latitud)};${destination.longitude},${destination.latitude}`;
-    fetch(`${OSRM_BASE_URL}/route/v1/driving/${coordinates}?overview=full&geometries=geojson`, { signal: controller.signal })
+    fetchApi(`${API_BASE_URL}/entregas/${delivery}/ruta-navegacion`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitud_origen: Number(last.latitud), longitud_origen: Number(last.longitud) }),
+      signal: controller.signal,
+      timeoutMs: 12000,
+      retries: 0,
+    })
       .then((response) => response.ok ? response.json() : Promise.reject(Error('Ruta no disponible')))
       .then((data) => {
         clearTimeout(timeout);
-        const routeCoordinates = data.routes?.[0]?.geometry?.coordinates;
-        if (!disposed && Array.isArray(routeCoordinates)) setNavigationRoute(routeCoordinates.map(([longitude, latitude]) => ({ latitude, longitude })));
+        if (!disposed && Array.isArray(data.puntos)) setNavigationRoute(data.puntos);
       })
       .catch(() => { if (!disposed) setNavigationRoute([]); });
     return () => { disposed = true; clearTimeout(timeout); controller.abort(); };
-  }, [delivery, destination?.latitude, destination?.longitude, routeOriginKey]);
+  }, [delivery, destination?.latitude, destination?.longitude, routeOriginKey, token]);
   const allLoadsPicked = canCompleteTrip(activeTrip?.cargas);
 
   const currentWebPosition = () => new Promise((resolve, reject) => {
@@ -337,12 +343,12 @@ export default function SeguimientoVehiculo({ go, token, user }) {
           <Text style={styles.cardTitle}>{tracking.vehiculo_placa} · {tracking.estado_entrega}</Text>
           {tracking.destino ? <Text>Destino: {tracking.destino}</Text> : null}
           <Text>Ruta visible: {points.length} de {tracking.total_puntos || points.length} punto(s)</Text>
-          <Text>Estado de ubicación: {freshnessOf(last)}</Text>
+          <Text>Estado de ubicación: {remotePosition.status}</Text>
           <Text>Distancia recorrida: {((tracking.distancia_recorrida_m || 0) / 1000).toFixed(2)} km</Text>
           {tracking.ruta_truncada ? <Text style={styles.muted}>Se muestran los 2.000 puntos más recientes para conservar el rendimiento.</Text> : null}
           {last ? (
             <Text>
-              Última ubicación: {Number(last.latitud).toFixed(6)}, {Number(last.longitud).toFixed(6)} · {new Date(last.registrada_en).toLocaleString()}
+              Última ubicación fiable: {Number(last.latitud).toFixed(6)}, {Number(last.longitud).toFixed(6)} · {new Date(last.registrada_en).toLocaleString()}
               {last.precision_m != null ? ` · precisión ${Math.round(last.precision_m)} m` : ''}
               {last.velocidad_m_s != null ? ` · ${(last.velocidad_m_s * 3.6).toFixed(1)} km/h` : ''}
               {last.rumbo_grados != null ? ` · rumbo ${Math.round(last.rumbo_grados)}°` : ''}

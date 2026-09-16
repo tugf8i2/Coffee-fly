@@ -7,8 +7,15 @@ Actualización del 7 de septiembre de 2026: el frontend fue migrado de Expo SDK
 
 Actualización del 14 de septiembre de 2026: se auditó el flujo completo desde la
 solicitud hasta la entrega. Los mapas web y móviles usan MapLibre y OpenFreeMap,
-el GPS queda asociado al viaje activo, la ruta vial usa OSRM cuando está
-disponible y las migraciones Alembic llegan a `20260914_16`.
+el GPS queda asociado al viaje activo, la ruta vial tenía soporte OSRM y las
+migraciones Alembic llegan a `20260914_16`.
+
+Actualización del 15 de septiembre de 2026: el cálculo de rutas pasó a un
+endpoint autenticado del backend con adaptadores para Valhalla y OSRM. Se añadió
+Valhalla 3.8.3 autohospedado como override Docker, geometría Polyline6,
+maniobras en español, cancelación de respuestas obsoletas, modo día/noche,
+repetición de voz y diferenciación visual del tramo recorrido. Expo 57 quedó
+alineado con los parches recomendados por Expo Doctor.
 
 ## Garantías del flujo auditado
 
@@ -107,9 +114,9 @@ La frecuencia se adapta a batería y movimiento. El seguimiento foreground usa i
 
 Documentación oficial de referencia:
 
-- [Expo Location SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/location/)
-- [Expo Battery SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/battery/)
-- [Expo SecureStore SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/securestore/)
+- [Expo Location SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/location/)
+- [Expo Battery SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/battery/)
+- [Expo SecureStore SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/securestore/)
 
 ## Offline First y consistencia
 
@@ -213,13 +220,44 @@ Las pruebas de pantalla apagada, minimización prolongada, fabricantes específi
 
 La hoja preparada para registrar esa evidencia está en `Docs/PRUEBAS-FISICAS-GPS.md`.
 
+## Capacidades verificadas y límites
+
+| Capacidad | Estado | Evidencia o límite |
+| --- | --- | --- |
+| MapLibre web/nativo, ruta, cámara y posición | Implementada y probada | Jest, export web/Android y build Docker. |
+| Ruta online Valhalla/OSRM detrás de autorización | Implementada y probada | Normalizadores, orden longitud/latitud, Polyline6 y respuesta 401 sin sesión. |
+| Grafo Valhalla Colombia | Implementado y probado | Valhalla 3.8.3 construyó 1.385 teselas en volumen persistente (1,4 GB) y respondió una ruta local real. |
+| Giros, distancia/ETA, voz, silenciar/repetir, día/noche | Implementada y probada en código | Requiere prueba auditiva/visual final en celular. |
+| Desvío persistente, cancelación y recálculo | Implementada y probada | Motor GPS y controlador de última solicitud cubiertos por Jest. |
+| Ruta guardada, cola GPS cifrada y sincronización | Implementada y probada | SQLite/AES-256-GCM, lotes, idempotencia y reintentos. |
+| GPS con pantalla bloqueada | Implementada, pendiente de prueba física | Necesita development build, permisos y acta F-09/F-11. |
+| Mapas descargados con PMTiles | Pendiente | Requiere definir región/tamaño y empaquetado local; no se descarga del servidor estándar OSM. |
+| Recálculo totalmente offline | Pendiente | Requiere Valhalla/Ferrostar nativo y grafo regional dentro del dispositivo. |
+| Tráfico en vivo | Pendiente | No existe fuente de tráfico contratada o abierta con cobertura validada. |
+
+Ferrostar 0.50 se evaluó, pero no se añadió: el módulo actual ya separa rutas,
+ubicación, navegación, voz y sincronización, mientras Ferrostar continúa antes de
+1.0 y sumaría código nativo a una aplicación que todavía se prueba también con
+Expo Go. Valhalla sí queda integrado mediante un contrato reemplazable. PMTiles y
+Planetiler se reservan para el nivel de mapas descargados; un PMTiles no sustituye
+el grafo de rutas.
+
+Recursos orientativos: la aplicación base puede operar con 2 vCPU, 4 GB de RAM y
+PostgreSQL para la carga prevista. Construir Colombia con Valhalla requiere
+aproximadamente 4–8 GB de RAM y 10 GB de disco libres; para servirlo se recomienda
+2–4 vCPU y 4–8 GB de RAM, ajustando `VALHALLA_THREADS`. Software y datos no tienen
+licencia de pago (MIT/BSD/ODbL), pero sí hay costo de servidor, almacenamiento,
+transferencia, copias de seguridad y monitoreo. OpenFreeMap no ofrece SLA; una
+operación crítica debe autoalojar teselas o contratar un proveedor compatible.
+
 ## Evidencia automatizada ejecutada
 
 Resultado de la última revisión local:
 
-- Frontend: 44 pruebas aprobadas en 12 suites, incluida la cobertura de navegación, mapa seguro, vista previa de rutas, estados de conexión, reinicio GPS y consulta de historial por lote.
-- Backend: 24 pruebas aprobadas, incluidas las fronteras de GPS actualizado/desactualizado/sin ubicación y el historial por lote.
-- Expo Doctor: 18/18 comprobaciones aprobadas.
+- Frontend: 93 pruebas aprobadas en 23 suites, incluida la cobertura de navegación, mapa seguro, voz en español, vista previa de rutas, estados de conexión, reinicio GPS y consulta de historial por lote.
+- Backend: 86 pruebas y 21 subpruebas aprobadas, incluidas las fronteras de GPS, autorización y normalización de rutas OSRM/Valhalla.
+- El adaptador consultó una ruta real de Valhalla en Bogotá: 50 puntos, 3 maniobras y 1.219 m normalizados, primero contra la API oficial de demostración y después contra el contenedor autohospedado.
+- Expo Doctor: 21/21 comprobaciones aprobadas.
 - Android y web: exportaciones completas sin errores de código.
 - Alembic: `No new upgrade operations detected`.
 - Seguridad viva: JWT, rutas protegidas, aislamiento entre caficultores, idempotencia y listado de usuarios sin contraseña ni peticiones N+1 aprobados.

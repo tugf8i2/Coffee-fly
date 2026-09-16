@@ -312,7 +312,7 @@ export function createNavigationEngine(options = {}) {
     if (ageMs >= config.predictionMaxAgeMs || speedMps < config.predictionMinimumSpeedMps) return lastOutput;
     const advanceM = Math.min(config.predictionMaxDistanceM, speedMps * ageMs / 1000);
     let predictedLocal;
-    if (route && match.routeDistanceM != null && match.status !== 'off-route') {
+    if (route && match.routeDistanceM != null && lastOutput.displaySource === 'matched') {
       predictedLocal = pointAtRouteDistance(route, match.routeDistanceM + advanceM);
     } else {
       predictedLocal = {

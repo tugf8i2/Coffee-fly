@@ -25,6 +25,14 @@ services:
       osrm:
         condition: service_healthy
 
+  backend:
+    environment:
+      ROUTING_PROVIDER: osrm
+      ROUTING_URL: http://osrm:5000
+    depends_on:
+      osrm:
+        condition: service_healthy
+
 volumes:
   osrm_data:
     external: true

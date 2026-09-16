@@ -1,4 +1,4 @@
-import { asSpanishInstruction, formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions } from '../src/servicios/navegacionVoz';
+import { asSpanishInstruction, formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions, selectSpanishVoice, spanishVoiceCapability } from '../src/servicios/navegacionVoz';
 
 describe('navegación por voz', () => {
   test('traduce maniobras y conserva la calle y coordenada', () => {
@@ -23,5 +23,19 @@ describe('navegación por voz', () => {
     expect(normalizeRouteInstructions(['Continúa por la vía'])[0]).toEqual({
       texto: 'Continúa por la vía', distancia_m: 0, duracion_s: 0, coordenada: null,
     });
+  });
+
+  test('prefiere español de Colombia y sólo confirma offline si la plataforma lo declara local', () => {
+    const voices = [
+      { identifier: 'es-mx', language: 'es-MX', quality: 'Enhanced' },
+      { identifier: 'es-co', language: 'es-CO', quality: 'Default', localService: true },
+    ];
+    expect(selectSpanishVoice(voices).identifier).toBe('es-co');
+    expect(spanishVoiceCapability(voices)).toMatchObject({ offline: true, voice: { identifier: 'es-co' } });
+  });
+
+  test('no promete voz offline cuando la API no expone esa propiedad', () => {
+    expect(spanishVoiceCapability([{ identifier: 'es', language: 'es-ES', quality: 'Default' }]).offline).toBeNull();
+    expect(spanishVoiceCapability([{ identifier: 'en', language: 'en-US' }]).offline).toBe(false);
   });
 });
