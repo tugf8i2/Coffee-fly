@@ -14,6 +14,27 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Sistema visual compartido por los paneles de todos los roles. */
+:root {
+  --coffee-ink: #123F34;
+  --coffee-green: #287457;
+  --coffee-mint: #E8F2EB;
+  --coffee-border: #D2E4D7;
+}
+
+#root { min-height: 100vh; }
+
+/* Inputs nativos de web mantienen la misma escala y foco que los selectores. */
+input, select, textarea {
+  border-color: var(--coffee-border);
+  border-radius: 10px;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--coffee-green) !important;
+  box-shadow: 0 0 0 3px rgba(40, 116, 87, .14);
+}
+
 * {
   box-sizing: border-box;
 }

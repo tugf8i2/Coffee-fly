@@ -170,8 +170,6 @@ export default function AplicacionPrincipal() {
     farmerDashboard: <MiActividad {...common} />,
     tracking: <SeguimientoVehiculo {...common} />,
     users: <UserManagement {...common} />,
-    registrarFarmers: <UserManagement key="registrar-farmers" {...common} initialRole={4} />,
-    registrarDrivers: <UserManagement key="registrar-drivers" {...common} initialRole={2} />,
     cooperatives: <CooperativeManagement {...common} />,
     vehicles: <VehicleManagement {...common} />,
     vehicleStatus: <VehicleStatus {...common} />,
