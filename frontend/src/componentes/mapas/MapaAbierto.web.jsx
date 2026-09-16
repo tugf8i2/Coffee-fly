@@ -7,7 +7,7 @@ import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
   MAPLIBRE_WORKER_URL,
-  OPEN_STREET_MAP_RASTER_STYLE,
+  OPEN_MAP_STYLE_URL,
 } from '../../configuracion/mapaAbierto';
 
 const validCoordinate = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
@@ -71,9 +71,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
       maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
       map = new maplibregl.Map({
         container: containerRef.current,
-        // La capa raster muestra calles de forma directa y evita depender del
-        // estilo vectorial externo, que puede fallar o cargar solo el relieve.
-        style: OPEN_STREET_MAP_RASTER_STYLE,
+        style: OPEN_MAP_STYLE_URL,
         center: initialCoordinate ? lngLat(initialCoordinate) : DEFAULT_MAP_CENTER,
         zoom: initialCoordinate ? 15 : DEFAULT_MAP_ZOOM,
         attributionControl: false,

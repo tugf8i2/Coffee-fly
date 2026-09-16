@@ -1,6 +1,6 @@
 import MapaAbierto from './MapaAbierto.native';
 
-export default function MapaNavegacionAbierto({ destination, fallback, fitKey, follow, heading, onError, onManualMove, route, style, vehicle, vehicleDescription }) {
+export default function MapaNavegacionAbierto({ completedRoute, destination, fallback, fitKey, follow, heading, mapTheme, onError, onManualMove, route, style, vehicle, vehicleDescription }) {
   const markers = [
     vehicle ? { id: 'vehicle', kind: 'vehicle', coordinate: vehicle, heading, title: 'Conductor', description: vehicleDescription || 'Ubicación GPS actual' } : null,
     destination ? { id: 'destination', coordinate: destination, color: '#c5221f', title: 'Destino' } : null,
@@ -10,6 +10,8 @@ export default function MapaNavegacionAbierto({ destination, fallback, fitKey, f
     style={style}
     fallback={fallback}
     route={route}
+    completedRoute={completedRoute}
+    mapTheme={mapTheme}
     markers={markers}
     camera={{
       fitMode: 'route',

@@ -194,6 +194,32 @@ class SincronizarUbicacionesResponse(BaseModel):
     distancia_recorrida_m: float = 0
 
 
+class CalcularRutaNavegacionRequest(BaseModel):
+    latitud_origen: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitud_origen: float = Field(ge=-180, le=180, allow_inf_nan=False)
+
+
+class PuntoRutaNavegacion(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class InstruccionRutaNavegacion(BaseModel):
+    texto: str = Field(min_length=1, max_length=500)
+    distancia_m: float = Field(ge=0)
+    duracion_s: float = Field(ge=0)
+    coordenada: PuntoRutaNavegacion | None = None
+
+
+class RutaNavegacionResponse(BaseModel):
+    etapa: Literal["hacia_finca", "hacia_cooperativa"]
+    proveedor: Literal["osrm", "valhalla"]
+    puntos: list[PuntoRutaNavegacion] = Field(min_length=2)
+    instrucciones: list[InstruccionRutaNavegacion]
+    distancia_m: float = Field(ge=0)
+    duracion_s: float = Field(ge=0)
+
+
 class PuntoRutaResponse(BaseModel):
     client_point_id: Optional[UUID] = None
     latitud: float

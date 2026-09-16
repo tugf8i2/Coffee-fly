@@ -1,7 +1,7 @@
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
-  OPEN_STREET_MAP_RASTER_STYLE,
+  OPEN_MAP_STYLE_URL,
 } from '../src/configuracion/mapaAbierto';
 
 describe('configuración del mapa de calles', () => {
@@ -10,10 +10,8 @@ describe('configuración del mapa de calles', () => {
     expect(DEFAULT_MAP_ZOOM).toBeGreaterThanOrEqual(12);
   });
 
-  test('usa mosaicos de calles de OpenStreetMap', () => {
-    const source = OPEN_STREET_MAP_RASTER_STYLE.sources['openstreetmap-streets'];
-    expect(source.type).toBe('raster');
-    expect(source.tiles[0]).toContain('tile.openstreetmap.org');
-    expect(OPEN_STREET_MAP_RASTER_STYLE.layers[0].source).toBe('openstreetmap-streets');
+  test('usa un estilo vectorial compatible con MapLibre sin abusar del servidor estándar de OSM', () => {
+    expect(OPEN_MAP_STYLE_URL).toBe('https://tiles.openfreemap.org/styles/liberty');
+    expect(OPEN_MAP_STYLE_URL).not.toContain('tile.openstreetmap.org');
   });
 });

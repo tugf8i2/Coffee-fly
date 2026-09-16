@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import MapaAbierto from './MapaAbierto';
+import { buscarUbicacionPrecisa } from '../../servicios/ubicacionPrecisaWeb';
 
 const valid = (latitude, longitude) => Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
   && Number(latitude) >= -90 && Number(latitude) <= 90
@@ -10,6 +11,14 @@ const valid = (latitude, longitude) => Number.isFinite(Number(latitude)) && Numb
 export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa' }) {
   const [locating, setLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState('');
+  const cancelLocation = useRef(null);
+  useEffect(() => () => cancelLocation.current?.(), []);
+  const selectManually = (coordinate) => {
+    cancelLocation.current?.();
+    setLocating(false);
+    setLocationStatus('Punto seleccionado manualmente.');
+    onSelect?.(coordinate);
+  };
   const selected = valid(latitude, longitude) ? { latitude: Number(latitude), longitude: Number(longitude) } : null;
   const markers = selected ? [{
     id: 'selected-location', kind: 'selected', coordinate: selected, color: '#b42318', draggable: true,
@@ -23,15 +32,17 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
     }
     setLocating(true);
     setLocationStatus('');
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
+    cancelLocation.current = buscarUbicacionPrecisa(navigator.geolocation, {
+      onProgress: setLocationStatus,
+      onSuccess: ({ coords }) => {
       const accuracy = Number(coords.accuracy);
       onSelect?.({ latitude: coords.latitude, longitude: coords.longitude, accuracy: Number.isFinite(accuracy) ? accuracy : null });
       setLocationStatus(Number.isFinite(accuracy) ? `Precisión estimada: ±${Math.round(accuracy)} m.` : 'Ubicación actual seleccionada.');
       setLocating(false);
-    }, (error) => {
-      setLocationStatus(error.code === error.PERMISSION_DENIED ? 'Autoriza la ubicación para seleccionar tu posición actual.' : 'No fue posible obtener una ubicación precisa. Inténtalo de nuevo.');
+    }, onError: (error) => {
+      setLocationStatus(error.message);
       setLocating(false);
-    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    } });
   };
   return <View style={{ width: '100%', gap: 7 }}>
     <Text style={{ color: '#386641', fontWeight: '700' }}>Haz clic sobre el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
@@ -43,8 +54,8 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
       style={{ width: '100%', height: 380, borderRadius: 14 }}
       markers={markers}
       camera={{ fitMode: selected ? 'markers' : 'none', fitKey: selected ? `${selected.latitude}:${selected.longitude}` : 'colombia', zoom: 16 }}
-      onMapPress={onSelect}
-      onMarkerDragEnd={(_id, coordinate) => onSelect?.(coordinate)}
+      onMapPress={selectManually}
+      onMarkerDragEnd={(_id, coordinate) => selectManually(coordinate)}
     />
     <Text style={{ color: '#526451', fontSize: 12 }}>Mapa © OpenStreetMap contributors · OpenFreeMap.</Text>
   </View>;

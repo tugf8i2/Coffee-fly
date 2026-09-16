@@ -7,11 +7,14 @@ const valid = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
   && Number(coordinate.latitude) >= -90 && Number(coordinate.latitude) <= 90
   && Number(coordinate.longitude) >= -180 && Number(coordinate.longitude) <= 180;
 
-export default function MapaAbiertoExpoGo({ camera = {}, markers = [], onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
+export default function MapaAbiertoExpoGo({ camera = {}, completedRoute = [], mapTheme = 'day', markers = [], onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
   const mapRef = useRef(null);
   const appliedFitKeyRef = useRef(null);
   const [ready, setReady] = useState(false);
   const routeCoordinates = route.filter(valid).map((coordinate) => ({
+    latitude: Number(coordinate.latitude), longitude: Number(coordinate.longitude),
+  }));
+  const completedCoordinates = completedRoute.filter(valid).map((coordinate) => ({
     latitude: Number(coordinate.latitude), longitude: Number(coordinate.longitude),
   }));
   const visibleMarkers = markers.filter((marker) => marker.id != null && valid(marker.coordinate));
@@ -62,6 +65,7 @@ export default function MapaAbiertoExpoGo({ camera = {}, markers = [], onManualM
         <Polyline coordinates={routeCoordinates} strokeColor="#fff" strokeWidth={10} />
         <Polyline coordinates={routeCoordinates} strokeColor="#3214d6" strokeWidth={6} />
       </> : null}
+      {completedCoordinates.length > 1 ? <Polyline coordinates={completedCoordinates} strokeColor="#7b8f80" strokeWidth={7} /> : null}
       {visibleMarkers.map((marker) => <Marker
         key={String(marker.id)}
         identifier={String(marker.id)}
@@ -75,6 +79,7 @@ export default function MapaAbiertoExpoGo({ camera = {}, markers = [], onManualM
         onDragEnd={(event) => onMarkerDragEnd?.(marker.id, event.nativeEvent.coordinate)}
       />)}
     </MapView>
+    {mapTheme === 'dark' ? <View pointerEvents="none" style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8,22,18,.42)' }} /> : null}
     <Text style={{ position: 'absolute', right: 5, bottom: 3, backgroundColor: 'rgba(255,255,255,.86)', color: '#33443a', fontSize: 9, paddingHorizontal: 4 }}>© OpenStreetMap contributors</Text>
   </View>;
 }

@@ -91,6 +91,15 @@ describe('motor GPS de navegación', () => {
     expect(engine.predictDisplay(baseTime + 5000)).toBe(first);
   });
 
+  test('la predicción no fuerza la ruta mientras se adquiere confianza', () => {
+    const engine = createNavigationEngine();
+    engine.setRoute([position().coords, position({ eastM: 500 }).coords]);
+    const first = engine.pushLocation(position({ northM: 8 }), baseTime);
+    expect(first.displaySource).toBe('filtered');
+    const predicted = engine.predictDisplay(baseTime + 1000);
+    expect(predicted.display.latitude).toBeCloseTo(first.display.latitude, 6);
+  });
+
   test('actualiza la predicción en intervalos cortos durante movimiento lento', () => {
     const engine = createNavigationEngine();
     const first = engine.pushLocation(position({ speed: 0.6, heading: 90 }), baseTime);

@@ -50,6 +50,16 @@ DB_POOL_TIMEOUT_SECONDS = _integer_setting("DB_POOL_TIMEOUT_SECONDS", 15, 1, 120
 DB_STATEMENT_TIMEOUT_MS = _integer_setting("DB_STATEMENT_TIMEOUT_MS", 15000, 1000, 120000)
 DB_CONNECT_TIMEOUT_SECONDS = _integer_setting("DB_CONNECT_TIMEOUT_SECONDS", 5, 1, 60)
 EVENT_RETENTION_DAYS = _integer_setting("EVENT_RETENTION_DAYS", 30, 1, 3650)
+ROUTING_TIMEOUT_SECONDS = _integer_setting("ROUTING_TIMEOUT_SECONDS", 12, 2, 60)
+ROUTING_PROVIDER = os.getenv("ROUTING_PROVIDER", "osrm").strip().lower()
+if ROUTING_PROVIDER not in {"osrm", "valhalla"}:
+    raise RuntimeError("ROUTING_PROVIDER debe ser osrm o valhalla")
+ROUTING_URL = os.getenv(
+    "ROUTING_URL",
+    "https://router.project-osrm.org" if ROUTING_PROVIDER == "osrm" else "http://valhalla:8002",
+).strip().rstrip("/")
+if not ROUTING_URL:
+    raise RuntimeError("ROUTING_URL es obligatoria")
 
 
 def cors_origins() -> list[str]:

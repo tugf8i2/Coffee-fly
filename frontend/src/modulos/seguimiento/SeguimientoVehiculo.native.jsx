@@ -11,6 +11,7 @@ import DriverEventReporter from '../../componentes/entregas/ReportadorNovedadCon
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { RUNNING_IN_EXPO_GO } from '../../configuracion/mapasNativos';
 import usePolling from '../../ganchos/usarSondeo';
+import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 import {
   detenerRastreoSegundoPlano,
   iniciarRastreoSegundoPlano,
@@ -23,14 +24,12 @@ import { estaEnLinea, guardarRutaEntrega, obtenerRutaEntrega } from '../../servi
 import { styles } from './SeguimientoVehiculo.styles';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { canCompleteTrip, realtimeLabel, trackingModeLabel } from '../../servicios/presentacionSeguimiento';
-import { asSpanishInstruction, formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions } from '../../servicios/navegacionVoz';
+import { formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions, spanishVoiceCapability } from '../../servicios/navegacionVoz';
 import { obtenerCalleActual } from '../../servicios/calleActual';
 import { createNavigationEngine } from '../../servicios/motorNavegacionGps';
-import { OSRM_BASE_URL } from '../../configuracion/osrm';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { createLatestRequestController } from '../../servicios/controlSolicitudes';
 
-const routeService = `${OSRM_BASE_URL}/route/v1/driving`;
 const toCoordinate = (latitud, longitud) => ({ latitude: Number(latitud), longitude: Number(longitud) });
 const distanceMeters = (first, second) => {
   if (!first || !second) return null;
@@ -73,6 +72,9 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   const [followVehicle, setFollowVehicle] = useState(true);
   const [routeFitRequest, setRouteFitRequest] = useState(0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceIdentifier, setVoiceIdentifier] = useState(null);
+  const [voiceStatus, setVoiceStatus] = useState('Comprobando voz en español…');
+  const [mapTheme, setMapTheme] = useState('day');
   const [currentRoad, setCurrentRoad] = useState('Localizando calle actual...');
   const [navigationPosition, setNavigationPosition] = useState(null);
   const [navigationEngine] = useState(() => createNavigationEngine());
@@ -225,6 +227,33 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   useEffect(() => () => { Speech.stop(); }, []);
 
   useEffect(() => {
+    let disposed = false;
+    Speech.getAvailableVoicesAsync().then((voices) => {
+      if (disposed) return;
+      const capability = spanishVoiceCapability(voices);
+      setVoiceIdentifier(capability.voice?.identifier || null);
+      setVoiceStatus(capability.label);
+      if (!capability.voice) setVoiceEnabled(false);
+    }).catch(() => {
+      if (!disposed) setVoiceStatus('No fue posible comprobar la voz; las indicaciones visuales siguen disponibles.');
+    });
+    return () => { disposed = true; };
+  }, []);
+
+  const speak = useCallback((text) => {
+    if (!text) return;
+    Speech.speak(text, {
+      language: 'es-CO',
+      rate: 0.92,
+      ...(voiceIdentifier ? { voice: voiceIdentifier } : {}),
+      onError: () => {
+        setMessageText('La voz no está disponible. Continúa usando las indicaciones visuales.');
+        setMessageType('warning');
+      },
+    });
+  }, [voiceIdentifier]);
+
+  useEffect(() => {
     if (role !== 'conductor') return undefined;
     return suscribirLecturasNavegacion((position) => {
       const output = navigationEngine.pushLocation(position);
@@ -289,33 +318,20 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       return directRoute;
     }
     try {
-      const url = `${routeService}/${origin.longitude},${origin.latitude};${routeDestination.longitude},${routeDestination.latitude}?overview=full&geometries=geojson&steps=true`;
-      const controller = new AbortController();
-      const abortObsoleteRoute = () => controller.abort();
-      routeRequest.signal.addEventListener('abort', abortObsoleteRoute, { once: true });
-      const timer = setTimeout(() => controller.abort(), 12000);
-      let response;
-      try {
-        response = await fetch(url, { signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
-        routeRequest.signal.removeEventListener('abort', abortObsoleteRoute);
-      }
+      const response = await fetchApi(`${API_BASE_URL}/entregas/${routeDeliveryId}/ruta-navegacion`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitud_origen: origin.latitude, longitud_origen: origin.longitude }),
+        signal: routeRequest.signal,
+        timeoutMs: 12000,
+        retries: 0,
+      });
       const data = await response.json();
       if (!routeRequestsRef.current.isCurrent(routeRequest)) return null;
-      const first = data.routes?.[0];
-      if (!response.ok || !first?.geometry?.coordinates?.length) {
-        throw Error('No se encontró una ruta vial para estas coordenadas.');
-      }
+      if (!response.ok || !data.puntos?.length) throw Error(apiErrorMessage(data, 'No se encontró una ruta vial para estas coordenadas.'));
       const next = {
-        etapa: stage,
-        puntos: first.geometry.coordinates.map(([longitude, latitude]) => ({ latitude, longitude })),
-        instrucciones: (first.legs || [])
-          .flatMap((leg) => leg.steps || [])
-          .map(asSpanishInstruction)
-          .filter((instruction) => instruction.texto),
-        distancia_m: Number(first.distance || 0),
-        duracion_s: Number(first.duration || 0),
+        ...data,
+        etapa: data.etapa || stage,
         calculada_en: Date.now(),
       };
       if (JSON.stringify(next).length <= 1024 * 1024) await guardarRutaEntrega(routeKey, next);
@@ -337,9 +353,7 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       }
       const directRoute = { puntos: [origin, routeDestination], instrucciones: [], etapa: stage };
       setRoute(directRoute);
-      setMessage(error.name === 'AbortError'
-        ? 'El servicio de rutas tardó demasiado; se muestra la dirección directa al destino.'
-        : error.message);
+      setMessage(error.message);
       return directRoute;
     }
   };
@@ -482,14 +496,14 @@ export default function SeguimientoVehiculo({ go, token, user }) {
         announcedInstructionRef.current = 0;
         maneuverProgressRef.current = { index: 0, minimumDistance: Number.POSITIVE_INFINITY };
         await Speech.stop();
-        Speech.speak(navigationGreeting(
+        speak(navigationGreeting(
           user?.nombre || user?.nombre_usuario,
           tracking?.destino,
           navigationRoute?.distancia_m,
           navigationRoute?.duracion_s,
-        ), { language: 'es-CO', rate: 0.92, pitch: 1 });
+        ));
         const firstInstruction = navigationRoute?.instrucciones?.[0];
-        if (firstInstruction?.texto) Speech.speak(firstInstruction.texto, { language: 'es-CO', rate: 0.92 });
+        if (firstInstruction?.texto) speak(firstInstruction.texto);
       }
     } catch (error) {
       setMessage(error.message);
@@ -546,7 +560,8 @@ export default function SeguimientoVehiculo({ go, token, user }) {
   };
 
   const points = tracking?.puntos || [];
-  const last = points[points.length - 1];
+  const remotePosition = useTrackingPosition(points);
+  const last = role === 'conductor' ? points[points.length - 1] : remotePosition.point;
   const rawVehicle = last ? toCoordinate(last.latitud, last.longitud) : null;
   const vehicle = role === 'conductor' && navigationPosition?.display ? navigationPosition.display : rawVehicle;
   const exactVehicle = role === 'conductor' && navigationPosition?.raw ? navigationPosition.raw : rawVehicle;
@@ -554,7 +569,12 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     ? navigationPosition.headingDeg : last?.rumbo_grados;
   const vehicleTimestamp = navigationPosition?.timestampMs || (last ? Date.parse(last.registrada_en) : null);
   const distanceToPickup = distanceMeters(exactVehicle, pickup);
-  const displayedRoute = route?.puntos || points.map((point) => toCoordinate(point.latitud, point.longitud));
+  const displayedRoute = role === 'conductor'
+    ? route?.puntos || points.map((point) => toCoordinate(point.latitud, point.longitud))
+    : remotePosition.points.map((point) => toCoordinate(point.latitud, point.longitud));
+  const completedRoute = route?.puntos?.length && navigationPosition?.segmentIndex != null
+    ? [...route.puntos.slice(0, navigationPosition.segmentIndex + 1), vehicle].filter(Boolean)
+    : [];
   const pendingGps = gpsState?.synchronization?.gpsPendientes || 0;
   const trackingMode = trackingModeLabel({
     taskStarted: gpsState?.taskStarted,
@@ -585,12 +605,12 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     }
     if (voiceEnabled && distance <= 300 && announcedInstructionRef.current !== instructionIndex) {
       announcedInstructionRef.current = instructionIndex;
-      Speech.speak(`En ${formatDistance(distance)}, ${currentInstruction.texto}`, { language: 'es-CO', rate: 0.92 });
+      speak(`En ${formatDistance(distance)}, ${currentInstruction.texto}`);
     }
     const passedManeuver = maneuverProgressRef.current.minimumDistance <= 100
       && distance >= maneuverProgressRef.current.minimumDistance + 35;
     if (distance <= 35 || passedManeuver) setInstructionIndex((current) => current + 1);
-  }, [currentInstruction, navigationPosition?.predicted, vehicle?.latitude, vehicle?.longitude, vehicleTimestamp, voiceEnabled]);
+  }, [currentInstruction, navigationPosition?.predicted, speak, vehicle?.latitude, vehicle?.longitude, vehicleTimestamp, voiceEnabled]);
 
   useEffect(() => {
     if (!vehicle || role !== 'conductor') return;
@@ -642,6 +662,8 @@ export default function SeguimientoVehiculo({ go, token, user }) {
     <MapaNavegacionAbierto
       style={styles.navigationMap}
       route={displayedRoute}
+      completedRoute={completedRoute}
+      mapTheme={mapTheme}
       vehicle={vehicle}
       vehicleDescription={exactVehicle ? `GPS exacto ${exactVehicle.latitude.toFixed(6)}, ${exactVehicle.longitude.toFixed(6)}${navigationPosition?.accuracyM != null ? ` · precisión ±${Math.round(navigationPosition.accuracyM)} m` : ''}` : 'Esperando ubicación GPS'}
       destination={destination}
@@ -669,10 +691,13 @@ export default function SeguimientoVehiculo({ go, token, user }) {
       {navigationPosition ? <Text maxFontSizeMultiplier={1.15} style={styles.gpsQualityText}>
         GPS ±{Math.round(navigationPosition.accuracyM)} m · {Math.round(navigationPosition.speedMps * 3.6)} km/h · {navigationPosition.routeStatus === 'on-route' ? 'en ruta' : 'ajustando'}
       </Text> : null}
+      <Text maxFontSizeMultiplier={1.1} numberOfLines={2} style={styles.gpsQualityText}>{voiceStatus}</Text>
     </View>
 
     <View style={styles.navigationControls}>
       <TouchableOpacity style={styles.roundControl} onPress={() => { setVoiceEnabled((current) => { if (current) Speech.stop(); return !current; }); }}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>{voiceEnabled ? 'Voz' : 'Mudo'}</Text></TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !currentInstruction }} disabled={!currentInstruction} style={[styles.roundControl, !currentInstruction && styles.unavailable]} onPress={() => speak(currentInstruction.texto)}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Repetir</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.roundControl} onPress={() => setMapTheme((current) => current === 'dark' ? 'day' : 'dark')}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>{mapTheme === 'dark' ? 'Día' : 'Noche'}</Text></TouchableOpacity>
       <TouchableOpacity style={styles.roundControl} onPress={() => { setFollowVehicle(false); setRouteFitRequest((value) => value + 1); }}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Ruta</Text></TouchableOpacity>
       <TouchableOpacity style={[styles.roundControl, followVehicle && styles.roundControlActive]} onPress={() => setFollowVehicle(true)}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Centrar</Text></TouchableOpacity>
       <TouchableOpacity style={styles.roundControl} onPress={() => go('dashboard')}><Text maxFontSizeMultiplier={1.1} style={styles.roundControlText}>Salir</Text></TouchableOpacity>
@@ -776,10 +801,11 @@ export default function SeguimientoVehiculo({ go, token, user }) {
               />
             </View>
             <Text style={styles.muted}>Ubicación GPS del conductor y recorrido sobre OpenStreetMap. Las coordenadas se actualizan mediante el canal en vivo.</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.muted}>{remotePosition.status}</Text>
           </>
           <View style={styles.fullCard}>
             <Text style={styles.cardTitle}>{tracking.vehiculo_placa} · {tracking.estado_entrega}</Text>
-            <Text>Estado de ubicación: {locationFreshness}</Text>
+            <Text>Estado de ubicación: {role === 'conductor' ? locationFreshness : remotePosition.status}</Text>
             <Text>Distancia recorrida: {((tracking.distancia_recorrida_m || 0) / 1000).toFixed(2)} km</Text>
             {tracking.destino ? <Text>Destino actual: {tracking.destino}</Text> : null}
             {destination ? (

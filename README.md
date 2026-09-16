@@ -217,6 +217,21 @@ docker compose logs -f
 docker compose down
 ```
 
+Para rutas autohospedadas usa uno de los motores opcionales. Valhalla es la
+opción recomendada para navegación con maniobras y español; su primer arranque
+descarga el extracto de Colombia y construye el grafo:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.valhalla.yml up --build -d
+# Alternativa ya preparada con OSRM:
+docker compose -f docker-compose.yml -f docker-compose.osrm.yml up --build -d
+```
+
+La aplicación solicita rutas mediante FastAPI, no directamente al motor. Así se
+validan la sesión, el viaje autorizado y el destino antes de calcular la ruta.
+La preparación y los recursos están documentados en
+[`infra/valhalla/README.md`](infra/valhalla/README.md).
+
 `docker compose down` conserva los datos. No agregues `-v` para una parada normal:
 `docker compose down -v` elimina el volumen de PostgreSQL. Úsalo únicamente si
 quieres borrar deliberadamente toda la base y ya tienes una copia de seguridad.

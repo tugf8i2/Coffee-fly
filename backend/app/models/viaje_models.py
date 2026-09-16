@@ -9,13 +9,29 @@ from app.core.database import Base
 
 class Viaje(Base):
     __tablename__ = "viaje"
-    __table_args__ = (Index(
-        "uq_viaje_vehiculo_turno_activo",
-        "vehiculo_id",
-        "orden_cola",
-        unique=True,
-        postgresql_where=text("estado_viaje IN ('asignado', 'en_cola', 'en_camino')"),
-    ),)
+    __table_args__ = (
+        Index(
+            "uq_viaje_vehiculo_turno_activo",
+            "vehiculo_id",
+            "orden_cola",
+            unique=True,
+            postgresql_where=text("estado_viaje IN ('asignado', 'en_cola', 'en_camino')"),
+        ),
+        Index("ix_viaje_vehiculo_estado_orden", "vehiculo_id", "estado_viaje", "orden_cola"),
+        Index("ix_viaje_conductor_estado", "conductor_id", "estado_viaje"),
+        Index(
+            "ux_viaje_vehiculo_activo",
+            "vehiculo_id",
+            unique=True,
+            postgresql_where=text("estado_viaje = 'en_camino'"),
+        ),
+        Index(
+            "ux_viaje_conductor_activo",
+            "conductor_id",
+            unique=True,
+            postgresql_where=text("estado_viaje = 'en_camino'"),
+        ),
+    )
 
     id_viaje = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehiculo_id = Column(Integer, ForeignKey("vehiculo.id_vehiculo"), nullable=False, index=True)

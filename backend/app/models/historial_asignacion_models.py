@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -8,6 +8,7 @@ from app.core.database import Base
 
 class HistorialAsignacion(Base):
     __tablename__ = "historial_asignacion"
+    __table_args__ = (Index("ix_historial_asignacion_viaje_id", "viaje_id"),)
     id_asignacion = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     entrega_id = Column(UUID(as_uuid=True), ForeignKey("entrega.id_entrega"), nullable=False)
     carga_id = Column(UUID(as_uuid=True), ForeignKey("carga.id_carga"), nullable=False)

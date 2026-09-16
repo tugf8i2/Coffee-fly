@@ -10,37 +10,38 @@ const HTML = `<!doctype html>
 html,body,#map{width:100%;height:100%;margin:0;background:#dfe7e2}.leaflet-control-attribution{font-size:8px!important}
 .vehicle{width:42px;height:42px;border-radius:50%;background:#fffffff5;box-shadow:0 2px 10px #0005;display:flex;align-items:center;justify-content:center}.arrow{font-size:29px;color:#155eef;line-height:1}
 .point{width:20px;height:20px;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 7px #0006}.point.selected{width:26px;height:26px}.leaflet-div-icon{background:transparent;border:0;transition:transform 70ms linear}.leaflet-popup-content{font:13px sans-serif;color:#17351f}
+body.dark .leaflet-tile-pane{filter:brightness(.58) contrast(1.12) saturate(.72)}body.dark .leaflet-control{filter:none}
 </style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
 const send=(message)=>window.ReactNativeWebView.postMessage(JSON.stringify(message));
 if(typeof L==='undefined'){send({type:'error',fatal:true,message:'No fue posible iniciar el mapa de calles.'});throw new Error('Leaflet unavailable');}
 const map=L.map('map',{zoomControl:true,attributionControl:true}).setView([4.5709,-74.2973],5);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
 map.zoomControl.setPosition('bottomright');
-let route=[],markerState=[],cameraState={},routeFitKey=null,markerFitKey=null,routeLines=[];
+let route=[],completedRoute=[],markerState=[],cameraState={},routeFitKey=null,markerFitKey=null,routeLines=[];
 const markers=new Map();
 const safeCoordinate=(coordinate)=>{const latitude=Number(coordinate&&coordinate.latitude),longitude=Number(coordinate&&coordinate.longitude);return Number.isFinite(latitude)&&latitude>=-90&&latitude<=90&&Number.isFinite(longitude)&&longitude>=-180&&longitude<=180?[latitude,longitude]:null;};
 const signature=(item)=>[item.kind,item.color,item.draggable].join('|');
 const escapeHtml=(value)=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const iconFor=(item)=>{const color=item.color||(item.kind==='vehicle'?'#155eef':'#b42318');const selected=item.kind==='selected';const size=item.kind==='vehicle'?[42,42]:selected?[32,32]:[26,26];const html=item.kind==='vehicle'?'<div class="vehicle"><span class="arrow" style="color:'+color+';transform:rotate('+Number(item.heading||0)+'deg)">▲</span></div>':'<div class="point'+(selected?' selected':'')+'" style="background:'+color+'"></div>';return L.divIcon({className:'',html,iconSize:size,iconAnchor:[size[0]/2,size[1]/2]});};
 const createMarker=(item,coordinate)=>{const marker=L.marker(coordinate,{draggable:Boolean(item.draggable),icon:iconFor(item)}).addTo(map);if(item.draggable)marker.on('dragend',()=>{const value=marker.getLatLng();send({type:'marker-drag-end',id:item.id,coordinate:{latitude:value.lat,longitude:value.lng}});});return {marker,signature:signature(item)};};
-const applyRoute=()=>{const coordinates=route.map(safeCoordinate).filter(Boolean);routeLines.forEach(line=>line.remove());routeLines=[];if(coordinates.length>1)routeLines=[L.polyline(coordinates,{color:'#fff',weight:11,opacity:.94}).addTo(map),L.polyline(coordinates,{color:'#3214d6',weight:7}).addTo(map)];if(cameraState.fitMode==='route'&&coordinates.length>1&&routeFitKey!==cameraState.fitKey){routeFitKey=cameraState.fitKey;map.fitBounds(coordinates,{padding:[60,60],maxZoom:cameraState.maxZoom||18,animate:true});}};
+const applyRoute=()=>{const coordinates=route.map(safeCoordinate).filter(Boolean),completed=completedRoute.map(safeCoordinate).filter(Boolean);routeLines.forEach(line=>line.remove());routeLines=[];if(coordinates.length>1)routeLines=[L.polyline(coordinates,{color:'#fff',weight:11,opacity:.94}).addTo(map),L.polyline(coordinates,{color:'#3214d6',weight:7}).addTo(map)];if(completed.length>1)routeLines.push(L.polyline(completed,{color:'#7b8f80',weight:7,opacity:.95}).addTo(map));if(cameraState.fitMode==='route'&&coordinates.length>1&&routeFitKey!==cameraState.fitKey){routeFitKey=cameraState.fitKey;map.fitBounds(coordinates,{padding:[60,60],maxZoom:cameraState.maxZoom||18,animate:true});}};
 const applyMarkers=()=>{const active=new Set();markerState.forEach(item=>{const coordinate=safeCoordinate(item.coordinate);if(item.id==null||!coordinate)return;const id=String(item.id);active.add(id);let record=markers.get(id);if(record&&record.signature!==signature(item)){record.marker.remove();markers.delete(id);record=null;}if(!record){record=createMarker(item,coordinate);markers.set(id,record);}else{record.marker.setLatLng(coordinate);const arrow=record.marker.getElement()&&record.marker.getElement().querySelector('.arrow');if(arrow){arrow.style.transform='rotate('+Number(item.heading||0)+'deg)';arrow.style.color=item.color||'#155eef';}}if(item.title||item.description)record.marker.bindPopup('<strong>'+escapeHtml(item.title)+'</strong><div>'+escapeHtml(item.description)+'</div>');});markers.forEach((record,id)=>{if(!active.has(id)){record.marker.remove();markers.delete(id);}});const coordinates=markerState.filter(item=>item.id!=null).map(item=>safeCoordinate(item.coordinate)).filter(Boolean);if(cameraState.fitMode==='markers'&&coordinates.length&&markerFitKey!==cameraState.fitKey){markerFitKey=cameraState.fitKey;if(coordinates.length===1)map.setView(coordinates[0],cameraState.zoom||15,{animate:false});else map.fitBounds(coordinates,{padding:[45,45],maxZoom:cameraState.maxZoom||16,animate:true});}const followed=markers.get(String(cameraState.followMarkerId||''));if(cameraState.follow&&followed)map.setView(followed.marker.getLatLng(),Math.max(cameraState.zoom||17,map.getZoom()),{animate:false});};
-const receive=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='route'){route=message.route||[];cameraState={...cameraState,...message.camera};applyRoute();}if(message.type==='markers'){markerState=message.markers||[];cameraState={...cameraState,...message.camera};applyMarkers();}}catch(error){send({type:'error',fatal:false,message:error.message});}};
+const receive=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='route'){route=message.route||[];completedRoute=message.completedRoute||[];cameraState={...cameraState,...message.camera};document.body.classList.toggle('dark',message.mapTheme==='dark');applyRoute();}if(message.type==='markers'){markerState=message.markers||[];cameraState={...cameraState,...message.camera};applyMarkers();}}catch(error){send({type:'error',fatal:false,message:error.message});}};
 document.addEventListener('message',receive);window.addEventListener('message',receive);
 map.on('dragstart',event=>{if(event.originalEvent)send({type:'camera-interaction',gesture:'drag'});});map.on('zoomstart',event=>{if(event.originalEvent)send({type:'camera-interaction',gesture:'zoom'});});
 map.on('click',event=>send({type:'map-press',coordinate:{latitude:event.latlng.lat,longitude:event.latlng.lng}}));
 setTimeout(()=>{map.invalidateSize();applyRoute();applyMarkers();send({type:'ready'});},100);
 </script></body></html>`;
 
-export default function MapaAbierto({ camera = {}, fallback, markers = [], onError, onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
+export default function MapaAbierto({ camera = {}, completedRoute = [], fallback, mapTheme = 'day', markers = [], onError, onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
   const webRef = useRef(null);
   const readyRef = useRef(false);
   const failureRef = useRef(false);
   const reportedFatalRef = useRef('');
   const [loadError, setLoadError] = useState('');
   const [webViewKey, setWebViewKey] = useState(0);
-  const latestRef = useRef({ camera, markers, route });
-  latestRef.current = { camera, markers, route };
+  const latestRef = useRef({ camera, completedRoute, mapTheme, markers, route });
+  latestRef.current = { camera, completedRoute, mapTheme, markers, route };
   const send = (type, payload) => webRef.current?.postMessage(JSON.stringify({ type, ...payload }));
   const failLoad = (message) => {
     if (failureRef.current) return;
@@ -54,8 +55,8 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
   };
 
   useEffect(() => {
-    if (readyRef.current) send('route', { route, camera });
-  }, [camera.fitKey, camera.fitMode, route]);
+    if (readyRef.current) send('route', { route, completedRoute, mapTheme, camera });
+  }, [camera.fitKey, camera.fitMode, completedRoute, mapTheme, route]);
 
   useEffect(() => {
     if (readyRef.current) send('markers', { markers, camera });
@@ -102,7 +103,7 @@ export default function MapaAbierto({ camera = {}, fallback, markers = [], onErr
         failureRef.current = false;
         reportedFatalRef.current = '';
         setLoadError('');
-        send('route', { route: latestRef.current.route, camera: latestRef.current.camera });
+        send('route', { route: latestRef.current.route, completedRoute: latestRef.current.completedRoute, mapTheme: latestRef.current.mapTheme, camera: latestRef.current.camera });
         send('markers', { markers: latestRef.current.markers, camera: latestRef.current.camera });
       }
       if (message.type === 'camera-interaction') onManualMove?.(message.gesture);

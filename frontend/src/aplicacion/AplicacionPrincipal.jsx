@@ -1,6 +1,6 @@
 import FeedbackMessage from '../componentes/comunes/MensajeRetroalimentacion';
 import { useEffect, useState } from 'react';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -17,6 +17,7 @@ import MiActividad from '../modulos/caficultor/MiActividad';
 import OperationalMonitoring from '../modulos/seguimiento/MonitoreoOperativo';
 import Reports from '../modulos/reportes/Reportes';
 import RoleDashboard from '../modulos/panel/PanelPorRol';
+import RegistradorLayout from '../modulos/panel/RegistradorLayout';
 import SeguimientoVehiculo from '../modulos/seguimiento/SeguimientoVehiculo';
 import ServicioCliente from '../modulos/soporte/ServicioCliente';
 import SolicitarRecoleccion from '../modulos/caficultor/SolicitarRecoleccion';
@@ -169,6 +170,8 @@ export default function AplicacionPrincipal() {
     farmerDashboard: <MiActividad {...common} />,
     tracking: <SeguimientoVehiculo {...common} />,
     users: <UserManagement {...common} />,
+    registrarFarmers: <UserManagement key="registrar-farmers" {...common} initialRole={4} />,
+    registrarDrivers: <UserManagement key="registrar-drivers" {...common} initialRole={2} />,
     cooperatives: <CooperativeManagement {...common} />,
     vehicles: <VehicleManagement {...common} />,
     vehicleStatus: <VehicleStatus {...common} />,
@@ -183,6 +186,14 @@ export default function AplicacionPrincipal() {
   };
   if (restoring) return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}><Text style={styles.muted}>Restaurando sesión segura…</Text></SafeAreaView>
+  </SafeAreaProvider>;
+  if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
+    <RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
+      <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
+        {screens[screen] || screens.dashboard}
+      </AppErrorBoundary>
+    </RegistradorLayout>
+    <StatusBar style="dark" />
   </SafeAreaProvider>;
   return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}>

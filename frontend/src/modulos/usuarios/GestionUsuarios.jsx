@@ -30,11 +30,11 @@ function generatedEmail(nombre, apellido) {
   return firstName ? `${firstName.slice(0, maxFirstName)}.${lastName.slice(-3)}${domain}` : '';
 }
 
-export default function GestionUsuarios({ go, token }) {
+export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
   const [users, setUsers] = useState([]);
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState(initialRole);
   const [statusByUser, setStatusByUser] = useState({});
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState({ ...emptyForm, rol_id: initialRole === 'all' ? emptyForm.rol_id : initialRole });
   const [editingId, setEditingId] = useState(null);
   const pageRef = useRef(null);
   const [message, setMessageText] = useState('');

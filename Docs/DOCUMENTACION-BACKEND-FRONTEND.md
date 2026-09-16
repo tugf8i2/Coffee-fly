@@ -206,6 +206,7 @@ el total y no confía únicamente en el valor presentado por el cliente.
 | `POST /entregas/{id}/ubicacion` | Conductor asignado | Registra un punto GPS idempotente. |
 | `POST /entregas/{id}/ubicaciones/sincronizar` | Conductor asignado | Recibe hasta 200 puntos offline. |
 | `GET /entregas/{id}/seguimiento` | Coordinador/Conductor/Caficultor relacionado | Devuelve ruta, etapa y destinos permitidos. |
+| `POST /entregas/{id}/ruta-navegacion` | Coordinador/Conductor/Caficultor relacionado | Calcula una ruta autorizada con Valhalla u OSRM y normaliza geometría y maniobras. |
 | `GET /entregas/mi-seguimiento` | Caficultor | Obtiene su entrega activa. |
 | `GET /entregas/historial` | Coordinador/Caficultor | Filtros y paginación del historial. |
 | `GET /entregas/{id}/historial-estados` | Coordinador/Conductor | Auditoría de estados. |
@@ -585,7 +586,10 @@ En Docker también se usan `POSTGRES_PASSWORD`, `POSTGRES_HOST_PORT`,
 | --- | --- |
 | `EXPO_PUBLIC_API_URL` | Base REST; `/api` en Docker web o URL absoluta en móvil. |
 | `EXPO_PUBLIC_REVERSE_GEOCODING_URL` | Servicio opcional de geocodificación inversa. |
-| `EXPO_PUBLIC_OSRM_URL` | Servicio OSRM opcional para calcular rutas; vacío usa el servidor público. |
+| `EXPO_PUBLIC_OSRM_URL` | OSRM usado sólo para resolver la calle actual; vacío usa el servidor público de demostración. |
+| `ROUTING_PROVIDER` | Motor del backend: `valhalla` u `osrm`. |
+| `ROUTING_URL` | URL interna/HTTPS del motor de rutas. |
+| `ROUTING_TIMEOUT_SECONDS` | Tiempo máximo por cálculo de ruta. |
 
 Las variables `EXPO_PUBLIC_*` quedan incluidas en el bundle y nunca deben
 contener contraseñas o secretos.

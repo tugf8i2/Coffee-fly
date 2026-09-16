@@ -67,3 +67,22 @@ export const navigationGreeting = (name, destination, distance, duration) => (
   + `Te diriges hacia ${destination || 'el destino seleccionado'}. `
   + `La ruta estimada es de ${formatDistance(distance)} y ${formatDuration(duration)}.`
 );
+
+export function selectSpanishVoice(voices = []) {
+  const spanish = voices.filter((voice) => /^es(?:-|_)/i.test(String(voice?.language || '')));
+  if (!spanish.length) return null;
+  return spanish.find((voice) => /^es(?:-|_)CO$/i.test(String(voice.language)))
+    || spanish.find((voice) => voice.quality === 'Enhanced')
+    || spanish[0];
+}
+
+export function spanishVoiceCapability(voices = []) {
+  const voice = selectSpanishVoice(voices);
+  if (!voice) return { voice: null, label: 'No hay una voz en español instalada; se mantienen las indicaciones visuales.', offline: false };
+  if (voice.localService === true) return { voice, label: 'Voz en español local disponible.', offline: true };
+  return {
+    voice,
+    label: 'Voz en español disponible. El sistema no informa si funciona sin conexión; compruébala en este dispositivo.',
+    offline: null,
+  };
+}
