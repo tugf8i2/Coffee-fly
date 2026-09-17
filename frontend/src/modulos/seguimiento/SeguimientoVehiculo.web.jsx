@@ -1,3 +1,4 @@
+import { estilosOperativos } from '../panel/estilosOperativos';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -87,7 +88,7 @@ export default function SeguimientoVehiculo({
       ? { ...defaultStyles, ...conductorModuleStyles }
       : role === 'coordinador'
         ? { ...defaultStyles, ...coordinatorModuleStyles }
-        : defaultStyles;
+        : role === 'caficultor' ? { ...defaultStyles, ...estilosOperativos } : defaultStyles;
 
   const selectDelivery = useCallback((id) => {
     deliveryRef.current = id;

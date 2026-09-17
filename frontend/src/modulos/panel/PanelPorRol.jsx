@@ -1,6 +1,7 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import ResumenCaficultor from './ResumenCaficultor';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import EventMessageInbox from '../../componentes/entregas/BandejaMensajesEventos';
@@ -62,6 +63,7 @@ export default function PanelPorRol({ user, token, go }) {
   }[role] || [];
   const groups = gruposPorRol(role);
   const visibleGroups = showAll ? groups : [{ title: 'Tareas principales', cards: groups.flatMap((group) => group.cards).filter(([, screen]) => primaryScreens.includes(screen)) }];
+  if (Platform.OS === 'web' && role === 'caficultor') return <ResumenCaficultor user={user} data={data} error={error} go={go} onRefresh={load}/>;
   return <ScrollView contentContainerStyle={styles.page}>
     <View style={styles.dashboardIntro}>
       <Text style={styles.dashboardEyebrow}>Vista general</Text>

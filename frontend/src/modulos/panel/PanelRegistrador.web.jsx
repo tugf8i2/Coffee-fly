@@ -1,3 +1,5 @@
+import MarcaCafe from '../../componentes/comunes/MarcaCafe.web';
+import BannerCafe from '../../componentes/comunes/BannerCafe';
 import React, { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import reference from '../../assets/brand/registrador-reference.png';
@@ -43,11 +45,10 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
   const [exporting, setExporting] = useState('');
   const [exportError, setExportError] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [section, setSection] = useState(null);
   useEffect(() => { setSection(null); setProfileOpen(false); }, [screen]);
   useEffect(() => {
-    const close = (event) => { if (event.key === 'Escape') { setProfileOpen(false); setNotificationsOpen(false); setSection(null); } };
+    const close = (event) => { if (event.key === 'Escape') { setProfileOpen(false); setSection(null); } };
     document.addEventListener('keydown', close);
     return () => document.removeEventListener('keydown', close);
   }, []);
@@ -79,21 +80,22 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
   };
   return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''}`}>
     <style>{`@font-face{font-family:Registrar;src:url('${fontUrl(regular)}');font-weight:400;font-display:swap}@font-face{font-family:Registrar;src:url('${fontUrl(bold)}');font-weight:600 900;font-display:swap}`}</style>
-    <aside className="reg-sidebar" aria-label="Navegación del registrador">
-      <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><ReferenceCrop x={55} y={5} w={133} h={89} label="Coffee Fly · Tu café viaja"/></button>
-      <div className="reg-sidebar-user"><ReferenceCrop x={25} y={120} w={64} h={64} className="reg-avatar"/><div><strong>{name}</strong><small>Registrador</small><span className="reg-online"><i className={online ? '' : 'offline'}/>{online ? 'En línea' : 'Sin conexión'}</span></div></div>
+    <aside className="reg-sidebar" aria-label="Navegación del registrador" inert={collapsed ? true : undefined}>
+      <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
+      <div className="reg-sidebar-user"><span className="cf-avatar"><Icon name="user" size={30}/></span><div><strong>{name}</strong><small>Registrador</small><span className="reg-online"><i className={online ? '' : 'offline'}/>{online ? 'En línea' : 'Sin conexión'}</span></div></div>
       <nav>{menu.map(([icon, label, target]) => <button key={target} className={active === target ? 'active' : ''} aria-current={active === target ? 'page' : undefined} onClick={() => navigate(target)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="reg-sidebar-art"><ReferenceCrop x={0} y={731} w={241} h={293}/></div>
     </aside>
+    {!collapsed && <button className="cf-menu-backdrop" aria-label="Cerrar menú" onClick={() => setCollapsed(true)}/>}
     <div className="reg-workspace">
-      <header className="reg-topbar"><button className="reg-icon-button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed}><Icon name="menu" size={26}/></button><div className="reg-topbar-right">
-        <div className="reg-popover-anchor"><button className="reg-notifications reg-icon-button" aria-label="Notificaciones" aria-expanded={notificationsOpen} onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }}><Icon name="bell" size={28}/>{error || notice ? <span className="reg-counter">1</span> : null}</button>{notificationsOpen && <div className="reg-popover"><strong>Notificaciones</strong><p>{error || notice || 'No tienes notificaciones pendientes.'}</p></div>}</div>
-        <div className="reg-popover-anchor"><button className="reg-profile" aria-expanded={profileOpen} onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }}><ReferenceCrop x={1293} y={13} w={53} h={53} className="reg-avatar"/><span><strong>{name}</strong><small>Registrador</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <div className="reg-popover"><strong>{name}</strong><p>{user?.correo_usuario || 'Cuenta de registrador'}</p><button onClick={() => { setSection('settings'); setProfileOpen(false); }}>Configuración de cuenta</button><button onClick={onLogout}>Cerrar sesión</button></div>}</div>
+      <header className="reg-topbar"><button className="reg-icon-button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed}><Icon name="menu" size={26}/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><div className="reg-topbar-right">
+        <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, registrador`} aria-expanded={profileOpen} onClick={() => { setProfileOpen(!profileOpen); }}><span className="cf-avatar"><Icon name="user" size={26}/></span><span><strong>{name}</strong><small>Registrador</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <div className="reg-popover"><strong>{name}</strong><p>{user?.correo_usuario || 'Cuenta de registrador'}</p><button onClick={() => { setSection('settings'); setProfileOpen(false); }}>Configuración de cuenta</button><button onClick={onLogout}>Cerrar sesión</button></div>}</div>
       </div></header>
       <main className="reg-main">
+        {notice && <div className="reg-alert" role="status">{notice}</div>}
         {error && <div className="reg-alert" role="alert">{error}<button onClick={onRefresh}>Reintentar</button></div>}
         {screen === 'dashboard' ? <>
-          <section className="reg-hero" aria-label="Construyendo la cadena del café. Registra, organiza y conecta a todos los actores del transporte cafetero."><ReferenceCrop x={263} y={89} w={1254} h={187}/><h1 className="reg-sr-only">Construyendo la cadena del café</h1></section>
+          <BannerCafe title="Construyendo la cadena del café" subtitle="Registra, organiza y conecta a todos los actores del transporte cafetero."/>
           <section className="reg-metrics" aria-label="Resumen de registros">{metricCards.map(([icon, key, label], index) => <article className="reg-metric" key={key}><div className={`reg-disc disc-${index}`}><Icon name={icon} size={39}/></div><div><strong className="reg-metric-value">{count(key)}</strong><p>{label}</p></div></article>)}</section>
           <div className="reg-dashboard-grid">
             <section className="reg-card reg-actions"><Header icon="clipboard" title="Acciones rápidas"/><div className="reg-action-grid">{quickActions.map(([icon, title, description, target], index) => <button key={target} className={`reg-quick quick-${index}`} onClick={() => navigate(target)}><Icon name={icon} size={48}/><strong>{title}</strong><span>{description}</span></button>)}</div></section>

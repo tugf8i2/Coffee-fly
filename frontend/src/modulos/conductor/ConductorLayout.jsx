@@ -1,6 +1,8 @@
+import BannerCafe from '../../componentes/comunes/BannerCafe';
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -10,6 +12,7 @@ import {
 } from 'react-native';
 import { useFonts } from 'expo-font';
 import Icon from './IconoConductor';
+import MarcoOperativo from '../panel/MarcoOperativo';
 import useDriverSummary from './usarResumenConductor';
 import { readDriverValue, writeDriverValue } from './almacenConductor';
 import { styles as s } from './Conductor.styles';
@@ -19,7 +22,8 @@ import { driverDate, driverTodayMetrics } from './presentacionConductor';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 
-const reference = require('../../assets/brand/conductor-reference.png');
+const logo = require('../../assets/brand/logo.png');
+const landscape = require('../../assets/brand/coffee-landscape.jpg');
 const checks = [
   ['Niveles de aceite', 'Motor, dirección y otros fluidos'],
   ['Llantas', 'Presión y estado general'],
@@ -49,29 +53,6 @@ const tabs = [
   ['profile', 'Perfil', 'user'],
 ];
 
-// Se reutilizan las ilustraciones originales, no capturas completas de las pantallas.
-function ReferenceArt({ crop, width, height, style }) {
-  const scale = Math.max(width / crop[2], height / crop[3]);
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={[{ width, height, overflow: 'hidden' }, style]}
-    >
-      <Image
-        source={reference}
-        resizeMode="stretch"
-        style={{
-          position: 'absolute',
-          width: 1448 * scale,
-          height: 1086 * scale,
-          left: -crop[0] * scale,
-          top: -crop[1] * scale,
-        }}
-      />
-    </View>
-  );
-}
 function Label({ children, style, bold, ...props }) {
   return (
     <Text {...props} style={[s.font, bold && s.bold, style]}>
@@ -467,11 +448,16 @@ export default function ConductorLayout({
       </View>
     );
   return (
+    <MarcoOperativo user={user} role="Conductor" menu={[
+      ['home','Inicio','dashboard'], ['pin','Ruta activa','tracking'], ['truck','Entregas','assignedDeliveries'],
+      ['clipboard','Checklist del vehículo','checklist'], ['bell','Novedades','events'], ['people','Servicio al cliente','support'],
+      ['user','Perfil e historial','profile'], ['database','Sin conexión','offline'],
+    ]} active={page === 'detail' ? 'assignedDeliveries' : page} go={navigate} onLogout={onLogout} connectionStatus={connectionStatus} immersive={page === 'tracking' && navigationMode}>
     <View style={s.root}>
-      {!(page === 'tracking' && navigationMode) && (
+      {Platform.OS !== 'web' && !(page === 'tracking' && navigationMode) && (
         <View style={s.top}>
           {page === 'dashboard' ? (
-            <ReferenceArt crop={[73, 5, 98, 65]} width={78} height={52} />
+            <Image source={logo} resizeMode="contain" style={{ width: 44, height: 44 }} accessibilityLabel="Coffee Fly"/>
           ) : (
             <TouchableOpacity
               accessibilityRole="button"
@@ -483,10 +469,10 @@ export default function ConductorLayout({
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
-            <Label bold style={s.topTitle}>
+            <Label bold numberOfLines={2} style={[s.topTitle, width < 600 && { fontSize: 18 }]}>
               {currentTitle}
             </Label>
-            {page === 'dashboard' && (
+            {page === 'dashboard' && width >= 400 && (
               <Label style={{ fontSize: 10, letterSpacing: 1.4 }}>
                 RUTAS QUE LLEVAN UN MEJOR CAFÉ
               </Label>
@@ -652,31 +638,7 @@ export default function ConductorLayout({
           )}
           {page === 'dashboard' && (
             <>
-              <View style={s.hero}>
-                <ReferenceArt
-                  crop={[409, 0, 632, 82]}
-                  width={contentWidth}
-                  height={105}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    opacity: 0.28,
-                  }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Label bold style={{ fontSize: 22 }}>
-                    Hola, {user.nombre || user.nombre_usuario || 'conductor'}
-                  </Label>
-                  <Label style={{ marginTop: 3 }}>Buen trabajo hoy 👋</Label>
-                </View>
-                <ReferenceArt
-                  crop={[1238, 490, 141, 147]}
-                  width={76}
-                  height={79}
-                  style={{ borderRadius: 8 }}
-                />
-              </View>
+              <BannerCafe eyebrow="CONDUCTOR · COFFEE FLY" title={`Hola, ${user.nombre || user.nombre_usuario || 'conductor'}`} subtitle="Cada ruta conecta personas, cosechas y destinos."/>
               <View style={s.metricRow}>
                 {metrics.map(([value, name, icon]) => (
                   <View
@@ -758,7 +720,6 @@ export default function ConductorLayout({
                     'play',
                     trip ? 'tracking' : 'assignedDeliveries',
                   ],
-                  ['Entregas', 'Ver mis entregas', 'box', 'assignedDeliveries'],
                   ['Checklist', 'Revisar vehículo', 'checklist', 'checklist'],
                   [
                     'Reportar novedad',
@@ -1020,11 +981,7 @@ export default function ConductorLayout({
                     },
                   ]}
                 >
-                  <ReferenceArt
-                    crop={[1238, 490, 141, 147]}
-                    width={width < 600 ? contentWidth : contentWidth * 0.3}
-                    height={230}
-                  />
+                  <View style={{ alignItems: 'center', justifyContent: 'center', height: 180, backgroundColor: '#e3eee5' }}><Icon name="truck" size={96} color="#064c3b"/></View>
                   <View
                     style={{ backgroundColor: '#124f37', padding: 16, gap: 5 }}
                   >
@@ -1206,17 +1163,7 @@ export default function ConductorLayout({
           {page === 'profile' && (
             <>
               <View style={s.hero}>
-                <ReferenceArt
-                  crop={[409, 0, 632, 82]}
-                  width={contentWidth}
-                  height={120}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    opacity: 0.2,
-                  }}
-                />
+                <Image source={landscape} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15 }} accessible={false}/>
                 <View
                   style={{
                     width: 62,
@@ -1360,7 +1307,7 @@ export default function ConductorLayout({
           )}
         </ScrollView>
       )}
-      {!(page === 'tracking' && navigationMode) && (
+      {Platform.OS !== 'web' && !(page === 'tracking' && navigationMode) && (
         <View style={s.tabs}>
           {tabs.map(([target, name, icon]) => {
             const active =
@@ -1391,5 +1338,6 @@ export default function ConductorLayout({
         </View>
       )}
     </View>
+    </MarcoOperativo>
   );
 }

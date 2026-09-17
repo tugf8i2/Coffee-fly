@@ -1,3 +1,4 @@
+import { estilosOperativos } from '../panel/estilosOperativos';
 import { useCallback, useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -19,7 +20,7 @@ const fechaCorta = (value) => value
   : '';
 
 export default function ServicioCliente({ go, token, user }) {
-  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : Platform.OS === 'web' && ['caficultor', 'conductor'].includes(user?.rol) ? {...defaultStyles, ...estilosOperativos} : defaultStyles;
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
