@@ -55,6 +55,7 @@ class UsuarioService:
         datos = usuario.model_dump()
         licencia = datos.pop("licencia", None)
         foto_licencia = datos.pop("foto_licencia", None)
+        foto_perfil = datos.pop("foto_perfil", None)
         numero_licencia = datos.pop("numero_licencia", None)
         fecha_expedicion = datos.pop("fecha_expedicion_licencia", None)
         fecha_vencimiento = datos.pop("fecha_vencimiento_licencia", None)
@@ -63,6 +64,7 @@ class UsuarioService:
             raise HTTPException(status_code=400, detail="Categoría, número, foto y vencimiento de licencia son obligatorios para el conductor")
         if datos.get("rol_id") == 2:
             self._validar_licencia(licencia, foto_licencia)
+            self._validar_foto_perfil(foto_perfil)
             self._validar_fechas_licencia(fecha_expedicion, fecha_vencimiento)
         if datos.get("rol_id") == 4 and not all(
             str(datos.get(campo) or "").strip()
@@ -74,6 +76,8 @@ class UsuarioService:
             raise HTTPException(status_code=400, detail="La contrasena es obligatoria")
         datos["contrasena"] = hash_password(password)
         db_usuario = Usuario(**datos)
+        if db_usuario.rol_id == 2:
+            db_usuario.foto_perfil = foto_perfil
         db = self.repository.db
         try:
             db.add(db_usuario)
@@ -105,6 +109,7 @@ class UsuarioService:
         datos = usuario.model_dump(exclude_unset=True)
         licencia = datos.pop("licencia", None)
         foto_licencia = datos.pop("foto_licencia", None)
+        foto_perfil = datos.pop("foto_perfil", None)
         numero_licencia = datos.pop("numero_licencia", None)
         fecha_expedicion = datos.pop("fecha_expedicion_licencia", None)
         fecha_vencimiento = datos.pop("fecha_vencimiento_licencia", None)
@@ -119,6 +124,11 @@ class UsuarioService:
             setattr(db_usuario, key, value)
 
         es_conductor = db_usuario.rol_id == 2
+        if foto_perfil is not None:
+            if not es_conductor:
+                raise HTTPException(status_code=400, detail="La foto de perfil solo corresponde a conductores")
+            self._validar_foto_perfil(foto_perfil)
+            db_usuario.foto_perfil = foto_perfil
         perfil = db_usuario.conductor
         if db_usuario.rol_id == 4 and not all(
             str(getattr(db_usuario, campo) or "").strip()
@@ -197,6 +207,15 @@ class UsuarioService:
                 raise HTTPException(status_code=400, detail="La foto de la licencia debe ser una imagen válida")
             if len(foto_licencia) > 4_000_000:
                 raise HTTPException(status_code=400, detail="La foto de la licencia no puede superar 3 MB")
+
+    @staticmethod
+    def _validar_foto_perfil(foto: str | None):
+        if foto is None:
+            return
+        if not foto.startswith(("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")):
+            raise HTTPException(status_code=400, detail="La foto de perfil debe ser PNG, JPG o WebP")
+        if len(foto) > 1_500_000:
+            raise HTTPException(status_code=400, detail="La foto de perfil no puede superar 1 MB")
 
     @staticmethod
     def _validar_fechas_licencia(expedicion, vencimiento):

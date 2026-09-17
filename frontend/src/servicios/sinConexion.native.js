@@ -542,7 +542,7 @@ export function observarConexion(token, onSync, onConnectionChange) {
     return checkPromise;
   };
   const unsubscribe = NetInfo.addEventListener(check);
-  const timer = setInterval(check, 60000);
+  const timer = setInterval(check, 10000);
   check();
   return () => {
     stopped = true;

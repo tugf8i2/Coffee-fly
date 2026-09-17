@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, String, Integer, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Float, String, Integer, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -17,6 +17,7 @@ class Usuario(Base):
     departamento = Column(String(100), nullable=True)
     municipio = Column(String(100), nullable=True)
     vereda = Column(String(100), nullable=True)
+    foto_perfil = Column(Text, nullable=True)
     # Coordenadas de la finca, capturadas por el propio caficultor. No se
     # exponen en los listados generales de usuarios.
     latitud_finca = Column(Float, nullable=True)

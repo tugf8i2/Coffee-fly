@@ -1,4 +1,5 @@
 import FeedbackMessage from '../componentes/comunes/MensajeRetroalimentacion';
+import AvisoConexion from '../componentes/comunes/AvisoConexion';
 import { useEffect, useState } from 'react';
 import { Platform, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -162,7 +163,7 @@ export default function AplicacionPrincipal() {
     setScreen('login');
     setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
-  const common = { go: setScreen, token: sessionToken, user };
+  const common = { go: setScreen, token: sessionToken, user, connectionStatus };
   const displayedConnection = connectionLabel(connectionStatus);
   const displayedSynchronization = synchronizationLabel(connectionStatus, syncStatus);
   const screens = {
@@ -196,9 +197,11 @@ export default function AplicacionPrincipal() {
   </SafeAreaProvider>;
   if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9f1' }}>
-      <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
-        <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
-      </AppErrorBoundary>
+      <AvisoConexion status={connectionStatus}>
+        <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+          <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
+        </AppErrorBoundary>
+      </AvisoConexion>
       <StatusBar style="dark" />
     </SafeAreaView>
   </SafeAreaProvider>;

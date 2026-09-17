@@ -14,9 +14,11 @@ async function readJson(key) {
 }
 
 export async function saveAuthenticatedSession(user, token) {
+  // La foto puede ocupar megabytes; SecureStore conserva solo la identidad y el token.
+  const { foto_perfil: _fotoPerfil, ...sessionUser } = user;
   await SecureStore.setItemAsync(
     AUTH_SESSION_KEY,
-    JSON.stringify({ user, token, savedAt: new Date().toISOString() }),
+    JSON.stringify({ user: sessionUser, token, savedAt: new Date().toISOString() }),
     secureOptions,
   );
 }

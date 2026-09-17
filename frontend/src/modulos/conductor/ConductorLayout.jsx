@@ -1,5 +1,6 @@
 import BannerCafe from '../../componentes/comunes/BannerCafe';
-import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
+import FotoConductor from '../../componentes/comunes/FotoConductor';
+import { cloneElement, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -21,6 +22,7 @@ import { obtenerRutaEntrega } from '../../servicios/sinConexion';
 import { driverDate, driverTodayMetrics } from './presentacionConductor';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
+import { ConductorThemeContext } from './ConductorTheme';
 
 const logo = require('../../assets/brand/logo.png');
 const landscape = require('../../assets/brand/coffee-landscape.jpg');
@@ -54,8 +56,9 @@ const tabs = [
 ];
 
 function Label({ children, style, bold, ...props }) {
+  const dark = useContext(ConductorThemeContext);
   return (
-    <Text {...props} style={[s.font, bold && s.bold, style]}>
+    <Text {...props} style={[s.font, dark && s.darkFont, bold && s.bold, style]}>
       {children}
     </Text>
   );
@@ -195,7 +198,7 @@ export default function ConductorLayout({
     DriverRegular: require('../../assets/fonts/RobotoCondensed-Regular.ttf'),
     DriverBold: require('../../assets/fonts/RobotoCondensed-Bold.ttf'),
   });
-  const summary = useDriverSummary(token);
+  const summary = useDriverSummary(token, user.id || user.id_usuario);
   const [localPage, setLocalPage] = useState(null);
   const [filter, setFilter] = useState('Todas');
   const [selected, setSelected] = useState(null);
@@ -212,6 +215,21 @@ export default function ConductorLayout({
   const reportBusy = useRef(false);
   const [trackingStarted, setTrackingStarted] = useState(screen === 'tracking');
   const [navigationMode, setNavigationMode] = useState(false);
+  const preferenceKey = `coffee-fly:conductor:prefs:${user.id || user.id_usuario}`;
+  const [preferences, setPreferences] = useState({ dark: false, compact: false });
+  const [preferenceMessage, setPreferenceMessage] = useState('');
+  useEffect(() => {
+    let active = true;
+    readDriverValue(preferenceKey).then((value) => {
+      if (!active || !value) return;
+      try { setPreferences((current) => ({ ...current, ...JSON.parse(value) })); } catch { /* Preferencias dañadas: se usan las predeterminadas. */ }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [preferenceKey]);
+  const savePreferences = async () => {
+    try { await writeDriverValue(preferenceKey, JSON.stringify(preferences)); setPreferenceMessage('Preferencias guardadas en este dispositivo.'); }
+    catch { setPreferenceMessage('No fue posible guardar las preferencias.'); }
+  };
   const page = localPage || screen;
   const trip = summary.active;
   const overviewPosition = useTrackingPosition(summary.tracking?.puntos || []);
@@ -334,7 +352,7 @@ export default function ConductorLayout({
     setNavigationMode(false);
     setSelected(null);
     if (
-      ['events', 'profile', 'checklist', 'offline', 'support'].includes(target)
+      ['events', 'profile', 'checklist', 'offline', 'support', 'settings'].includes(target)
     )
       setLocalPage(target);
     else {
@@ -359,6 +377,10 @@ export default function ConductorLayout({
   };
   const sendReport = async () => {
     if (!delivery || !reportType || reportBusy.current) return;
+    if (connectionStatus !== 'online') {
+      setReportMessage('Para enviar esta novedad al coordinador, espera a que vuelva la conexión. El texto permanecerá aquí.');
+      return;
+    }
     reportBusy.current = true;
     setReportSaving(true);
     setReportMessage('');
@@ -403,6 +425,7 @@ export default function ConductorLayout({
       checklist: 'Checklist del vehículo',
       events: 'Reportar novedad',
       offline: 'Modo offline',
+      settings: 'Preferencias',
       profile: 'Perfil e historial',
       support: 'Mensajes del viaje',
     }[page] || 'APP CONDUCTOR';
@@ -448,12 +471,13 @@ export default function ConductorLayout({
       </View>
     );
   return (
-    <MarcoOperativo user={user} role="Conductor" menu={[
+    <ConductorThemeContext.Provider value={preferences.dark}>
+    <MarcoOperativo user={user} role="Conductor" dark={preferences.dark} menu={[
       ['home','Inicio','dashboard'], ['pin','Ruta activa','tracking'], ['truck','Entregas','assignedDeliveries'],
       ['clipboard','Checklist del vehículo','checklist'], ['bell','Novedades','events'], ['people','Servicio al cliente','support'],
-      ['user','Perfil e historial','profile'], ['database','Sin conexión','offline'],
+      ['user','Perfil e historial','profile'], ['gear','Preferencias','settings'],
     ]} active={page === 'detail' ? 'assignedDeliveries' : page} go={navigate} onLogout={onLogout} connectionStatus={connectionStatus} immersive={page === 'tracking' && navigationMode}>
-    <View style={s.root}>
+    <View style={[s.root, preferences.dark && s.darkRoot]}>
       {Platform.OS !== 'web' && !(page === 'tracking' && navigationMode) && (
         <View style={s.top}>
           {page === 'dashboard' ? (
@@ -471,6 +495,9 @@ export default function ConductorLayout({
           <View style={{ flex: 1 }}>
             <Label bold numberOfLines={2} style={[s.topTitle, width < 600 && { fontSize: 18 }]}>
               {currentTitle}
+            </Label>
+            <Label style={{ fontSize: 11, color: connectionStatus === 'online' ? '#075441' : '#9b5c17', fontWeight: '700' }}>
+              {connectionStatus === 'online' ? '● En línea' : connectionStatus === 'checking' ? 'Comprobando conexión' : '● Sin conexión · modo automático'}
             </Label>
             {page === 'dashboard' && width >= 400 && (
               <Label style={{ fontSize: 10, letterSpacing: 1.4 }}>
@@ -638,7 +665,11 @@ export default function ConductorLayout({
           )}
           {page === 'dashboard' && (
             <>
-              <BannerCafe eyebrow="CONDUCTOR · COFFEE FLY" title={`Hola, ${user.nombre || user.nombre_usuario || 'conductor'}`} subtitle="Cada ruta conecta personas, cosechas y destinos."/>
+              <BannerCafe compact eyebrow="CONDUCTOR · COFFEE FLY" title={`Hola, ${user.nombre || user.nombre_usuario || 'conductor'}`} subtitle="Cada ruta conecta personas, cosechas y destinos."/>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <FotoConductor foto={user.foto_perfil} nombre={[user.nombre || user.nombre_usuario, user.apellido].filter(Boolean).join(' ')} size={42} />
+                <View><Label bold>{[user.nombre || user.nombre_usuario, user.apellido].filter(Boolean).join(' ')}</Label><Label style={s.muted}>Conductor</Label></View>
+              </View>
               <View style={s.metricRow}>
                 {metrics.map(([value, name, icon]) => (
                   <View
@@ -759,9 +790,6 @@ export default function ConductorLayout({
                   </TouchableOpacity>
                 ))}
               </View>
-              <Button secondary icon="wifi" onPress={() => navigate('offline')}>
-                Modo offline
-              </Button>
             </>
           )}
           {page === 'assignedDeliveries' && (
@@ -1160,22 +1188,35 @@ export default function ConductorLayout({
               </Button>
             </>
           )}
+          {page === 'settings' && (
+            <>
+              <View style={[s.card, preferences.dark && s.darkCard]}>
+                <Label bold style={{ fontSize: 21 }}>Preferencias</Label>
+                <Label style={s.muted}>Personaliza la apariencia del panel del conductor.</Label>
+                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                  <Label bold>Idioma</Label><Label style={s.muted}>Español</Label>
+                </View>
+                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                  <Label bold>Zona horaria</Label><Label style={s.muted}>America/Bogota</Label>
+                </View>
+                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                  <Label bold>Modo oscuro</Label>
+                  <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.dark }} onPress={() => setPreferences({ ...preferences, dark: !preferences.dark })} style={[s.preferenceSwitch, preferences.dark && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, preferences.dark && s.preferenceKnobOn]} /></TouchableOpacity>
+                </View>
+                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                  <Label bold>Vista compacta</Label>
+                  <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.compact }} onPress={() => setPreferences({ ...preferences, compact: !preferences.compact })} style={[s.preferenceSwitch, preferences.compact && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, preferences.compact && s.preferenceKnobOn]} /></TouchableOpacity>
+                </View>
+                <Button onPress={savePreferences}>Guardar cambios</Button>
+                {preferenceMessage ? <Label accessibilityLiveRegion="polite" style={s.success}>{preferenceMessage}</Label> : null}
+              </View>
+            </>
+          )}
           {page === 'profile' && (
             <>
               <View style={s.hero}>
                 <Image source={landscape} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15 }} accessible={false}/>
-                <View
-                  style={{
-                    width: 62,
-                    height: 62,
-                    borderRadius: 34,
-                    backgroundColor: '#dcead7',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icon name="user" size={37} />
-                </View>
+                <FotoConductor foto={user.foto_perfil} nombre={[user.nombre || user.nombre_usuario, user.apellido].filter(Boolean).join(' ')} size={62} />
                 <View style={{ flex: 1 }}>
                   <Label bold style={{ fontSize: 22 }}>
                     {[user.nombre || user.nombre_usuario, user.apellido]
@@ -1277,9 +1318,6 @@ export default function ConductorLayout({
                   </Button>
                 </View>
               )}
-              <Button secondary icon="wifi" onPress={() => navigate('offline')}>
-                Modo offline
-              </Button>
               <Button secondary icon="back" onPress={onLogout}>
                 Cerrar sesión
               </Button>
@@ -1339,5 +1377,6 @@ export default function ConductorLayout({
       )}
     </View>
     </MarcoOperativo>
+    </ConductorThemeContext.Provider>
   );
 }

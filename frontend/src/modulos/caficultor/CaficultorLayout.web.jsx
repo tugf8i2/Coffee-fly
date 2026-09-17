@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import MarcoOperativo from '../panel/MarcoOperativo';
 import EventMessageInbox from '../../componentes/entregas/BandejaMensajesEventos';
 import { styles } from '../panel/PanelPorRol.styles';
+import './SolicitarRecoleccion.css';
 const menu = [['home','Inicio','dashboard'],['clipboard','Solicitar recolección','request'],['file','Mi actividad','farmerDashboard'],['pin','Mi finca','farmLocation'],['truck','Seguimiento','tracking'],['people','Servicio al cliente','support']];
 export default function CaficultorLayout({ user, token, screen, go, onLogout, connectionStatus, notice, children }) {
   const [eventsOpen, setEventsOpen] = useState(false);

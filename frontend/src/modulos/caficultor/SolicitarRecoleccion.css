@@ -1,0 +1,30 @@
+.op-app .pickup-request-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #075441 !important;
+  color: #fff !important;
+  border: 1px solid #075441 !important;
+  border-radius: 8px !important;
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 3px 10px #07544126;
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.op-app .pickup-request-submit:hover:not(:disabled) {
+  background: #096b51 !important;
+  box-shadow: 0 5px 14px #07544135;
+}
+
+.op-app .pickup-request-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.op-app .pickup-request-submit:disabled {
+  opacity: .65;
+  box-shadow: none;
+}

@@ -1,0 +1,36 @@
+.cf-banner.cf-banner-compact {
+  min-height: 102px;
+  margin-bottom: 8px;
+}
+
+.cf-banner.cf-banner-compact > img {
+  inset: auto 10px 10px auto;
+  width: 82px;
+  height: 82px;
+  border-radius: 10px;
+  z-index: 0;
+}
+
+.cf-banner.cf-banner-compact::before { display: none; }
+
+.cf-banner.cf-banner-compact > div {
+  position: relative;
+  padding: 13px 106px 13px 16px;
+  max-width: none;
+}
+
+.cf-banner.cf-banner-compact h1 {
+  font-size: clamp(20px, 2.5vw, 24px) !important;
+  margin: 3px 0 !important;
+}
+
+.cf-banner.cf-banner-compact p {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+@media (max-width: 600px) {
+  .cf-banner.cf-banner-compact { min-height: 84px; }
+  .cf-banner.cf-banner-compact > img { inset: auto 8px 8px auto; width: 64px; height: 64px; }
+  .cf-banner.cf-banner-compact > div { padding: 10px 82px 10px 12px; }
+}

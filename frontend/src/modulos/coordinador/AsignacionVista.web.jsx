@@ -187,7 +187,7 @@ export default function AsignacionVista({
                 }}
               >
                 <span className="coord-avatar">
-                  <Icon name="user" size={27} />
+                  {item.foto_perfil ? <img src={item.foto_perfil} alt={`Foto de ${item.nombre_conductor}`}/> : <Icon name="user" size={27} />}
                 </span>
                 <div>
                   <strong>{item.nombre_conductor}</strong>

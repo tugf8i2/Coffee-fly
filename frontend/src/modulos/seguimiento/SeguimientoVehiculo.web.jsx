@@ -1,5 +1,6 @@
 import { estilosOperativos } from '../panel/estilosOperativos';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
+import FotoConductor from '../../componentes/comunes/FotoConductor';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -71,6 +72,7 @@ export default function SeguimientoVehiculo({
   };
   const [confirmingPickup, setConfirmingPickup] = useState(false);
   const [completingTrip, setCompletingTrip] = useState(false);
+  const [tripCompleted, setTripCompleted] = useState(false);
   const [navigationRoute, setNavigationRoute] = useState([]);
   const [routeSummary, setRouteSummary] = useState(null);
   const actionRef = useRef(null);
@@ -555,6 +557,7 @@ export default function SeguimientoVehiculo({
       setTracking(null);
       selectDelivery(null);
       trackingRequestsRef.current.invalidate();
+      setTripCompleted(true);
       setMessage('Viaje completado. El vehículo quedó disponible.', 'success');
     } catch (error) {
       setMessage(error.message, 'error');
@@ -613,7 +616,7 @@ export default function SeguimientoVehiculo({
     <Text style={styles.cardTitle}>{activeTrip ? 'Preparando navegación GPS…' : 'No tienes un viaje activo'}</Text>
     <Text style={styles.muted}>{activeTrip ? 'Consultando la entrega y su destino registrado.' : 'Acepta e inicia un viaje para activar el mapa y el seguimiento GPS.'}</Text>
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
-    <TouchableOpacity accessibilityRole="button" onPress={() => go('assignedDeliveries')} style={styles.primary}><Text style={styles.primaryText}>Ver entregas asignadas</Text></TouchableOpacity>
+    {tripCompleted ? <><View style={styles.fullCard}><Text style={styles.cardTitle}>Viaje terminado correctamente</Text><Text style={styles.muted}>El vehículo ya está disponible para una nueva asignación.</Text><TouchableOpacity accessibilityRole="button" onPress={() => { setTripCompleted(false); go('dashboard'); }} style={styles.primary}><Text style={styles.primaryText}>Volver al menú principal</Text></TouchableOpacity></View></> : <TouchableOpacity accessibilityRole="button" onPress={() => go('assignedDeliveries')} style={styles.primary}><Text style={styles.primaryText}>Ver entregas asignadas</Text></TouchableOpacity>}
   </View>;
 
   if (role === 'coordinador') {
@@ -950,6 +953,10 @@ export default function SeguimientoVehiculo({
           <Text style={styles.cardTitle}>
             {tracking.vehiculo_placa} · {tracking.estado_entrega}
           </Text>
+          {role === 'caficultor' && tracking.conductor_nombre ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8 }}>
+            <FotoConductor foto={tracking.conductor_foto_perfil} nombre={tracking.conductor_nombre} />
+            <Text>Conductor asignado: {tracking.conductor_nombre}</Text>
+          </View> : null}
           {tracking.destino ? <Text>Destino: {tracking.destino}</Text> : null}
           <Text>
             Ruta visible: {points.length} de{' '}

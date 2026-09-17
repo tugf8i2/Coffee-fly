@@ -46,6 +46,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   font: { fontFamily: 'DriverRegular', color: '#0b2639', fontSize: 15 },
+  darkFont: { color: '#edf6ef' },
   bold: { fontFamily: 'DriverBold', fontWeight: '700' },
   title: {
     fontFamily: 'DriverBold',
@@ -219,6 +220,14 @@ export const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   module: { flex: 1, minHeight: 0 },
+  darkRoot: { backgroundColor: '#102c27' },
+  darkCard: { backgroundColor: '#17382f', borderColor: '#34594f' },
+  darkBorder: { borderColor: '#34594f' },
+  preferenceRow: { minHeight: 54, borderBottomWidth: 1, borderColor: '#e0e7e9', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  preferenceSwitch: { width: 38, height: 22, borderRadius: 14, backgroundColor: '#bdcbd0', padding: 3, justifyContent: 'center' },
+  preferenceSwitchOn: { backgroundColor: '#087b60' },
+  preferenceKnob: { width: 16, height: 16, borderRadius: 9, backgroundColor: '#fff', alignSelf: 'flex-start' },
+  preferenceKnobOn: { alignSelf: 'flex-end' },
   map: { height: 330, width: '100%', overflow: 'hidden', borderRadius: 12 },
 });
 

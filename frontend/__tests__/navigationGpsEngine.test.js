@@ -117,4 +117,15 @@ describe('motor GPS de navegación', () => {
     );
     expect(headingDifference(afterTurn.headingDeg, 0)).toBeLessThan(35);
   });
+
+  test('mantiene el rumbo y detiene la predicción cuando el vehículo está quieto', () => {
+    const engine = createNavigationEngine();
+    engine.pushLocation(position({ speed: 8, heading: 90 }), baseTime);
+    const stopped = engine.pushLocation(
+      position({ eastM: 8, seconds: 1, speed: 0, heading: 230 }),
+      baseTime + 1000,
+    );
+    expect(stopped.headingDeg).toBe(90);
+    expect(engine.predictDisplay(baseTime + 2000).display.longitude - stopped.display.longitude).toBeLessThan(0.00002);
+  });
 });

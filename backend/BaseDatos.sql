@@ -30,6 +30,7 @@ CREATE TABLE public.usuario (
     departamento character varying(100),
     municipio character varying(100),
     vereda character varying(100),
+    foto_perfil text,
     latitud_finca double precision,
     longitud_finca double precision,
     direccion_finca character varying(300),
