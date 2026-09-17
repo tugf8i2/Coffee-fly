@@ -97,6 +97,7 @@ export default function VistaGpsConductor({
   onExit,
   onTheme,
   mapTheme,
+  offline = false,
 }) {
   const { width, height } = useWindowDimensions();
   const wide = width >= 1000;
@@ -237,12 +238,6 @@ export default function VistaGpsConductor({
         }}
       />
       <Action
-        icon="wifi"
-        title="Modo offline"
-        subtitle="Consultar ruta guardada y disponibilidad"
-        onPress={() => onAction?.('offline')}
-      />
-      <Action
         icon="warning"
         title="Reportar novedad"
         subtitle="Incidencias en ruta"
@@ -372,7 +367,7 @@ export default function VistaGpsConductor({
             { top: wide ? 156 : 130, gap: wide ? 13 : 9 },
           ]}
         >
-          <TouchableOpacity
+          {!offline && <><TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Orientar mapa al norte"
             onPress={() => controlsRef.current?.north?.()}
@@ -404,7 +399,7 @@ export default function VistaGpsConductor({
             >
               <Icon name="minus" size={28} />
             </TouchableOpacity>
-          </View>
+          </View></>}
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={
@@ -439,7 +434,7 @@ export default function VistaGpsConductor({
           ]}
         >
           <View style={styles.mapUtility}>
-            <TouchableOpacity
+            {!offline && <TouchableOpacity
               accessibilityRole="button"
               onPress={() => controlsRef.current?.center?.()}
               style={styles.center}
@@ -448,7 +443,7 @@ export default function VistaGpsConductor({
               <Copy bold style={{ fontSize: wide ? 15 : 13 }}>
                 Centrar en mi ubicación
               </Copy>
-            </TouchableOpacity>
+            </TouchableOpacity>}
             {wide && (
               <TouchableOpacity
                 accessibilityRole="button"

@@ -115,6 +115,28 @@
   border-radius: 100%;
   margin-left: auto;
 }
+.coord-notification-toast {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 36px));
+  padding: 14px 16px;
+  border: 1px solid #b8d9be;
+  border-radius: 12px;
+  background: #f5fff5;
+  color: #17472c;
+  box-shadow: 0 12px 32px #16351f3b;
+  text-align: left;
+  cursor: pointer;
+}
+.coord-notification-toast span:nth-child(2) { flex: 1; min-width: 0; }
+.coord-notification-toast strong,
+.coord-notification-toast small { display: block; }
+.coord-notification-toast small { margin-top: 3px; color: #42604b; }
 .coord-collapsed .coord-sidebar {
   margin-left: -218px;
 }
@@ -217,6 +239,8 @@
   width: 88px;
   height: 88px;
 }
+.coord-avatar { overflow: hidden; }
+.coord-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .coord-popover {
   position: absolute;
   top: 57px;

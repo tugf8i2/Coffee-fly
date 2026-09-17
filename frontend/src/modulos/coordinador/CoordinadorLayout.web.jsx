@@ -164,6 +164,14 @@ export default function CoordinadorLayout({
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);
   const [section, setSection] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const notificationStorageKey = `coffee-fly:coord:read-notifications:${user.id || user.id_usuario}`;
+  const [readNotificationIds, setReadNotificationIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(notificationStorageKey) || '[]'); }
+    catch { return []; }
+  });
+  const knownNotificationIds = useRef(null);
+  const audioContextRef = useRef(null);
+  const [notificationToast, setNotificationToast] = useState(null);
   const [data, setData] = useState({
     requests: [],
     deliveries: [],
@@ -199,6 +207,54 @@ export default function CoordinadorLayout({
     }
   });
   const current = section || screen;
+  const playNotificationSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current || new AudioContextClass();
+      audioContextRef.current = context;
+      context.resume();
+      [0, 0.16].forEach((delay, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = index ? 880 : 660;
+        gain.gain.setValueAtTime(0.0001, context.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.09, context.currentTime + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + 0.15);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start(context.currentTime + delay);
+        oscillator.stop(context.currentTime + delay + 0.16);
+      });
+    } catch { /* El aviso visual permanece disponible si el navegador bloquea audio. */ }
+  };
+  useEffect(() => {
+    const unlockAudio = () => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current ||= new AudioContextClass();
+        audioContextRef.current.resume().catch(() => {});
+      }
+    };
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlockAudio);
+      audioContextRef.current?.close();
+    };
+  }, []);
+  useEffect(() => {
+    if (!notificationToast) return undefined;
+    const timer = setTimeout(() => setNotificationToast(null), 8000);
+    return () => clearTimeout(timer);
+  }, [notificationToast]);
+  useEffect(() => {
+    if (current !== 'notifications' || !data.notifications.length) return;
+    setReadNotificationIds((previous) => {
+      const next = [...new Set([...previous, ...data.notifications.map((item) => item.id_evento)])].slice(-500);
+      try { localStorage.setItem(notificationStorageKey, JSON.stringify(next)); } catch { /* Sin almacenamiento local, se conserva durante la sesión. */ }
+      return next.length === previous.length ? previous : next;
+    });
+  }, [current, data.notifications, notificationStorageKey]);
   useEffect(() => {
     const breakpoint = window.matchMedia('(max-width: 850px)');
     const resize = () => {
@@ -251,6 +307,15 @@ export default function CoordinadorLayout({
           }
         })(),
       ]);
+      const latestIds = new Set(notifications.map((item) => item.id_evento));
+      if (knownNotificationIds.current !== null) {
+        const newlyArrived = notifications.filter((item) => !knownNotificationIds.current.has(item.id_evento));
+        if (newlyArrived.length) {
+          setNotificationToast({ count: newlyArrived.length, item: newlyArrived[0] });
+          playNotificationSound();
+        }
+      }
+      knownNotificationIds.current = latestIds;
       setData({
         requests,
         deliveries: deliveries.items || [],
@@ -486,7 +551,7 @@ export default function CoordinadorLayout({
             >
               <Icon name={icon} size={19} />
               {label}
-              {target === 'notifications' && data.notifications.length > 0 && (
+              {target === 'notifications' && data.notifications.some((item) => !readNotificationIds.includes(item.id_evento)) && (
                 <span className="coord-notification-dot" />
               )}
             </button>
@@ -494,6 +559,11 @@ export default function CoordinadorLayout({
         </nav>
       </aside>
       <div className="coord-workspace">
+        {notificationToast && <button className="coord-notification-toast" role="alert" onClick={() => { setNotificationToast(null); navigate('notifications'); }}>
+          <Icon name="bell" size={20} />
+          <span><strong>{notificationToast.count === 1 ? 'Nueva notificación' : `${notificationToast.count} nuevas notificaciones`}</strong><small>{notificationToast.item.tipo_evento} · {notificationToast.item.conductor_nombre}</small></span>
+          <span aria-hidden="true">Ver</span>
+        </button>}
         <header className="coord-top">
           <div className="coord-top-left">
             <button
@@ -1007,7 +1077,7 @@ export default function CoordinadorLayout({
                             <td>
                               <div className="coord-driver-name">
                                 <span className="coord-avatar">
-                                  <Icon name="user" size={22} />
+                                  {item.foto_perfil ? <img src={item.foto_perfil} alt={`Foto de ${item.nombre_conductor}`}/> : <Icon name="user" size={22} />}
                                 </span>
                                 <strong>{item.nombre_conductor}</strong>
                               </div>
@@ -1156,8 +1226,8 @@ export default function CoordinadorLayout({
               <section className="coord-card">
                 {data.notifications.map((item) => (
                   <div className="coord-notification" key={item.id_evento}>
-                    <span className="coord-metric-icon">
-                      <Icon name="bell" />
+                    <span className="coord-avatar">
+                      {item.conductor_foto_perfil ? <img src={item.conductor_foto_perfil} alt={`Foto de ${item.conductor_nombre}`}/> : <Icon name="bell" />}
                     </span>
                     <div>
                       <h2>{item.tipo_evento}</h2>

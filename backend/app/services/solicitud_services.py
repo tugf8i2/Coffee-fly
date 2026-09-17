@@ -16,6 +16,8 @@ from app.schemas.solicitud_schemas import (
 )
 from app.models.carga_models import Carga
 from app.models.entrega_models import Entrega
+from app.models.conductor_models import Conductor
+from app.models.viaje_models import Viaje
 from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
@@ -107,11 +109,24 @@ class SolicitudService:
 
     def obtener_dashboard_caficultor(self, caficultor_id: int):
         registros = self.repository.get_solicitudes_por_caficultor(caficultor_id)
+        viaje_ids = {entrega.viaje_id for _, _, entrega in registros if entrega and entrega.viaje_id}
+        conductor_por_viaje = dict(self.repository.db.query(Viaje.id_viaje, Viaje.conductor_id).filter(Viaje.id_viaje.in_(viaje_ids)).all()) if viaje_ids else {}
+        conductor_ids = set(conductor_por_viaje.values())
+        conductores = {
+            conductor.id_conductor: usuario
+            for conductor, usuario in self.repository.db.query(Conductor, Usuario).join(
+                Usuario, Conductor.usuario_id == Usuario.id_usuario
+            ).filter(Conductor.id_conductor.in_(conductor_ids)).all()
+        } if conductor_ids else {}
+        def conductor_asignado(entrega):
+            return conductores.get(conductor_por_viaje.get(entrega.viaje_id)) if entrega else None
         solicitudes = [
             {
                 "id_solicitud": str(solicitud.id_solicitud),
                 "carga_id": str(carga.id_carga) if carga else None,
                 "entrega_id": str(entrega.id_entrega) if entrega else None,
+                "conductor_nombre": f"{conductor_asignado(entrega).nombre_usuario} {conductor_asignado(entrega).apellido}".strip() if conductor_asignado(entrega) else None,
+                "conductor_foto_perfil": conductor_asignado(entrega).foto_perfil if conductor_asignado(entrega) else None,
                 "estado_solicitud": solicitud.estado_solicitud,
                 "fecha_hora_solicitud": solicitud.fecha_hora_solicitud,
                 "estado_sincronizacion": solicitud.estado_sincronizacion,

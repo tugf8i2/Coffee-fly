@@ -70,6 +70,7 @@ class NotificacionEventoResponse(EventoConductorResponse):
     estado_recoleccion: str
     vehiculo_placa: Optional[str] = None
     conductor_nombre: str
+    conductor_foto_perfil: Optional[str] = None
 
 
 class SolicitudActivaEntregaResponse(BaseModel):
@@ -126,6 +127,7 @@ class VehiculoDisponibleResponse(BaseModel):
 class ConductorDisponibleResponse(BaseModel):
     id_conductor: Optional[int] = None
     nombre_conductor: str
+    foto_perfil: Optional[str] = None
     licencia: Optional[str] = None
     tiene_foto_licencia: bool = False
 
@@ -235,6 +237,8 @@ class SeguimientoEntregaResponse(BaseModel):
     estado_entrega: str
     vehiculo_id: int
     vehiculo_placa: str
+    conductor_nombre: Optional[str] = None
+    conductor_foto_perfil: Optional[str] = None
     destino: Optional[str] = None
     destino_latitud: Optional[float] = None
     destino_longitud: Optional[float] = None

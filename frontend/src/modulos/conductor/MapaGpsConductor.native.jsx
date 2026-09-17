@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto.native';
 import RoutePreview from '../../componentes/mapas/VistaPreviaRuta';
 
@@ -11,10 +12,12 @@ export default function MapaGpsConductor({
   heading,
   deliveryId,
   mapTheme = 'day',
+  offline = false,
 }) {
   const [follow, setFollow] = useState(true);
   const [fitRevision, setFitRevision] = useState(0);
   const [zoom, setZoom] = useState(17);
+  const [zoomCommand, setZoomCommand] = useState(null);
   const [north, setNorth] = useState(false);
   useEffect(() => {
     setFollow(true);
@@ -24,12 +27,12 @@ export default function MapaGpsConductor({
   useEffect(() => {
     controlsRef.current = {
       zoomIn: () => {
-        setZoom((value) => Math.min(20, value + 1));
-        setFollow(true);
+        setFollow(false);
+        setZoomCommand((value) => ({ id: (value?.id || 0) + 1, delta: 1 }));
       },
       zoomOut: () => {
-        setZoom((value) => Math.max(10, value - 1));
-        setFollow(true);
+        setFollow(false);
+        setZoomCommand((value) => ({ id: (value?.id || 0) + 1, delta: -1 }));
       },
       north: () => {
         setNorth(true);
@@ -48,6 +51,12 @@ export default function MapaGpsConductor({
       controlsRef.current = null;
     };
   }, [controlsRef]);
+  if (offline) return <View style={{ flex: 1, justifyContent: 'center', padding: 12, backgroundColor: '#e8efe9' }}>
+    <RoutePreview route={route} vehicle={vehicle} destination={destination} />
+    <Text style={{ color: '#36523b', textAlign: 'center', marginTop: 12 }}>
+      Ruta esquemática sin conexión. El GPS y la ruta guardada siguen disponibles; las calles requieren Internet.
+    </Text>
+  </View>;
   return (
     <MapaAbierto
       style={{ flex: 1 }}
@@ -86,6 +95,7 @@ export default function MapaGpsConductor({
         followMarkerId: 'vehicle',
         bearing: north ? 0 : heading,
         zoom,
+        zoomCommand,
         pitch: 15,
         padding: { top: 190, right: 85, bottom: 160, left: 40 },
       }}

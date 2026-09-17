@@ -422,6 +422,8 @@ class EntregaService:
             ubicacion_cooperativa.departamento if ubicacion_cooperativa else None,
         ]))
         viaje = viaje_bloqueado or entrega.viaje
+        conductor = self.repository.get_conductor(conductor_asignado) if conductor_asignado else None
+        conductor_usuario = conductor.usuarios if conductor else None
         cooperativa_latitud = getattr(viaje, "cooperativa_latitud_snapshot", None)
         cooperativa_longitud = getattr(viaje, "cooperativa_longitud_snapshot", None)
         if not entrega.viaje_id and cooperativa_latitud is None and ubicacion_cooperativa and ubicacion_cooperativa.y is not None:
@@ -456,6 +458,8 @@ class EntregaService:
         return {
             "entrega_id": entrega.id_entrega, "estado_entrega": entrega.estado_entrega,
             "vehiculo_id": vehiculo.id_vehiculo, "vehiculo_placa": vehiculo.placa,
+            "conductor_nombre": f"{conductor_usuario.nombre_usuario} {conductor_usuario.apellido}".strip() if conductor_usuario else None,
+            "conductor_foto_perfil": conductor_usuario.foto_perfil if conductor_usuario else None,
             "destino": destino,
             "destino_latitud": destino_latitud,
             "destino_longitud": destino_longitud,
@@ -624,6 +628,7 @@ class EntregaService:
             {
                 "id_conductor": conductor.id_conductor if conductor else None,
                 "nombre_conductor": f"{usuario.nombre_usuario} {usuario.apellido}".strip(),
+                "foto_perfil": usuario.foto_perfil,
                 "licencia": conductor.licencia if conductor else None,
                 "tiene_foto_licencia": bool(conductor and conductor.foto_licencia),
             }
@@ -729,6 +734,7 @@ class EntregaService:
             "estado_recoleccion": entrega.estado_entrega,
             "vehiculo_placa": vehiculo.placa if vehiculo else None,
             "conductor_nombre": f"{conductor.nombre_usuario} {conductor.apellido}".strip(),
+            "conductor_foto_perfil": conductor.foto_perfil,
         } for evento, carga, entrega, vehiculo, conductor, caficultor in self.repository.get_notificaciones_eventos(
             utc_now_naive(),
             usuario.id_usuario if es_caficultor else None,

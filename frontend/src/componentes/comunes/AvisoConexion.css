@@ -1,0 +1,8 @@
+.cf-connection-root { position: relative; display: flex; flex: 1; min-height: 0; }
+.cf-connection-root > *:first-child { flex: 1; min-width: 0; }
+.cf-connection-overlay { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 20px; background: #061e13b8; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.cf-connection-card { width: min(100%, 420px); padding: 28px; border: 2px solid #a9d17e; border-radius: 22px; background: #f9fff3; color: #123c2c; box-shadow: 0 24px 60px #00190b66; text-align: center; }
+.cf-connection-symbol { display: block; color: #075441; font-size: 48px; line-height: 1; }
+.cf-connection-card h2 { margin: 14px 0 10px; font-size: 25px; }
+.cf-connection-card p { margin: 0 0 17px; color: #3b5645; font-size: 16px; line-height: 1.45; }
+.cf-connection-card strong { color: #075441; font-size: 15px; }

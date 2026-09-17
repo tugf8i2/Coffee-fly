@@ -11,6 +11,7 @@ export const NAVIGATION_GPS_DEFAULTS = Object.freeze({
   predictionMaxAgeMs: 3000,
   predictionMaxDistanceM: 20,
   predictionMinimumSpeedMps: 0.4,
+  stationarySpeedMps: 0.4,
 });
 
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
@@ -242,11 +243,17 @@ export function createNavigationEngine(options = {}) {
         const measuredNorthVelocity = reportedSpeed * Math.cos(heading);
         filter.east.velocity = filter.east.velocity * (1 - velocityTrust) + measuredEastVelocity * velocityTrust;
         filter.north.velocity = filter.north.velocity * (1 - velocityTrust) + measuredNorthVelocity * velocityTrust;
+      } else if (measurement.speedMps != null && measurement.speedMps < config.stationarySpeedMps) {
+        // Evita que el ruido de posición mantenga una velocidad ficticia al detenerse.
+        filter.east.velocity *= 0.25;
+        filter.north.velocity *= 0.25;
       }
     }
     const filteredLocal = { east: filter.east.position, north: filter.north.position };
     const estimatedSpeed = clamp(Math.hypot(filter.east.velocity, filter.north.velocity), 0, config.maxSpeedMps);
-    const movementHeading = estimatedSpeed >= config.minimumHeadingSpeedMps
+    const movementHeading = measurement.speedMps != null && measurement.speedMps < config.stationarySpeedMps
+      ? (lastOutput?.headingDeg ?? measurement.headingDeg)
+      : estimatedSpeed >= config.minimumHeadingSpeedMps
       ? normalizeHeading(degrees(Math.atan2(filter.east.velocity, filter.north.velocity)))
       : measurement.headingDeg;
     const candidate = findMatch(filteredLocal, movementHeading, estimatedSpeed, measurement.accuracyM, Math.max(0, elapsedS));

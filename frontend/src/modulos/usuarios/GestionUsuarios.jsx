@@ -13,7 +13,7 @@ import { styles } from './GestionUsuarios.styles';
 const emptyForm = {
   nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
   licencia: '', numero_licencia: '', fecha_expedicion_licencia: '', fecha_vencimiento_licencia: '',
-  foto_licencia: '', tiene_foto_licencia: false, departamento: '', municipio: '', vereda: '',
+  foto_licencia: '', tiene_foto_licencia: false, foto_perfil: '', departamento: '', municipio: '', vereda: '',
 };
 
 const domain = '@coffeeFly.com';
@@ -88,6 +88,17 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
     reader.readAsDataURL(file);
   };
 
+  const selectProfilePhoto = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return setMessage('La foto de perfil debe ser PNG, JPG o WebP.');
+    if (file.size > 1024 * 1024) return setMessage('La foto de perfil no puede superar 1 MB.');
+    const reader = new FileReader();
+    reader.onload = () => setForm((current) => ({ ...current, foto_perfil: reader.result }));
+    reader.onerror = () => setMessage('No se pudo leer la foto de perfil.');
+    reader.readAsDataURL(file);
+  };
+
   const startEdit = (user) => {
     setEditingId(user.id_usuario);
     setForm({ ...user, contrasena: '' });
@@ -119,7 +130,9 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       if (editingId && !payload.contrasena) delete payload.contrasena;
       delete payload.tiene_foto_licencia;
       if (editingId && !payload.foto_licencia) delete payload.foto_licencia;
+      if (!payload.foto_perfil) delete payload.foto_perfil;
       if (roleId !== 2) {
+        delete payload.foto_perfil;
         delete payload.licencia;
         delete payload.numero_licencia;
         delete payload.fecha_expedicion_licencia;
@@ -230,6 +243,9 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       </View>}
       {Number(form.rol_id) === 2 ? <View>
         <Text style={styles.section}>Datos del conductor</Text>
+        <Text style={styles.label}>Foto de perfil del conductor (opcional)</Text>
+        {Platform.OS === 'web' ? <input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectProfilePhoto} style={styles.fileInput} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}
+        {form.foto_perfil ? <Image source={{ uri: form.foto_perfil }} style={styles.profilePreview} accessibilityLabel="Vista previa de la foto de perfil" /> : <Text style={styles.muted}>PNG, JPG o WebP, máximo 1 MB.</Text>}
         <Text style={styles.label}>Tipo de licencia</Text>
         {Platform.OS === 'web' ? <select
           value={form.licencia || ''}
@@ -267,6 +283,7 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       const state = statusByUser[user.id_usuario] || {};
       const label = state.habilitado === false ? 'Perfil deshabilitado' : state.bloqueado_temporalmente ? 'Bloqueado por intentos fallidos' : 'Perfil habilitado';
       return <View style={styles.card} key={user.id_usuario}>
+        {Number(user.rol_id) === 2 && user.foto_perfil ? <Image source={{ uri: user.foto_perfil }} style={styles.profilePreview} accessibilityLabel={`Foto de ${user.nombre_usuario} ${user.apellido}`} /> : null}
         <Text style={styles.cardTitle}>{user.nombre_usuario} {user.apellido}</Text>
         <Text>{user.correo_usuario}</Text><Text style={styles.muted}>{label}</Text>
         {Number(user.rol_id) === 2 ? <Text style={styles.muted}>Licencia {user.licencia || 'pendiente'} · {alertaVencimiento(user.fecha_vencimiento_licencia)}</Text> : null}

@@ -21,6 +21,7 @@ def current_profile(user: Usuario = Depends(get_current_user)):
         "id": user.id_usuario,
         "nombre": user.nombre_usuario,
         "apellido": user.apellido,
+        "foto_perfil": user.foto_perfil if user.rol.descripcion_rol.lower() == "conductor" else None,
         "correo": user.correo_usuario,
         "rol": user.rol.descripcion_rol.lower(),
     }

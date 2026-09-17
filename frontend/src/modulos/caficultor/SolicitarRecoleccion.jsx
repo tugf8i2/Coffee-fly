@@ -1,6 +1,6 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useRef, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
@@ -70,7 +70,9 @@ export default function SolicitarRecoleccion({ go, token }) {
       <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} style={styles.secondary} onPress={() => { attemptIdRef.current = null; setGroups((current) => [...current, emptyGroup()]); }}><Text style={styles.secondaryText}>＋ Agregar bultos de otro peso</Text></TouchableOpacity>
       <CampoFormulario label="Observaciones (opcional)" value={obs} onChangeText={(value) => { attemptIdRef.current = null; setObs(value); }} styles={styles} maxLength={100} />
       {totalKg !== null ? <View style={styles.totalBox}><Text style={styles.totalLabel}>Peso total calculado</Text><Text style={styles.totalValue}>{totalKg.toLocaleString('es-CO')} kg · {tonnes(totalKg)}</Text></View> : null}
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: submitting, busy: submitting }} disabled={submitting} style={[styles.primary, submitting && styles.buttonDisabled]} onPress={submit}><Text style={styles.primaryText}>{submitting ? 'Enviando solicitud…' : 'Enviar solicitud'}</Text></TouchableOpacity>
+      {Platform.OS === 'web'
+        ? <button type="button" className="pickup-request-submit" disabled={submitting} aria-busy={submitting} onClick={submit}>{submitting ? 'Enviando solicitud…' : 'Enviar solicitud'}</button>
+        : <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: submitting, busy: submitting }} disabled={submitting} style={[styles.primary, submitting && styles.buttonDisabled]} onPress={submit}><Text style={styles.primaryText}>{submitting ? 'Enviando solicitud…' : 'Enviar solicitud'}</Text></TouchableOpacity>}
     </View>
     <FeedbackMessage type={messageType}>{message}</FeedbackMessage>
   </View></ScrollView>;

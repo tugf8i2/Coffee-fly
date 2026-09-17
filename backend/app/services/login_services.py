@@ -85,6 +85,7 @@ def login_user(db, data):
             "id": user.id_usuario,
             "nombre": user.nombre_usuario,
             "apellido": user.apellido,
+            "foto_perfil": user.foto_perfil if user.rol.descripcion_rol.lower() == "conductor" else None,
             "correo": user.correo_usuario,
             "rol": user.rol.descripcion_rol.lower(),
         },

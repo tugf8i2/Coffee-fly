@@ -1,4 +1,5 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
+import FotoConductor from '../../componentes/comunes/FotoConductor';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion/ClienteApi';
@@ -92,6 +93,10 @@ export default function MiActividad({ go, token }) {
     <Text style={styles.totalValue}>{tonnes(request.peso_kg)}</Text>
     {bagSummary(request) ? <Text>{bagSummary(request)}</Text> : null}
     <Text style={styles.muted}>{weight(request.peso_kg)} · {new Date(request.fecha_hora_solicitud).toLocaleDateString()}</Text>
+    {request.conductor_nombre ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 6 }}>
+      <FotoConductor foto={request.conductor_foto_perfil} nombre={request.conductor_nombre} />
+      <Text>Conductor asignado: {request.conductor_nombre}</Text>
+    </View> : null}
     {request.observacion ? <Text>{request.observacion}</Text> : null}
     {request.estado_solicitud === 'pendiente' ? <TouchableOpacity
       accessibilityRole="button"
@@ -106,7 +111,7 @@ export default function MiActividad({ go, token }) {
       {events.map((event) => <View key={event.id_evento} style={{ borderLeftWidth: 3, borderLeftColor: '#6A994E', paddingLeft: 9 }}>
         <Text style={styles.label}>{event.tipo_evento.toUpperCase()}</Text>
         <Text>{event.descripcion_evento}</Text>
-        <Text>Conductor: {event.conductor_nombre}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FotoConductor foto={event.conductor_foto_perfil} nombre={event.conductor_nombre} size={34}/><Text>Conductor: {event.conductor_nombre}</Text></View>
         <Text>Vehículo: {event.vehiculo_placa || 'Sin placa'}</Text>
         <Text style={styles.muted}>{new Date(event.fecha_hora_evento).toLocaleString()}</Text>
       </View>)}

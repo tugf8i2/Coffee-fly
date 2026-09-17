@@ -42,6 +42,7 @@ class UsuarioBase(BaseModel):
     rol_id: Optional[int] = None
     licencia: Optional[str] = Field(default=None, max_length=20)
     foto_licencia: Optional[str] = None
+    foto_perfil: Optional[str] = None
     numero_licencia: Optional[str] = Field(default=None, max_length=40)
     fecha_expedicion_licencia: Optional[date] = None
     fecha_vencimiento_licencia: Optional[date] = None
@@ -88,6 +89,7 @@ class UsuarioUpdate(BaseModel):
     rol_id: Optional[int] = None
     licencia: Optional[str] = Field(default=None, max_length=20)
     foto_licencia: Optional[str] = None
+    foto_perfil: Optional[str] = None
     numero_licencia: Optional[str] = Field(default=None, max_length=40)
     fecha_expedicion_licencia: Optional[date] = None
     fecha_vencimiento_licencia: Optional[date] = None
@@ -105,6 +107,7 @@ class UsuarioResponse(BaseModel):
     vereda: Optional[str] = None
     licencia: Optional[str] = None
     tiene_foto_licencia: bool = False
+    foto_perfil: Optional[str] = None
     numero_licencia: Optional[str] = None
     fecha_expedicion_licencia: Optional[date] = None
     fecha_vencimiento_licencia: Optional[date] = None
