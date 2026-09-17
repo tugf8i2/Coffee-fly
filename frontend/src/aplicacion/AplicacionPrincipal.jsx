@@ -18,6 +18,7 @@ import OperationalMonitoring from '../modulos/seguimiento/MonitoreoOperativo';
 import Reports from '../modulos/reportes/Reportes';
 import RoleDashboard from '../modulos/panel/PanelPorRol';
 import RegistradorLayout from '../modulos/panel/RegistradorLayout';
+import CaficultorLayout from '../modulos/caficultor/CaficultorLayout';
 import ConductorLayout from '../modulos/conductor/ConductorLayout';
 import SeguimientoVehiculo from '../modulos/seguimiento/SeguimientoVehiculo';
 import ServicioCliente from '../modulos/soporte/ServicioCliente';
@@ -186,6 +187,12 @@ export default function AplicacionPrincipal() {
   };
   if (restoring) return <SafeAreaProvider>
     <SafeAreaView style={styles.safe}><Text style={styles.muted}>Restaurando sesión segura…</Text></SafeAreaView>
+  </SafeAreaProvider>;
+  if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'caficultor') return <SafeAreaProvider>
+    <CaficultorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
+      <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>{screens[screen] || screens.dashboard}</AppErrorBoundary>
+    </CaficultorLayout>
+    <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9f1' }}>

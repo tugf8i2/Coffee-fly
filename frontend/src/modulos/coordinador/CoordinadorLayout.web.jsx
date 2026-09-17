@@ -1,3 +1,5 @@
+import MarcaCafe from '../../componentes/comunes/MarcaCafe.web';
+import BannerCafe from '../../componentes/comunes/BannerCafe';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Image } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
@@ -468,9 +470,7 @@ export default function CoordinadorLayout({
         inert={collapsed}
         aria-hidden={collapsed}
       >
-        <div className="coord-brand">
-          <Crop x={22} y={40} w={68} h={49} label="Coffee Fly, tu café viaja" />
-        </div>
+        <button className="coord-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
         <nav aria-label="Menú del coordinador">
           {menu.map(([icon, label, target]) => (
             <button
@@ -504,6 +504,7 @@ export default function CoordinadorLayout({
             >
               <Icon name="menu" />
             </button>
+            <span className="cf-mobile-brand"><MarcaCafe compact/></span>
             {current === 'dashboard' && (
               <div>
                 <h1>
@@ -514,19 +515,10 @@ export default function CoordinadorLayout({
             )}
           </div>
           <div className="coord-top-right">
-            <button
-              className="coord-bell"
-              aria-label={`Notificaciones (${data.notifications.length})`}
-              onClick={() => navigate('notifications')}
-            >
-              <Icon name="bell" size={24} />
-              {data.notifications.length > 0 && (
-                <b>{data.notifications.length}</b>
-              )}
-            </button>
             <div className="coord-profile-anchor">
               <button
                 className="coord-profile"
+                aria-label={`Cuenta de ${fullName}, coordinador`}
                 aria-expanded={profileOpen}
                 onClick={() => setProfileOpen(!profileOpen)}
               >
@@ -540,7 +532,7 @@ export default function CoordinadorLayout({
                 <Icon name="chevron" size={16} />
               </button>
               {profileOpen && (
-                <div className="coord-popover">
+                <div className="coord-popover"><p style={{ padding: 11, overflowWrap: 'anywhere' }}><strong>{fullName}</strong><br/>Coordinador</p>
                   <button onClick={() => navigate('profile')}>Mi perfil</button>
                   <button onClick={() => navigate('settings')}>
                     Configuración
@@ -588,14 +580,7 @@ export default function CoordinadorLayout({
                   year: 'numeric',
                 })}
               </div>
-              <Crop
-                x={110}
-                y={91}
-                w={389}
-                h={83}
-                className="coord-hero"
-                label="Coordinamos hoy un mejor mañana. Conectamos el campo con nuevas oportunidades. Coffee Fly, tu café viaja."
-              />
+              <BannerCafe title="Coordinamos hoy un mejor mañana" subtitle="Conectamos el campo con nuevas oportunidades."/>
               {metrics}
               <div className="coord-dashboard-grid">
                 <section className="coord-card">

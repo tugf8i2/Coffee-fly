@@ -1,3 +1,4 @@
+import { estilosOperativos } from '../panel/estilosOperativos';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -10,7 +11,7 @@ import { coordinatorModuleStyles } from '../coordinador/Coordinador.styles';
 const statuses = ['todos', 'pendiente', 'en camino', 'entregado', 'cancelado'];
 
 export default function HistorialEntregas({ token, go, user }) {
-  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : defaultStyles;
+  const styles = Platform.OS === 'web' && user?.rol === 'coordinador' ? {...defaultStyles, ...coordinatorModuleStyles} : Platform.OS === 'web' && ['caficultor', 'conductor'].includes(user?.rol) ? {...defaultStyles, ...estilosOperativos} : defaultStyles;
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const [farmer, setFarmer] = useState(''); const [vehicle, setVehicle] = useState('');
   const [status, setStatus] = useState('todos'); const [page, setPage] = useState(1);
