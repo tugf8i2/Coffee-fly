@@ -1,7 +1,5 @@
-import MarcaCafe from '../../componentes/comunes/MarcaCafe.web';
 import BannerCafe from '../../componentes/comunes/BannerCafe';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Image } from 'react-native';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import Icon from '../panel/IconoRegistrador.web';
@@ -13,14 +11,8 @@ import {
   coordinatorRows,
   searchCoordinatorRows,
 } from './presentacionCoordinador';
-import regular from '../../assets/fonts/RobotoCondensed-Regular.ttf';
-import bold from '../../assets/fonts/RobotoCondensed-Bold.ttf';
+import MarcoOperativo from '../panel/MarcoOperativo';
 import './PanelCoordinador.css';
-
-const uri = (asset) =>
-  typeof asset === 'string'
-    ? asset
-    : asset?.uri || Image.resolveAssetSource?.(asset)?.uri;
 const menu = [
   ['home', 'Inicio', 'dashboard'],
   ['clipboard', 'Solicitudes', 'deliveries'],
@@ -137,9 +129,7 @@ export default function CoordinadorLayout({
   notice,
   operationsScreens,
 }) {
-  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);
   const [section, setSection] = useState(null);
-  const [profileOpen, setProfileOpen] = useState(false);
   const notificationStorageKey = `coffee-fly:coord:read-notifications:${user.id || user.id_usuario}`;
   const [readNotificationIds, setReadNotificationIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem(notificationStorageKey) || '[]'); }
@@ -231,14 +221,6 @@ export default function CoordinadorLayout({
       return next.length === previous.length ? previous : next;
     });
   }, [current, data.notifications, notificationStorageKey]);
-  useEffect(() => {
-    const breakpoint = window.matchMedia('(max-width: 850px)');
-    const resize = () => {
-      if (breakpoint.matches) setCollapsed(true);
-    };
-    breakpoint.addEventListener('change', resize);
-    return () => breakpoint.removeEventListener('change', resize);
-  }, []);
   const position = useTrackingPosition(tracking?.puntos || []);
   const get = useCallback(
     async (path, signal) => {
@@ -319,20 +301,9 @@ export default function CoordinadorLayout({
   }, [page, load]);
   useEffect(() => {
     setSection(null);
-    setProfileOpen(false);
     setSearch('');
     setFilter('Todas');
   }, [screen]);
-  useEffect(() => {
-    const escape = (event) => {
-      if (event.key === 'Escape') {
-        setProfileOpen(false);
-        if (window.innerWidth < 850) setCollapsed(true);
-      }
-    };
-    document.addEventListener('keydown', escape);
-    return () => document.removeEventListener('keydown', escape);
-  }, []);
   useEffect(() => {
     const controller = new AbortController();
     setTracking(null);
@@ -393,7 +364,6 @@ export default function CoordinadorLayout({
   const navigate = (target) => {
     setSearch('');
     setFilter('Todas');
-    setProfileOpen(false);
     setFiltersOpen(false);
     if (
       ['drivers', 'notifications', 'profile'].includes(
@@ -405,7 +375,6 @@ export default function CoordinadorLayout({
       setSection(null);
       go(target);
     }
-    if (window.innerWidth < 850) setCollapsed(true);
   };
   const detail = (item) => {
     setSelected(item);
@@ -417,18 +386,6 @@ export default function CoordinadorLayout({
     [user.nombre || user.nombre_usuario, user.apellido]
       .filter(Boolean)
       .join(' ') || 'Coordinador';
-  const title =
-    current === 'detail'
-      ? 'Detalle de solicitud'
-      : current === 'register'
-        ? 'Registrar recolección'
-        : menu.find(([, , target]) => target === current)?.[1] ||
-          {
-            monitoring: 'Seguimiento en tiempo real',
-            assignmentHistory: 'Historial de asignaciones',
-            deliveryHistory: 'Historial de entregas',
-          }[current] ||
-          'Coordinador';
   const savePreferences = () => {
     try {
       localStorage.setItem(
@@ -492,117 +449,40 @@ export default function CoordinadorLayout({
         value={data.metrics.entregas_hoy}
         label="Recolecciones (hoy)"
       />
-    </div>
+      </div>
   );
+  const activeMenuItem = ['detail', 'register'].includes(current)
+    ? 'deliveries'
+    : current;
+  const contentClassName = [
+    'coord-content',
+    preferences.dark && 'coord-dark',
+    preferences.compact && 'coord-compact',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const unreadNotifications = data.notifications.filter(
+    (item) => !readNotificationIds.includes(item.id_evento),
+  ).length;
   return (
-    <div
-      className={`coord-app ${collapsed ? 'coord-collapsed' : ''} ${preferences.dark ? 'coord-dark' : ''} ${preferences.compact ? 'coord-compact' : ''}`}
+    <MarcoOperativo
+      user={user}
+      role="Coordinador"
+      menu={menu}
+      active={activeMenuItem}
+      go={navigate}
+      onLogout={onLogout}
+      connectionStatus={connectionStatus}
+      dark={preferences.dark}
+      contentClassName={contentClassName}
+      menuBadges={{ notifications: unreadNotifications }}
     >
-      <style>{`@font-face{font-family:Coordinator;src:url('${uri(regular)}');font-weight:400}@font-face{font-family:Coordinator;src:url('${uri(bold)}');font-weight:600 900}`}</style>
-      {!collapsed && (
-        <button
-          className="coord-scrim"
-          aria-label="Cerrar menú"
-          onClick={() => setCollapsed(true)}
-        />
-      )}
-      <aside
-        className="coord-sidebar"
-        inert={collapsed}
-        aria-hidden={collapsed}
-      >
-        <button className="coord-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
-        <nav aria-label="Menú del coordinador">
-          {menu.map(([icon, label, target]) => (
-            <button
-              key={target}
-              className={
-                current === target ||
-                (target === 'deliveries' &&
-                  ['detail', 'register'].includes(current))
-                  ? 'active'
-                  : ''
-              }
-              onClick={() => navigate(target)}
-            >
-              <Icon name={icon} size={19} />
-              {label}
-              {target === 'notifications' && data.notifications.some((item) => !readNotificationIds.includes(item.id_evento)) && (
-                <span className="coord-notification-dot" />
-              )}
-            </button>
-          ))}
-        </nav>
-      </aside>
-      <div className="coord-workspace">
         {notificationToast && <button className="coord-notification-toast" role="alert" onClick={() => { setNotificationToast(null); navigate('notifications'); }}>
           <Icon name="bell" size={20} />
           <span><strong>{notificationToast.count === 1 ? 'Nueva notificación' : `${notificationToast.count} nuevas notificaciones`}</strong><small>{notificationToast.item.tipo_evento} · {notificationToast.item.conductor_nombre}</small></span>
           <span aria-hidden="true">Ver</span>
         </button>}
-        <header className="coord-top">
-          <div className="coord-top-left">
-            <button
-              className="coord-icon-button"
-              aria-label={collapsed ? 'Abrir menú' : 'Contraer menú'}
-              aria-expanded={!collapsed}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              <Icon name="menu" />
-            </button>
-            <span className="cf-mobile-brand"><MarcaCafe compact/></span>
-            {current === 'dashboard' && (
-              <div>
-                <h1>
-                  ¡Hola, {user.nombre || user.nombre_usuario || 'coordinador'}!
-                </h1>
-                <p>Panel de coordinador</p>
-              </div>
-            )}
-          </div>
-          <div className="coord-top-right">
-            <div className="coord-profile-anchor">
-              <button
-                className="coord-profile"
-                aria-label={`Cuenta de ${fullName}, coordinador`}
-                aria-expanded={profileOpen}
-                onClick={() => setProfileOpen(!profileOpen)}
-              >
-                <span className="coord-avatar">
-                  <Icon name="user" size={27} />
-                </span>
-                <span>
-                  <strong>{fullName}</strong>
-                  <small>Coordinador</small>
-                </span>
-                <Icon name="chevron" size={16} />
-              </button>
-              {profileOpen && (
-                <div className="coord-popover"><p style={{ padding: 11, overflowWrap: 'anywhere' }}><strong>{fullName}</strong><br/>Coordinador</p>
-                  <button onClick={() => navigate('profile')}>Abrir cuenta</button>
-                  <button onClick={onLogout}>Cerrar sesión</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-        <main className="coord-main">
-          <div className="coord-breadcrumb">
-            <button onClick={() => navigate('dashboard')}>Inicio</button>
-            {current !== 'dashboard' && (
-              <>
-                {' '}
-                › <span>{title}</span>
-              </>
-            )}
-            <span className="coord-network">
-              {connectionStatus === 'online'
-                ? '● En línea'
-                : connectionStatus === 'checking'
-                  ? 'Comprobando conexión'
-                  : 'Sin conexión al servidor'}
-            </span>
-          </div>
+        <div className="coord-main">
           {notice && (
             <div className="coord-notice" role="status">
               {notice}
@@ -1232,8 +1112,7 @@ export default function CoordinadorLayout({
                 : operationsScreens[current] || operationsScreens.dashboard}
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        </div>
+    </MarcoOperativo>
   );
 }

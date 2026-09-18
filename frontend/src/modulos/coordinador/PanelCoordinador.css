@@ -1054,3 +1054,93 @@
 .coord-dark .coord-module [style*='color: rgb(85, 113, 131)'] {
   color: var(--muted) !important;
 }
+
+/* El coordinador comparte el mismo marco web que los demás roles. */
+.coord-content {
+  --ink: #112d3c;
+  --muted: #536879;
+  --surface: #fff;
+  --line: #e0e8ea;
+  --soft: #f4f7f8;
+  min-height: 100%;
+  color: var(--ink);
+  font-family: Registrar, Arial, sans-serif;
+  font-size: 15px;
+}
+.coord-content *,
+.coord-content button,
+.coord-content input,
+.coord-content select {
+  box-sizing: border-box;
+  font: inherit;
+}
+.coord-content button { cursor: pointer; }
+.coord-content button:disabled { opacity: .48; cursor: not-allowed; }
+.coord-content button:focus-visible,
+.coord-content input:focus-visible,
+.coord-content select:focus-visible {
+  outline: 3px solid #79b789;
+  outline-offset: 3px;
+}
+.coord-content h1,
+.coord-content h2,
+.coord-content p { margin: 0; }
+.coord-content h1 { font-size: 28px; line-height: 1.2; }
+.coord-content h2 {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.coord-content p { color: var(--muted); line-height: 1.5; }
+.coord-content svg { flex-shrink: 0; }
+.coord-content table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.coord-content th {
+  background: var(--soft);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+.coord-content td,
+.coord-content th {
+  padding: 15px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.coord-content tr:last-child td { border-bottom: 0; }
+.coord-content dl {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 19px 15px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.coord-content dt { color: var(--muted); }
+.coord-content dd { margin: 0; overflow-wrap: anywhere; }
+.coord-content .coord-main {
+  width: 100%;
+  max-width: 1800px;
+  margin-inline: auto;
+}
+.coord-content .coord-module,
+.coord-content .coord-module * { font-family: inherit !important; }
+.coord-dark.coord-content {
+  --ink: #eaf3f0;
+  --muted: #b1c8c0;
+  --surface: #153b32;
+  --line: #36594f;
+  --soft: #22493e;
+  background: #102b25;
+}
+@media (max-width: 500px) {
+  .coord-content dl {
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 14px 10px;
+  }
+}
