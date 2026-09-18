@@ -140,6 +140,21 @@ export default function MiActividad({ go, token }) {
       <Text style={styles.section}>Historial de despachos</Text>
       {data.historial_despachos.length ? <View style={styles.grid}>{data.historial_despachos.map(requestCard)}</View> : <Text style={styles.muted}>Aún no tienes despachos entregados.</Text>}
     </> : null}
-    <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar resumen</Text></TouchableOpacity>
+    <TouchableOpacity accessibilityRole="button"onPress={load}
+    style={[
+    styles.primary, 
+    { 
+      width: '100%', 
+      backgroundColor: '#064c3b', 
+      minHeight: 45, 
+      paddingVertical: 10,
+      borderRadius: 8, 
+      justifyContent: 'center', 
+      alignItems: 'center',
+      marginTop: 15,
+      cursor: 'pointer'}]}>
+        <Text style={[styles.primaryText, { color: '#ffffff', fontWeight: '700', fontSize: 15 }]}>Actualizar resumen</Text>
+        </TouchableOpacity>
+
   </ScrollView>;
 }

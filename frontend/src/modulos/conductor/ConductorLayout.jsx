@@ -642,9 +642,21 @@ export default function ConductorLayout({
                     >
                       Distancia de ruta
                     </Fact>
-                    <Button icon="play" onPress={() => setNavigationMode(true)}>
-                      Iniciar navegación
-                    </Button>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setNavigationMode(true)}style={{backgroundColor: '#064c3b',
+                       minHeight: 43,
+                       paddingVertical: 10,
+                       paddingHorizontal: 16,
+                       borderRadius: 8,
+                       marginTop: 10,
+                       flexDirection: 'row',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                      cursor: 'pointer'}}>
+                    <Text style={{ color: '#ffffff', fontSize: 15, fontWeight: '700', fontFamily: 'DriverBold' }}>
+                       Iniciar navegación
+                    </Text>
+                    </TouchableOpacity>
+
                   </View>
                 </View>
               ) : (
@@ -1207,7 +1219,22 @@ export default function ConductorLayout({
                   <Label bold>Vista compacta</Label>
                   <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.compact }} onPress={() => setPreferences({ ...preferences, compact: !preferences.compact })} style={[s.preferenceSwitch, preferences.compact && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, preferences.compact && s.preferenceKnobOn]} /></TouchableOpacity>
                 </View>
-                <Button onPress={savePreferences}>Guardar cambios</Button>
+                <TouchableOpacity accessibilityRole="button" onPress={savePreferences}
+                    style={{
+                    backgroundColor: '#064c3b', 
+                    minWidth: 160,
+                    minHeight: 43,
+                    paddingVertical: 12,
+                    paddingHorizontal: 20,
+                    borderRadius: 8,
+                    marginTop: 15,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'}}>
+                 <Text style={{ color: '#ffffff', fontSize: 15, fontWeight: '700', fontFamily: 'DriverBold' }}>Guardar cambios</Text>
+                </TouchableOpacity>
+
                 {preferenceMessage ? <Label accessibilityLiveRegion="polite" style={s.success}>{preferenceMessage}</Label> : null}
               </View>
             </>

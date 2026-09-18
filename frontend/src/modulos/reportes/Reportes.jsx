@@ -82,9 +82,19 @@ export default function Reportes({ token, user }) {
     <View style={styles.formCard}>
       <Text style={styles.cardTitle}>1. Selecciona el período</Text>
       {dateField('Desde', from, setFrom)}{dateField('Hasta', to, setTo)}
-      <TouchableOpacity accessibilityRole="button" disabled={Boolean(busy)} style={[styles.primary, busy && styles.buttonDisabled]} onPress={generate}>
-        <Text style={styles.primaryText}>{busy === 'generate' ? 'Consultando…' : 'Consultar reporte'}</Text>
-      </TouchableOpacity>
+<TouchableOpacity 
+  accessibilityRole="button" 
+  disabled={Boolean(busy)} 
+  style={[
+    styles.primary, 
+    { width: '100%', backgroundColor: '#075441', paddingVertical: 12, borderRadius: 8 }
+  ]} 
+  onPress={generate}
+>
+  <Text style={[styles.primaryText, { color: '#ffffff', fontWeight: '700', textAlign: 'center' }]}>
+    {busy === 'generate' ? 'Consultando…' : 'Consultar reporte'}
+  </Text>
+</TouchableOpacity>
     </View>
     {report ? <>
       {coordinator ? <GraficosCoordinador report={report}/> : null}

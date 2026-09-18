@@ -1004,12 +1004,21 @@ export default function SeguimientoVehiculo({
         </View>
       ) : null}
 
-      <TouchableOpacity
-        accessibilityRole="button"
-        style={styles.primary}
-        onPress={load}
-      >
-        <Text style={styles.primaryText}>Actualizar ubicación</Text>
+      <TouchableOpacity accessibilityRole="button" onPress={load}
+      style={[
+      styles.primary, { 
+      width: '100%', 
+      backgroundColor: '#064c3b', 
+      minHeight: 45, 
+      paddingVertical: 10,
+      borderRadius: 8, 
+      justifyContent: 'center', 
+      alignItems: 'center',
+      marginTop: 15,
+      cursor: 'pointer'
+      }]}>
+      <Text style={[styles.primaryText, { color: '#ffffff', fontWeight: '700', fontSize: 15 }]}>Actualizar Ubicación
+      </Text>
       </TouchableOpacity>
     </ScrollView>
   );
