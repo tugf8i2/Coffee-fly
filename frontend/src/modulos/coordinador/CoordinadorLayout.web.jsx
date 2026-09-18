@@ -13,7 +13,6 @@ import {
   coordinatorRows,
   searchCoordinatorRows,
 } from './presentacionCoordinador';
-import reference from '../../assets/brand/coordinador-reference.png';
 import regular from '../../assets/fonts/RobotoCondensed-Regular.ttf';
 import bold from '../../assets/fonts/RobotoCondensed-Bold.ttf';
 import './PanelCoordinador.css';
@@ -28,34 +27,11 @@ const menu = [
   ['people', 'Asignaciones', 'vehicleAssignment'],
   ['truck', 'Vehículos', 'vehicleStatus'],
   ['driver', 'Conductores', 'drivers'],
-  ['pin', 'Rutas', 'routes'],
   ['pin', 'Mapa en vivo', 'tracking'],
   ['file', 'Reportes', 'reports'],
   ['bell', 'Notificaciones', 'notifications'],
-  ['user', 'Perfil', 'profile'],
-  ['gear', 'Configuración', 'settings'],
+  ['user', 'Cuenta', 'profile'],
 ];
-function Crop({ x, y, w, h, className, label }) {
-  return (
-    <span
-      className={`coord-crop ${className || ''}`}
-      style={{ aspectRatio: `${w}/${h}` }}
-      role={label ? 'img' : undefined}
-      aria-label={label}
-      aria-hidden={!label}
-    >
-      <img
-        src={uri(reference)}
-        alt=""
-        style={{
-          width: `${(1536 / w) * 100}%`,
-          left: `${(-x / w) * 100}%`,
-          top: `${(-y / h) * 100}%`,
-        }}
-      />
-    </span>
-  );
-}
 function Badge({ children }) {
   const tone = /Pendiente|asignación|incompleto|atrasado/i.test(children)
     ? 'amber'
@@ -420,7 +396,7 @@ export default function CoordinadorLayout({
     setProfileOpen(false);
     setFiltersOpen(false);
     if (
-      ['drivers', 'routes', 'notifications', 'profile', 'settings'].includes(
+      ['drivers', 'notifications', 'profile'].includes(
         target,
       )
     )
@@ -603,10 +579,7 @@ export default function CoordinadorLayout({
               </button>
               {profileOpen && (
                 <div className="coord-popover"><p style={{ padding: 11, overflowWrap: 'anywhere' }}><strong>{fullName}</strong><br/>Coordinador</p>
-                  <button onClick={() => navigate('profile')}>Mi perfil</button>
-                  <button onClick={() => navigate('settings')}>
-                    Configuración
-                  </button>
+                  <button onClick={() => navigate('profile')}>Abrir cuenta</button>
                   <button onClick={onLogout}>Cerrar sesión</button>
                 </div>
               )}
@@ -902,13 +875,6 @@ export default function CoordinadorLayout({
                     )}
                     {detailError && <p role="status">{detailError}</p>}
                   </section>
-                  <section className="coord-card">
-                    <h2>
-                      <Icon name="file" size={20} />
-                      Archivos adjuntos
-                    </h2>
-                    <p>Esta solicitud no dispone de adjuntos consultables.</p>
-                  </section>
                 </div>
               </div>
             </>
@@ -1111,27 +1077,12 @@ export default function CoordinadorLayout({
               </section>
             </>
           )}
-          {['profile', 'settings'].includes(current) && (
+          {current === 'profile' && (
             <>
               <Heading
-                title={current === 'profile' ? 'Mi perfil' : 'Configuración'}
+                title="Mi cuenta"
                 subtitle="Personaliza tu cuenta y las preferencias de este navegador."
               />
-              <div className="coord-filter-tabs">
-                {[
-                  ['profile', 'Mi perfil'],
-                  ['notifications', 'Notificaciones'],
-                  ['settings', 'Preferencias'],
-                ].map(([target, label]) => (
-                  <button
-                    key={target}
-                    className={current === target ? 'active' : ''}
-                    onClick={() => navigate(target)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
               <div className="coord-detail-grid">
                 <section className="coord-card">
                   <h2>Información personal</h2>
@@ -1254,23 +1205,6 @@ export default function CoordinadorLayout({
               </section>
             </>
           )}
-          {current === 'routes' && (
-            <>
-              <Heading
-                title="Rutas y seguimiento"
-                subtitle="Consulta las posiciones fiables y el estado GPS de la flota."
-              />
-              <section className="coord-card">
-                <FleetMap vehicles={data.fleet?.vehiculos || []} />
-                <button
-                  className="coord-button"
-                  onClick={() => navigate('tracking')}
-                >
-                  Ver seguimiento en tiempo real
-                </button>
-              </section>
-            </>
-          )}
           {current === 'register' && (
             <div className="coord-module">
               {React.cloneElement(operationsScreens.deliveries, {
@@ -1286,9 +1220,7 @@ export default function CoordinadorLayout({
             'vehicleStatus',
             'drivers',
             'profile',
-            'settings',
             'notifications',
-            'routes',
           ].includes(current) && (
             <div className="coord-module" key={current}>
               {current === 'vehicleAssignment'
