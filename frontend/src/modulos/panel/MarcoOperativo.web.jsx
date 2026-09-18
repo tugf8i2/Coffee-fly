@@ -9,7 +9,7 @@ import './MarcoOperativo.css';
 import './MarcoOperativoAvatar.css';
 import './PreferenciasOperativas.css';
 const uri = asset => typeof asset === 'string' ? asset : asset?.uri || Image.resolveAssetSource?.(asset)?.uri;
-export default function MarcoOperativo({ user, role, menu, active, go, onLogout, connectionStatus, immersive = false, dark = false, children }) {
+export default function MarcoOperativo({ user, role, menu, active, go, onLogout, connectionStatus, immersive = false, dark = false, contentClassName = '', menuBadges = {}, children }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);
   const [profileOpen, setProfileOpen] = useState(false);
   const name = [user?.nombre || user?.nombre_usuario || role, user?.apellido].filter(Boolean).join(' ');
@@ -26,7 +26,7 @@ export default function MarcoOperativo({ user, role, menu, active, go, onLogout,
     <aside id="op-navigation" className="reg-sidebar" aria-label={`Navegación de ${role}`} inert={collapsed || immersive ? true : undefined}>
       <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
       <div className="reg-sidebar-user"><span className="op-avatar">{role === 'Conductor' && user?.foto_perfil ? <img src={user.foto_perfil} alt={`Foto de ${name}`}/> : <Icon name={role === 'Conductor' ? 'driver' : 'farmer'} size={30}/>}</span><div><strong>{name}</strong><small>{role}</small><span className="reg-online"><i className={connectionStatus === 'online' ? '' : 'offline'}/>{connection}</span></div></div>
-      <nav>{menu.map(([icon,label,target]) => <button key={target} className={active === target ? 'active' : ''} aria-current={active === target ? 'page' : undefined} onClick={() => navigate(target)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      <nav>{menu.map(([icon,label,target]) => <button key={target} className={active === target ? 'active' : ''} aria-current={active === target ? 'page' : undefined} onClick={() => navigate(target)}><Icon name={icon}/><span>{label}</span>{menuBadges[target] ? <span className="op-menu-badge" aria-label={`${menuBadges[target]} pendientes`}>{menuBadges[target] > 9 ? '9+' : menuBadges[target]}</span> : null}</button>)}</nav>
       <div className="reg-sidebar-art"><ReferenceCrop x={0} y={731} w={241} h={293}/></div>
     </aside>
     {!collapsed && <button className="op-menu-backdrop" aria-label="Cerrar menú" onClick={() => setCollapsed(true)}/>}
@@ -34,7 +34,7 @@ export default function MarcoOperativo({ user, role, menu, active, go, onLogout,
       <header className="reg-topbar"><button className="reg-icon-button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed} aria-controls="op-navigation"><Icon name="menu"/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><span className="op-section-title">{menu.find(([, , target]) => target === active)?.[1] || role}</span>
         <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, ${role}`} aria-expanded={profileOpen} onClick={() => setProfileOpen(!profileOpen)}><span className="op-avatar">{role === 'Conductor' && user?.foto_perfil ? <img src={user.foto_perfil} alt=""/> : <Icon name="user"/>}</span><span><strong>{name}</strong><small>{role}</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <div className="reg-popover"><strong>{name}</strong><p>{user?.correo_usuario || role}</p>{role === 'Conductor' && <button onClick={() => navigate('profile')}>Ver perfil e historial de viajes</button>}<button onClick={onLogout}>Cerrar sesión</button></div>}</div>
       </header>
-      <main className="op-content">{children}</main>
+      <main className={`op-content ${contentClassName}`.trim()}>{children}</main>
     </div>
   </div>;
 }
