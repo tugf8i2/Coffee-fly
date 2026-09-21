@@ -74,7 +74,9 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 15,
     gap: 8,
+    height: 'max-content',
   },
+
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
