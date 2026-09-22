@@ -122,11 +122,11 @@ export default function MiActividad({ go, token }) {
 
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Mi actividad cafetera</Text>
-    <Text style={styles.muted}>Resumen personal de solicitudes y despachos. Se actualiza automáticamente cada 30 segundos.</Text>
+    <Text style={styles.pageMuted}>Resumen personal de solicitudes y despachos. Se actualiza automáticamente cada 30 segundos.</Text>
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
     {eventsError ? <FeedbackMessage type="warning">{eventsError}</FeedbackMessage> : null}
     {message ? <FeedbackMessage type="success">{message}</FeedbackMessage> : null}
-    {!data && !error ? <Text style={styles.muted}>Cargando actividad...</Text> : null}
+    {!data && !error ? <Text style={styles.pageMuted}>Cargando actividad...</Text> : null}
     {summary ? <>
       <View style={styles.card}><Text style={styles.cardTitle}>Resumen del período</Text>
         <Text>Solicitudes registradas: {summary.total_solicitudes}</Text>
@@ -136,9 +136,9 @@ export default function MiActividad({ go, token }) {
         <Text>Peso despachado: {tonnes(summary.kg_despachados)}</Text>
       </View>
       <Text style={styles.section}>Solicitudes activas</Text>
-      {data.solicitudes_activas.length ? <View style={styles.grid}>{data.solicitudes_activas.map(requestCard)}</View> : <Text style={styles.muted}>No tienes solicitudes activas.</Text>}
+      {data.solicitudes_activas.length ? <View style={styles.grid}>{data.solicitudes_activas.map(requestCard)}</View> : <Text style={styles.pageMuted}>No tienes solicitudes activas.</Text>}
       <Text style={styles.section}>Historial de despachos</Text>
-      {data.historial_despachos.length ? <View style={styles.grid}>{data.historial_despachos.map(requestCard)}</View> : <Text style={styles.muted}>Aún no tienes despachos entregados.</Text>}
+      {data.historial_despachos.length ? <View style={styles.grid}>{data.historial_despachos.map(requestCard)}</View> : <Text style={styles.pageMuted}>Aún no tienes despachos entregados.</Text>}
     </> : null}
     <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar resumen</Text></TouchableOpacity>
   </ScrollView>;

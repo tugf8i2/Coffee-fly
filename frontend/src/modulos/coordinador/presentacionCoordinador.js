@@ -1,5 +1,13 @@
 import { driverDate } from '../conductor/presentacionConductor';
 
+export function includeActiveDeliveries(pageDeliveries, activeDeliveries) {
+  const activeIds = new Set(activeDeliveries.map((item) => item.id_entrega));
+  return [
+    ...activeDeliveries,
+    ...pageDeliveries.filter((item) => !activeIds.has(item.id_entrega)),
+  ];
+}
+
 export function coordinatorRows(requests, deliveries) {
   const registered = new Set(
     deliveries.map((item) => String(item.solicitud_id)),

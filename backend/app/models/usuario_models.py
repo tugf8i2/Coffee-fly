@@ -14,6 +14,7 @@ class Usuario(Base):
     habilitado = Column(Boolean, nullable=False, default=True, server_default="true")
     intentos_fallidos = Column(Integer, nullable=False, default=0, server_default="0")
     bloqueado_hasta = Column(DateTime(timezone=True), nullable=True)
+    eliminado_en = Column(DateTime, nullable=True)
     departamento = Column(String(100), nullable=True)
     municipio = Column(String(100), nullable=True)
     vereda = Column(String(100), nullable=True)

@@ -1,5 +1,6 @@
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
 import SelectorFormulario from '../../componentes/comunes/SelectorFormulario';
+import SelectorFecha from '../../componentes/comunes/SelectorFecha';
 import { isValidPassword, PASSWORD_HELP } from '../../servicios/politicaContrasena';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +9,7 @@ import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { accountStatesByUser } from '../../servicios/estadoCuenta';
 import { alertaVencimiento } from '../../servicios/alertasDocumentales';
+import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { styles } from './GestionUsuarios.styles';
 
 const emptyForm = {
@@ -123,6 +125,9 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       if (roleId === 2 && (!form.licencia || !form.numero_licencia?.trim() || !form.fecha_vencimiento_licencia || (!form.foto_licencia && !form.tiene_foto_licencia))) {
         return setMessage('Para el conductor registra categoría, número, vencimiento y foto de licencia.');
       }
+      if (roleId === 2 && form.fecha_expedicion_licencia && form.fecha_vencimiento_licencia < form.fecha_expedicion_licencia) {
+        return setMessage('La fecha de vencimiento debe ser posterior a la fecha de expedición.');
+      }
       if (roleId === 4 && (!form.departamento.trim() || !form.municipio.trim() || !form.vereda.trim())) {
         return setMessage('Para el caficultor debes completar departamento, municipio y vereda.');
       }
@@ -179,14 +184,14 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
     try {
       const response = await fetchApi(`${API_BASE_URL}/usuarios/${id}`, { method: 'DELETE', headers });
       const result = await response.json();
-      setMessage(response.ok ? 'Perfil eliminado.' : (result.detail || 'No se pudo eliminar el perfil.'), response.ok ? 'success' : 'error');
-      if (response.ok) loadUsers();
+      setMessage(response.ok ? (result.mensaje || 'Perfil eliminado.') : apiErrorMessage(result, 'No se pudo eliminar el perfil.'), response.ok ? 'success' : 'error');
+      if (response.ok) await loadUsers();
     } catch (error) { setMessage(error.message || 'No se pudo completar la operación.'); }
     finally { setSaving(false); }
   };
 
   const confirmRemove = (user) => {
-    const confirmation = `¿Seguro que quieres eliminar a ${user.nombre_usuario} ${user.apellido}? Esta acción no se puede deshacer.`;
+    const confirmation = `¿Seguro que quieres eliminar a ${user.nombre_usuario} ${user.apellido}? Su acceso se revocará y el perfil saldrá del listado. El historial de cargas y viajes se conservará.`;
 
     // React Native Web no procesa las acciones de Alert. En navegador se usa
     // confirm para que el botón Eliminar ejecute realmente la petición DELETE.
@@ -258,8 +263,8 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
           {['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'].map((type) => <TouchableOpacity key={type} style={[styles.role, form.licencia === type && styles.roleActive]} onPress={() => updateField('licencia', type)}><Text>{type}</Text></TouchableOpacity>)}
         </View>}
         {field('Número de licencia', 'numero_licencia', { maxLength: 40 })}
-        {field('Fecha de expedición (AAAA-MM-DD)', 'fecha_expedicion_licencia')}
-        {field('Fecha de vencimiento (AAAA-MM-DD)', 'fecha_vencimiento_licencia')}
+        <SelectorFecha label="Fecha de expedición" value={form.fecha_expedicion_licencia} onChange={(value) => updateField('fecha_expedicion_licencia', value)} styles={styles} maximumDate={new Date()} />
+        <SelectorFecha label="Fecha de vencimiento" value={form.fecha_vencimiento_licencia} onChange={(value) => updateField('fecha_vencimiento_licencia', value)} styles={styles} minimumDate={form.fecha_expedicion_licencia || undefined} />
         <Text style={styles.muted}>Una licencia vencida o sin fecha no habilita asignaciones.</Text>
         <Text style={styles.label}>Foto de la licencia de conducir</Text>
         {Platform.OS === 'web' ? <input type="file" accept="image/*" onChange={selectLicensePhoto} style={styles.fileInput} /> : <Text style={styles.muted}>La carga de foto está disponible en la versión web.</Text>}

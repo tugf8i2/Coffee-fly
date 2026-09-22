@@ -251,6 +251,13 @@ def main():
             assert any(item["id_viaje"] == ids["trip_id"] for item in assigned)
             started = expect(client.post(f"/viajes/{ids['trip_id']}/iniciar", headers=driver_headers))
             assert started["estado_viaje"] == "en_camino"
+            canceled_in_transit = expect(client.patch(
+                f"/entregas/{ids['second_delivery_id']}/cancelar",
+                headers=coordinator_headers,
+                json={"motivo": "El destino informó una emergencia y no puede recibir esta carga"},
+            ))
+            assert canceled_in_transit["estado_entrega"] == "cancelado"
+            assert "emergencia" in canceled_in_transit["motivo_cancelacion"]
 
             tracking = expect(client.get("/entregas/mi-seguimiento", headers=farmer_headers))
             assert tracking["recoleccion_latitud"] == FARM["latitud"]
@@ -274,11 +281,6 @@ def main():
                 f"/entregas/{ids['delivery_id']}/confirmar-carga", headers=driver_headers
             ))
             assert pickup["etapa_viaje"] == "hacia_cooperativa"
-            second_pickup = expect(client.post(
-                f"/entregas/{ids['second_delivery_id']}/confirmar-carga", headers=driver_headers
-            ))
-            assert second_pickup["etapa_viaje"] == "hacia_cooperativa"
-
             cooperative_point = {
                 "client_point_id": str(uuid4()), **COOPERATIVE, "precision_m": 3,
                 "velocidad_m_s": 8, "rumbo_grados": 45,
@@ -289,7 +291,7 @@ def main():
             ))
             completed = expect(client.post(f"/viajes/{ids['trip_id']}/completar", headers=driver_headers))
             assert completed["estado_viaje"] == "completado"
-            assert len(completed["cargas"]) == 2
+            assert len(completed["cargas"]) == 1
             assert all(item["estado_entrega"] == "entregado" for item in completed["cargas"])
 
             coordinator_history = expect(client.get(
@@ -307,7 +309,7 @@ def main():
             assert expect(client.get("/viajes/mi-activo", headers=driver_headers)) == []
 
             print(
-                "LIVE_FULL_FLOW_OK registro + solicitud idempotente + dos cargas sin duplicar + "
+                "LIVE_FULL_FLOW_OK registro + dos cargas + cancelacion en camino justificada + "
                 "GPS idempotente + geocercas + cierre + historiales + liberacion"
             )
     finally:

@@ -5,6 +5,7 @@ import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'r
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import CooperativeLocationPicker from '../../componentes/mapas/SelectorUbicacionCooperativa';
+import { buscarUbicacionPrecisa, validarAccesoUbicacionWeb } from '../../servicios/ubicacionPrecisaWeb';
 import { styles } from './GestionCooperativas.styles';
 
 const empty = {
@@ -110,19 +111,29 @@ export default function GestionCooperativas({ go, token }) {
   const captureLocation = async () => {
     setLocating(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') throw Error('Debes autorizar la ubicación para capturar las coordenadas.');
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      let location;
+      if (Platform.OS === 'web') {
+        const geolocation = await validarAccesoUbicacionWeb();
+        location = await new Promise((resolve, reject) => buscarUbicacionPrecisa(geolocation, {
+          onSuccess: resolve, onError: reject,
+        }));
+      } else {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') throw Error('Debes autorizar la ubicación para capturar las coordenadas.');
+        location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      }
       setForm((current) => ({
         ...current,
         latitude: location.coords.latitude.toFixed(6),
         longitude: location.coords.longitude.toFixed(6),
       }));
       const completed = await completeAddress(location.coords.latitude, location.coords.longitude);
+      const accuracy = Number(location.coords.accuracy);
+      const accuracyText = Number.isFinite(accuracy) ? ` Precisión estimada: ±${Math.round(accuracy)} m.` : '';
       setShowMap(true);
       notify(completed
-        ? 'Ubicación actual detectada. Verifica el barrio o zona y ajusta el marcador si es necesario.'
-        : 'Coordenadas capturadas. Completa la dirección o selecciónala manualmente en el mapa.');
+        ? `Ubicación actual detectada.${accuracyText} Verifica el barrio o zona y ajusta el marcador si es necesario.`
+        : `Coordenadas capturadas.${accuracyText} Completa la dirección o ajústala en el mapa si es necesario.`);
     } catch (error) { notify(error.message || 'No fue posible obtener la ubicación.', true); } finally { setLocating(false); }
   };
   const save = async () => {

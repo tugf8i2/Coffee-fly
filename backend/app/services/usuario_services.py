@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -6,6 +8,11 @@ from app.schemas.usuario_schemas import UsuarioCreate, UsuarioUpdate
 from app.core.security import hash_password
 from app.models.usuario_models import Usuario
 from app.models.conductor_models import Conductor
+from app.models.auth_session_models import AuthSession
+from app.models.entrega_models import Entrega
+from app.models.solicitud_models import Solicitud
+from app.models.vehiculo_models import Vehiculo
+from app.models.viaje_models import Viaje
 from app.core.time import utc_now_naive
 from app.services.compatibilidad_transporte import LICENCIAS_PERMITIDAS, hoy_colombia
 from app.services.auditoria_operativa import registrar_auditoria
@@ -227,11 +234,88 @@ class UsuarioService:
     def eliminar_usuario(self, id_usuario: int, registrador_id: int):
         if id_usuario == registrador_id:
             raise HTTPException(
-                status_code=400,
-                detail="No puedes eliminar tu propia cuenta de Registrador",
+                status_code=409,
+                detail="No puedes eliminar tu propia cuenta mientras administras usuarios. Pide a otro registrador que gestione la baja.",
             )
-        if not self.repository.get_usuario(id_usuario):
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        db = self.repository.db
+        usuario = db.query(Usuario).filter(
+            Usuario.id_usuario == id_usuario,
+            Usuario.eliminado_en.is_(None),
+        ).with_for_update().first()
+        if usuario is None:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado o ya eliminado")
 
-        self.repository.delete_usuario(id_usuario)
-        return {"mensaje": "Usuario eliminado"}
+        if usuario.rol_id == 4:
+            solicitud = db.query(Solicitud.estado_solicitud).filter(
+                Solicitud.caficultor_id == id_usuario,
+                Solicitud.estado_solicitud.in_(["pendiente", "en camino"]),
+            ).first()
+            entrega = db.query(Entrega.estado_entrega).filter(
+                Entrega.caficultor_id == id_usuario,
+                Entrega.estado_entrega.in_(["pendiente", "en camino"]),
+            ).first()
+            if solicitud or entrega:
+                en_camino = (solicitud and solicitud[0] == "en camino") or (entrega and entrega[0] == "en camino")
+                detalle = ("una carga en camino" if en_camino else "una solicitud o carga pendiente")
+                raise HTTPException(status_code=409, detail=f"No se puede eliminar este caficultor: tiene {detalle}. Cancela o finaliza esa operación primero.")
+
+        conductor = db.query(Conductor).filter(Conductor.usuario_id == id_usuario).first() if usuario.rol_id == 2 else None
+        if conductor is not None:
+            viaje = db.query(Viaje.estado_viaje).filter(
+                Viaje.conductor_id == conductor.id_conductor,
+                Viaje.estado_viaje.in_(["asignado", "en_cola", "en_camino"]),
+            ).first()
+            vehiculo_en_camino = db.query(Vehiculo.id_vehiculo).filter(
+                Vehiculo.conductor_id == conductor.id_conductor,
+                Vehiculo.estado_vehiculo == "en camino",
+            ).first()
+            if viaje or vehiculo_en_camino or conductor.estado_conductor == "en ruta":
+                detalle = "está en transporte o tiene un vehículo en camino" if (vehiculo_en_camino or conductor.estado_conductor == "en ruta" or (viaje and viaje[0] == "en_camino")) else "tiene un viaje o carga asignada"
+                raise HTTPException(status_code=409, detail=f"No se puede eliminar este conductor: {detalle}. Finaliza o reasigna la operación primero.")
+
+        if usuario.rol_id == 1:
+            viaje = db.query(Viaje.estado_viaje).filter(
+                Viaje.coordinador_id == id_usuario,
+                Viaje.estado_viaje.in_(["asignado", "en_cola", "en_camino"]),
+            ).first()
+            if viaje:
+                raise HTTPException(status_code=409, detail="No se puede eliminar este coordinador: tiene un viaje o carga activa bajo su responsabilidad. Finaliza o reasigna la operación primero.")
+
+        # Los viajes, entregas y auditorías históricas tienen referencias
+        # obligatorias a Usuario/Conductor. La baja retira el acceso y los
+        # datos de contacto sin romper esas referencias.
+        try:
+            db.query(AuthSession).filter(AuthSession.user_id == id_usuario).delete(synchronize_session=False)
+            if conductor is not None:
+                db.query(Vehiculo).filter(Vehiculo.conductor_id == conductor.id_conductor).update(
+                    {Vehiculo.conductor_id: None}, synchronize_session=False,
+                )
+                conductor.licencia = "INACTIVA"
+                conductor.foto_licencia = ""
+                conductor.numero_licencia = None
+                conductor.fecha_expedicion_licencia = None
+                conductor.fecha_vencimiento_licencia = None
+                conductor.estado_conductor = "inactivo"
+            usuario.eliminado_en = utc_now_naive()
+            usuario.habilitado = False
+            usuario.intentos_fallidos = 0
+            usuario.bloqueado_hasta = None
+            usuario.nombre_usuario = "Usuario"
+            usuario.apellido = "eliminado"
+            usuario.correo_usuario = f"b{id_usuario}@coffeefly.com"
+            usuario.telefono_usuario = "0000000000"
+            usuario.contrasena = hash_password(secrets.token_urlsafe(32))
+            usuario.foto_perfil = None
+            usuario.departamento = None
+            usuario.municipio = None
+            usuario.vereda = None
+            usuario.latitud_finca = None
+            usuario.longitud_finca = None
+            usuario.direccion_finca = None
+            registrar_auditoria(db, "usuario", id_usuario, "eliminar", registrador_id,
+                                despues={"baja_logica": True, "rol_id": usuario.rol_id})
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        return {"mensaje": "Perfil eliminado. Se conservaron las referencias históricas de la operación."}

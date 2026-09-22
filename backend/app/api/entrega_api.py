@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.realtime import tracking_connections
 from app.models.entrega_models import Entrega
 from app.models.usuario_models import Usuario
-from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, CalcularRutaNavegacionRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, RutaNavegacionResponse, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
+from app.schemas.entrega_schemas import ActualizarEstadoEntregaRequest, AsignarVehiculoRequest, CalcularRutaNavegacionRequest, CancelarEntregaRequest, ConfirmarCargaResponse, ConductorDisponibleResponse, CooperativaDisponibleResponse, EntregaAsignadaResponse, EntregaCreate, EntregaHistorialPagina, EntregaPendienteAsignacionResponse, EntregaResponse, EventoConductorResponse, HistorialAsignacionResponse, HistorialEstadoEntregaLoteResponse, HistorialEstadoEntregaResponse, NotificacionEventoResponse, RegistrarUbicacionRequest, RegistrarUbicacionResponse, ReportarEventoConductorRequest, RutaNavegacionResponse, SeguimientoEntregaResponse, SincronizarUbicacionesRequest, SincronizarUbicacionesResponse, SolicitudActivaEntregaResponse, VehiculoDisponibleResponse
 from app.services.entrega_services import EntregaService
 from app.services.navegacion_services import calculate_navigation_route
 
@@ -90,10 +90,11 @@ def crear_entrega(
 @router.patch("/{entrega_id}/cancelar", response_model=EntregaResponse)
 def cancelar_recoleccion(
     entrega_id: UUID,
+    cancelacion: CancelarEntregaRequest,
     db: Session = Depends(get_db),
     coordinador: Usuario = Depends(require_roles("coordinador")),
 ):
-    return EntregaService(db).cancelar_recoleccion(entrega_id, coordinador.id_usuario)
+    return EntregaService(db).cancelar_recoleccion(entrega_id, coordinador.id_usuario, cancelacion.motivo)
 
 
 @router.get("/pendientes-asignacion", response_model=list[EntregaPendienteAsignacionResponse])

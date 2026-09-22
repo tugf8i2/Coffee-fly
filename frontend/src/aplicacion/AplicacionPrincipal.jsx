@@ -40,6 +40,9 @@ import {
   saveAuthenticatedSession,
 } from '../servicios/sesionSeguimiento';
 import { styles } from '../estilos';
+import { establecerTemaOscuro } from '../estilos/temaGlobal';
+import { readDriverValue, writeDriverValue } from '../modulos/conductor/almacenConductor';
+import { accesoPermitidoEnPlataforma } from '../servicios/accesoPlataforma';
 
 let sessionToken = '';
 
@@ -61,6 +64,10 @@ async function closeRemoteSession(token) {
 }
 
 async function validateSavedSession(saved) {
+  if (!accesoPermitidoEnPlataforma(saved?.user?.rol, Platform.OS)) {
+    await closeRemoteSession(saved?.token);
+    return null;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
@@ -70,7 +77,12 @@ async function validateSavedSession(saved) {
     });
     if (response.status === 401 || response.status === 403) return null;
     if (!response.ok) return saved;
-    return { ...saved, user: await response.json() };
+    const user = await response.json();
+    if (!accesoPermitidoEnPlataforma(user?.rol, Platform.OS)) {
+      await closeRemoteSession(saved.token);
+      return null;
+    }
+    return { ...saved, user };
   } catch {
     // Offline First: una falla de red no invalida una sesión local todavía vigente.
     return saved;
@@ -89,6 +101,7 @@ export default function AplicacionPrincipal() {
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const [syncStatus, setSyncStatus] = useState('idle');
   const [restoring, setRestoring] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   const showSyncResult = (result) => {
     setSyncStatus(result?.estado || 'synced');
     if (result?.sincronizadas || result?.duplicados || result?.conflictos || result?.descartadas) {
@@ -163,7 +176,19 @@ export default function AplicacionPrincipal() {
     setScreen('login');
     setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
-  const common = { go: setScreen, token: sessionToken, user, connectionStatus };
+  useEffect(() => {
+    if (!user) { setDarkMode(false); return; }
+    const key = `coffee-fly:theme:${user.id || user.id_usuario}`;
+    readDriverValue(key).then((value) => setDarkMode(value === 'dark')).catch(() => {});
+  }, [user?.id, user?.id_usuario]);
+  const toggleDarkMode = () => setDarkMode((current) => {
+    const next = !current;
+    const key = `coffee-fly:theme:${user?.id || user?.id_usuario}`;
+    writeDriverValue(key, next ? 'dark' : 'light').catch(() => {});
+    return next;
+  });
+  establecerTemaOscuro(Platform.OS !== 'web' && darkMode);
+  const common = { go: setScreen, token: sessionToken, user, connectionStatus, darkMode, onToggleDarkMode: toggleDarkMode };
   const displayedConnection = connectionLabel(connectionStatus);
   const displayedSynchronization = synchronizationLabel(connectionStatus, syncStatus);
   const screens = {
@@ -190,9 +215,9 @@ export default function AplicacionPrincipal() {
     <SafeAreaView style={styles.safe}><Text style={styles.muted}>Restaurando sesión segura…</Text></SafeAreaView>
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'caficultor') return <SafeAreaProvider>
-    <CaficultorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
+    <AvisoConexion status={connectionStatus}><CaficultorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
       <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>{screens[screen] || screens.dashboard}</AppErrorBoundary>
-    </CaficultorLayout>
+    </CaficultorLayout></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
@@ -206,28 +231,28 @@ export default function AplicacionPrincipal() {
     </SafeAreaView>
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'coordinador') return <SafeAreaProvider>
-    <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+    <AvisoConexion status={connectionStatus}><AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
       <CoordinadorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} operationsScreens={screens} />
-    </AppErrorBoundary>
+    </AppErrorBoundary></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
-    <RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
+    <AvisoConexion status={connectionStatus}><RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
       <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
         {screens[screen] || screens.dashboard}
       </AppErrorBoundary>
-    </RegistradorLayout>
+    </RegistradorLayout></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   return <SafeAreaProvider>
-    <SafeAreaView style={styles.safe}>
-      {user ? <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} /> : null}
+    <AvisoConexion status={connectionStatus}><SafeAreaView style={styles.safe}>
+      {user ? <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /> : null}
       {user ? <View style={styles.connectionBanner}>
         <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
       </View> : null}
       {syncMessage ? <FeedbackMessage type={syncMessageType}>{syncMessage}</FeedbackMessage> : null}
       <View style={[styles.screenStage, { flexDirection: width >= 1000 ? 'row' : 'column' }]}>
-        {user ? <NavegacionPrincipal user={user} screen={screen} go={setScreen} /> : null}
+        {user ? <NavegacionPrincipal user={user} screen={screen} go={setScreen} darkMode={darkMode} /> : null}
         <View style={styles.screenContent}>
           <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
             {screens[screen] || screens.dashboard}
@@ -235,6 +260,6 @@ export default function AplicacionPrincipal() {
         </View>
       </View>
       <StatusBar style={user ? 'light' : 'dark'} />
-    </SafeAreaView>
+    </SafeAreaView></AvisoConexion>
   </SafeAreaProvider>;
 }

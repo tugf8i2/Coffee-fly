@@ -11,12 +11,15 @@ from app.models.historial_eventos_models import HistorialEvento
 from app.models.historial_estado_entrega_models import HistorialEstadoEntrega
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.models.viaje_models import Viaje
+from app.models.vehiculo_models import Vehiculo
+from app.models.conductor_models import Conductor
 from app.core.time import as_utc_aware, to_utc_naive, utc_now_naive
 from app.core.config import EVENT_RETENTION_DAYS
 from app.core.observability import logger, process_metrics
 from app.repositories.entrega_repositories import EntregaRepository
 from app.repositories.cola_viajes import renumerar_cola_vehiculo
 from app.schemas.entrega_schemas import EntregaCreate, RegistrarUbicacionRequest, SincronizarUbicacionesRequest
+from app.services.auditoria_operativa import registrar_auditoria
 
 
 MAX_PRECISION_METROS = 150
@@ -180,6 +183,9 @@ class EntregaService:
                 "fecha_hora_entrega": entrega.fecha_hora_entrega,
                 "observaciones": entrega.observaciones,
                 "estado_entrega": entrega.estado_entrega,
+                "motivo_cancelacion": entrega.motivo_cancelacion,
+                "cancelada_en": entrega.cancelada_en,
+                "cancelada_por": entrega.cancelada_por,
                 "vehiculo_id": vehiculo.id_vehiculo if vehiculo else None,
                 "vehiculo_placa": vehiculo.placa if vehiculo else None,
             } for entrega, caficultor, vehiculo in filas],
@@ -540,8 +546,11 @@ class EntregaService:
         self._guardar_snapshot_finca(entrega, solicitud.caficultor)
         return self.repository.create_entrega(entrega)
 
-    def cancelar_recoleccion(self, entrega_id: UUID, coordinador_id: int):
+    def cancelar_recoleccion(self, entrega_id: UUID, coordinador_id: int, motivo: str):
         db = self.repository.db
+        motivo = " ".join(str(motivo or "").split())
+        if len(motivo) < 10:
+            raise HTTPException(status_code=400, detail="Explica el motivo de cancelación con al menos 10 caracteres")
         referencia = db.query(Entrega.viaje_id).filter(Entrega.id_entrega == entrega_id).first()
         if referencia is None:
             raise HTTPException(status_code=404, detail="Recolección no encontrada")
@@ -552,10 +561,10 @@ class EntregaService:
         entrega = db.query(Entrega).filter(Entrega.id_entrega == entrega_id).with_for_update().first()
         if entrega is None:
             raise HTTPException(status_code=404, detail="Recolección no encontrada")
-        if entrega.estado_entrega != "pendiente" or entrega.carga_recogida_en is not None:
-            raise HTTPException(status_code=409, detail="Solo puedes cancelar una recolección pendiente que aún no fue recogida")
-        if viaje is not None and viaje.estado_viaje not in {"asignado", "en_cola"}:
-            raise HTTPException(status_code=409, detail="El viaje ya inició; la recolección no puede cancelarse")
+        if entrega.estado_entrega not in {"pendiente", "en camino"}:
+            raise HTTPException(status_code=409, detail="Solo se puede cancelar una carga pendiente o en camino")
+        if viaje is not None and viaje.estado_viaje not in {"asignado", "en_cola", "en_camino"}:
+            raise HTTPException(status_code=409, detail="El viaje ya finalizó y no admite cancelaciones")
 
         ahora = utc_now_naive()
         solicitud = entrega.solicitud
@@ -567,8 +576,12 @@ class EntregaService:
             usuario_id=coordinador_id,
             fecha_hora_cambio=ahora,
         ))
+        estado_anterior = entrega.estado_entrega
         entrega.estado_entrega = "cancelado"
         entrega.actualizado_en = ahora
+        entrega.motivo_cancelacion = motivo
+        entrega.cancelada_en = ahora
+        entrega.cancelada_por = coordinador_id
         entrega.viaje_id = None
         entrega.orden_recoleccion = None
         if solicitud is not None:
@@ -576,19 +589,41 @@ class EntregaService:
         if carga is not None:
             carga.vehiculo_id = None
             carga.cooperativa_id = None
+            db.add(HistorialEvento(
+                carga_id=carga.id_carga, entrega_id=entrega.id_entrega,
+                tipo_evento="cancelación coordinador",
+                descripcion_evento=motivo[:300], fecha_hora_evento=ahora,
+                fecha_hora_sincronizacion=ahora,
+                expira_en=ahora + timedelta(days=EVENT_RETENTION_DAYS),
+                conductor_id=viaje.conductor_id if viaje is not None else None,
+                usuario_id_cambio=coordinador_id,
+            ))
 
         if viaje is not None:
             restantes = db.query(Entrega).filter(
                 Entrega.viaje_id == viaje.id_viaje,
                 Entrega.id_entrega != entrega.id_entrega,
-                Entrega.estado_entrega == "pendiente",
+                Entrega.estado_entrega.in_(["pendiente", "en camino"]),
             ).order_by(Entrega.orden_recoleccion).with_for_update().all()
             for orden, restante in enumerate(restantes, 1):
                 restante.orden_recoleccion = orden
             if not restantes:
                 viaje.estado_viaje = "cancelado"
+                viaje.completado_en = ahora
+                vehiculo = db.get(Vehiculo, viaje.vehiculo_id)
+                conductor = db.get(Conductor, viaje.conductor_id)
+                if vehiculo is not None:
+                    vehiculo.estado_vehiculo = "disponible"
+                    vehiculo.conductor_id = None
+                if conductor is not None:
+                    conductor.estado_conductor = "disponible"
                 db.flush()
                 renumerar_cola_vehiculo(db, viaje.vehiculo_id)
+        registrar_auditoria(
+            db, "entrega", entrega.id_entrega, "cancelar", coordinador_id,
+            antes={"estado": estado_anterior, "viaje_id": str(referencia[0]) if referencia[0] else None},
+            despues={"estado": "cancelado", "motivo": motivo},
+        )
         db.commit()
         db.refresh(entrega)
         return entrega

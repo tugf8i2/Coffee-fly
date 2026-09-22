@@ -128,14 +128,10 @@ def eliminar_usuario(
 
     service = UsuarioService(db)
 
-    service.eliminar_usuario(
+    return service.eliminar_usuario(
         id_usuario,
         registrador.id_usuario,
     )
-
-    return {
-        "mensaje": "Usuario eliminado"
-    }
 
 
 @router.put("/{id_usuario}/estado")

@@ -10,7 +10,7 @@ export default function usarAvisoConexion(status) {
     const next = availability(status);
     if (!next) return;
     if (next !== previous.current && (previous.current || next === 'offline')) {
-      setNotice({ kind: next, seconds: 5 });
+      setNotice({ kind: next, seconds: 3 });
     }
     previous.current = next;
   }, [status]);

@@ -8,6 +8,7 @@ import bold from '../../assets/fonts/RobotoCondensed-Bold.ttf';
 import './MarcoOperativo.css';
 import './MarcoOperativoAvatar.css';
 import './PreferenciasOperativas.css';
+import './TemaOscuro.css';
 const uri = asset => typeof asset === 'string' ? asset : asset?.uri || Image.resolveAssetSource?.(asset)?.uri;
 export default function MarcoOperativo({ user, role, menu, active, go, onLogout, connectionStatus, immersive = false, dark = false, contentClassName = '', menuBadges = {}, children }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);

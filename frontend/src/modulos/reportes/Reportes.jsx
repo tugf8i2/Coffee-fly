@@ -1,6 +1,7 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
+import SelectorFecha from '../../componentes/comunes/SelectorFecha';
 import { useRef, useState } from 'react';
-import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
@@ -64,11 +65,7 @@ export default function Reportes({ token, user }) {
     } catch (reason) { notify(reason.message); }
     finally { busyRef.current = false; setBusy(''); }
   };
-  const dateField = (label, value, setValue) => <View style={styles.field}>
-    <Text style={styles.label}>{label}</Text>
-    {Platform.OS === 'web' ? <input type="date" aria-label={label} value={value} disabled={Boolean(busy)} onChange={(event) => setValue(event.target.value)} style={{ width: '100%', minHeight: 48, padding: 12, border: '1px solid #B7CBBE', borderRadius: 10, fontSize: 16, background: '#fff', color: '#23372A' }} />
-      : <TextInput accessibilityLabel={label} style={styles.input} value={value} editable={!busy} onChangeText={setValue} maxLength={10} placeholder="AAAA-MM-DD" />}
-  </View>;
+  const dateField = (label, value, setValue) => <SelectorFecha label={label} value={value} onChange={setValue} styles={styles} disabled={Boolean(busy)} />;
   const section = (title, rows, fields) => <View style={styles.fullCard}>
     <Text style={styles.cardTitle}>{title}</Text>
     {rows?.length ? rows.map((row, index) => <View key={index} style={styles.history}>

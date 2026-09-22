@@ -9,6 +9,7 @@ import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 import { driverDate } from '../conductor/presentacionConductor';
 import {
   coordinatorRows,
+  includeActiveDeliveries,
   searchCoordinatorRows,
 } from './presentacionCoordinador';
 import MarcoOperativo from '../panel/MarcoOperativo';
@@ -63,7 +64,7 @@ function Metric({ icon, value, label, tone }) {
     </div>
   );
 }
-function RequestsTable({ rows, onDetail }) {
+function RequestsTable({ rows, onDetail, onTake, onAssign, onCancel }) {
   return (
     <div className="coord-table-scroll">
       <table>
@@ -71,13 +72,13 @@ function RequestsTable({ rows, onDetail }) {
           <tr>
             {[
               '# Solicitud',
+              'Acción',
               'Fecha',
               'Caficultor',
               'Cantidad',
               'Origen',
               'Destino',
               'Estado',
-              'Acciones',
             ].map((title) => (
               <th key={title}>{title}</th>
             ))}
@@ -91,6 +92,12 @@ function RequestsTable({ rows, onDetail }) {
                   CF-{String(item.id).slice(0, 8)}
                 </button>
               </td>
+              <td>
+                {!item.registered ? <button className="coord-take-button" onClick={() => onTake(item)}>Tomar carga</button>
+                  : item.status === 'En asignación' ? <button className="coord-take-button" onClick={() => onAssign(item)}>Asignar transporte</button>
+                    : item.estado_entrega === 'en camino' ? <button className="coord-cancel-button" onClick={() => onCancel(item)}>Cancelar carga</button>
+                      : <button className="coord-view-button" onClick={() => onDetail(item)}>Ver detalle</button>}
+              </td>
               <td>{driverDate(item.date)?.toLocaleDateString('es-CO')}</td>
               <td>{item.farmer}</td>
               <td>{Number(item.kg).toLocaleString('es-CO')} kg</td>
@@ -98,15 +105,6 @@ function RequestsTable({ rows, onDetail }) {
               <td>{item.destino || 'Por consultar'}</td>
               <td>
                 <Badge>{item.status}</Badge>
-              </td>
-              <td>
-                <button
-                  className="coord-icon-button"
-                  aria-label={`Ver solicitud ${String(item.id).slice(0, 8)}`}
-                  onClick={() => onDetail(item)}
-                >
-                  <Icon name="file" size={16} />
-                </button>
               </td>
             </tr>
           ))}
@@ -141,6 +139,7 @@ export default function CoordinadorLayout({
   const [data, setData] = useState({
     requests: [],
     deliveries: [],
+    activeDeliveries: [],
     vehicles: [],
     drivers: [],
     metrics: {},
@@ -158,6 +157,12 @@ export default function CoordinadorLayout({
   const [tracking, setTracking] = useState(null);
   const [route, setRoute] = useState(null);
   const [detailError, setDetailError] = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
+  const [cancelMessage, setCancelMessage] = useState('');
+  const [canceling, setCanceling] = useState(false);
+  const cancelingRef = useRef(false);
   const [preferenceMessage, setPreferenceMessage] = useState('');
   const [preferences, setPreferences] = useState(() => {
     try {
@@ -245,6 +250,7 @@ export default function CoordinadorLayout({
         dashboard,
         requests,
         deliveries,
+        activeFirstPage,
         drivers,
         fleet,
         notifications,
@@ -253,6 +259,7 @@ export default function CoordinadorLayout({
         get('/dashboard/'),
         get('/entregas/solicitudes-activas'),
         get(`/entregas/historial?pagina=${page}`),
+        get('/entregas/historial?estado=en%20camino&pagina=1'),
         get('/entregas/conductores-disponibles'),
         get('/monitoreo/resumen'),
         get('/entregas/eventos/notificaciones'),
@@ -265,6 +272,12 @@ export default function CoordinadorLayout({
           }
         })(),
       ]);
+      const activeDeliveries = [...(activeFirstPage.items || [])];
+      for (let activePage = 2; activeDeliveries.length < activeFirstPage.total; activePage += 1) {
+        const next = await get(`/entregas/historial?estado=en%20camino&pagina=${activePage}`);
+        if (!next.items?.length) break;
+        activeDeliveries.push(...next.items);
+      }
       const latestIds = new Set(notifications.map((item) => item.id_evento));
       if (knownNotificationIds.current !== null) {
         const newlyArrived = notifications.filter((item) => !knownNotificationIds.current.has(item.id_evento));
@@ -277,6 +290,7 @@ export default function CoordinadorLayout({
       setData({
         requests,
         deliveries: deliveries.items || [],
+        activeDeliveries,
         total: deliveries.total || 0,
         metrics: dashboard.metricas || {},
         vehicles,
@@ -378,9 +392,62 @@ export default function CoordinadorLayout({
   };
   const detail = (item) => {
     setSelected(item);
+    setCancelTarget(null);
+    setCancelError('');
+    setCancelMessage('');
     setSection('detail');
   };
-  const rows = coordinatorRows(data.requests, data.deliveries);
+  const openCancellation = (item) => {
+    setSelected(item);
+    setCancelTarget(item.id);
+    setCancelReason('');
+    setCancelError('');
+    setCancelMessage('');
+    setSection('detail');
+  };
+  const cancelDelivery = async () => {
+    const reason = cancelReason.trim();
+    if (cancelingRef.current || !selected || selected.estado_entrega !== 'en camino') return;
+    if (reason.length < 10) {
+      setCancelError('Explica el motivo de cancelación con al menos 10 caracteres.');
+      return;
+    }
+    cancelingRef.current = true;
+    setCanceling(true);
+    setCancelError('');
+    setCancelMessage('');
+    try {
+      const response = await fetchApi(`${API_BASE_URL}/entregas/${selected.id}/cancelar`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo: reason }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(typeof result.detail === 'string' ? result.detail : 'No se pudo cancelar la carga.');
+      setSelected((previous) => previous?.id === selected.id
+        ? { ...previous, estado_entrega: 'cancelado', status: 'Cancelada', motivo_cancelacion: reason } : previous);
+      setCancelTarget(null);
+      setCancelReason('');
+      setCancelMessage('La carga en camino fue cancelada. El motivo quedó registrado.');
+      await load();
+    } catch (reason) {
+      setCancelError(reason.message);
+    } finally {
+      cancelingRef.current = false;
+      setCanceling(false);
+    }
+  };
+  const takeRequest = (item) => {
+    setSelected(item);
+    setSection('register');
+  };
+  const assignRequest = (item) => {
+    setSelected(item);
+    navigate('vehicleAssignment');
+  };
+  const allVisibleDeliveries = includeActiveDeliveries(data.deliveries, data.activeDeliveries);
+  const rows = coordinatorRows(data.requests, allVisibleDeliveries);
+  const activeRows = rows.filter((item) => item.estado_entrega === 'en camino');
   const visible = searchCoordinatorRows(rows, search, filter);
   const fullName =
     [user.nombre || user.nombre_usuario, user.apellido]
@@ -516,7 +583,7 @@ export default function CoordinadorLayout({
                       Ver todas
                     </button>
                   </div>
-                  <RequestsTable rows={rows.slice(0, 5)} onDetail={detail} />
+                  <RequestsTable rows={rows.slice(0, 5)} onDetail={detail} onTake={takeRequest} onAssign={assignRequest} onCancel={openCancellation} />
                 </section>
                 <section className="coord-card">
                   <div className="coord-card-heading">
@@ -596,7 +663,8 @@ export default function CoordinadorLayout({
                 </div>
               )}
               <section className="coord-card">
-                <RequestsTable rows={visible} onDetail={detail} />
+                {activeRows.length > 0 && filter === 'Todas' && !search && <div className="coord-active-summary" role="status">{activeRows.length} carga(s) en camino. Puedes cancelarlas aquí indicando el motivo.</div>}
+                <RequestsTable rows={visible} onDetail={detail} onTake={takeRequest} onAssign={assignRequest} onCancel={openCancellation} />
                 <div className="coord-pagination">
                   <span>
                     {data.requests.length} solicitudes sin registrar ·{' '}
@@ -644,7 +712,25 @@ export default function CoordinadorLayout({
                     ? '＋ Asignar transporte'
                     : '＋ Registrar recolección'}
                 </button>
+                {selected.estado_entrega === 'en camino' && <button className="coord-cancel-button" onClick={() => {
+                  setCancelTarget(selected.id);
+                  setCancelReason('');
+                  setCancelError('');
+                }}>Cancelar carga en camino</button>}
               </Heading>
+              {cancelMessage && <div className="coord-notice" role="status">{cancelMessage}</div>}
+              {cancelTarget === selected.id && selected.estado_entrega === 'en camino' && <section className="coord-card coord-cancel-form">
+                <h2>Cancelar carga en camino</h2>
+                <p>Solo el coordinador puede cancelar esta carga. Explica por qué se cancela; el motivo quedará registrado en el historial.</p>
+                <label htmlFor="coord-cancel-reason">Motivo de cancelación (mínimo 10 caracteres)</label>
+                <textarea id="coord-cancel-reason" value={cancelReason} maxLength={500} onChange={(event) => { setCancelReason(event.target.value); setCancelError(''); }} placeholder="Explica claramente por qué se cancela la carga en camino" />
+                <small>{cancelReason.trim().length}/500 caracteres</small>
+                {cancelError && <p className="coord-cancel-error" role="alert">{cancelError}</p>}
+                <div className="coord-cancel-actions">
+                  <button className="coord-cancel-button" disabled={canceling} onClick={cancelDelivery}>{canceling ? 'Cancelando…' : 'Confirmar cancelación'}</button>
+                  <button className="coord-button secondary" disabled={canceling} onClick={() => { setCancelTarget(null); setCancelReason(''); setCancelError(''); }}>Conservar carga</button>
+                </div>
+              </section>}
               <div className="coord-detail-grid">
                 <section className="coord-card">
                   <h2>
@@ -678,6 +764,10 @@ export default function CoordinadorLayout({
                         'Observaciones',
                         selected.observaciones || 'Sin observaciones',
                       ],
+                      ...(selected.estado_entrega === 'cancelado' ? [[
+                        'Motivo de cancelación',
+                        selected.motivo_cancelacion || 'No informado',
+                      ]] : []),
                     ].map(([label, value]) => (
                       <React.Fragment key={label}>
                         <dt>{label}</dt>

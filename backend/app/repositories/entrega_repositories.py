@@ -353,7 +353,9 @@ class EntregaRepository:
         ).outerjoin(
             Conductor, Conductor.usuario_id == Usuario.id_usuario
         ).filter(
-            func.lower(Rol.descripcion_rol) == "conductor"
+            func.lower(Rol.descripcion_rol) == "conductor",
+            Usuario.habilitado.is_(True),
+            Usuario.eliminado_en.is_(None),
         ).order_by(Usuario.nombre_usuario, Usuario.apellido).all()
 
     def get_cooperativas_disponibles(self):

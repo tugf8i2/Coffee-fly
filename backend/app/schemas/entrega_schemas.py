@@ -20,8 +20,15 @@ class EntregaResponse(BaseModel):
     observaciones: Optional[str] = None
     estado_entrega: str
     carga_recogida_en: Optional[datetime] = None
+    motivo_cancelacion: Optional[str] = None
+    cancelada_en: Optional[datetime] = None
+    cancelada_por: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CancelarEntregaRequest(BaseModel):
+    motivo: str = Field(min_length=10, max_length=500)
 
 
 class ActualizarEstadoEntregaRequest(BaseModel):

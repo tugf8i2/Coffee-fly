@@ -1,5 +1,6 @@
 import { estilosOperativos } from '../panel/estilosOperativos';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
+import SelectorFecha from '../../componentes/comunes/SelectorFecha';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -37,8 +38,8 @@ export default function HistorialEntregas({ token, go, user }) {
     <Text style={styles.muted}>Filtra por fechas (máximo 90 días), caficultor, estado y vehículo. Los resultados se muestran de 20 en 20.</Text>
     {message ? <FeedbackMessage type="error">{message}</FeedbackMessage> : null}
     <View style={styles.formCard}>
-      <Text style={styles.label}>Desde (AAAA-MM-DD)</Text><TextInput style={styles.input} value={from} onChangeText={setFrom} placeholder="2026-08-01" />
-      <Text style={styles.label}>Hasta (AAAA-MM-DD)</Text><TextInput style={styles.input} value={to} onChangeText={setTo} placeholder="2026-08-28" />
+      <SelectorFecha label="Desde" value={from} onChange={setFrom} styles={styles} maximumDate={to || undefined} />
+      <SelectorFecha label="Hasta" value={to} onChange={setTo} styles={styles} minimumDate={from || undefined} />
       <Text style={styles.label}>ID de caficultor</Text><TextInput style={styles.input} value={farmer} onChangeText={(v) => setFarmer(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" placeholder="Opcional" />
       <Text style={styles.label}>ID de vehículo</Text><TextInput style={styles.input} value={vehicle} onChangeText={(v) => setVehicle(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" placeholder="Opcional" />
       <Text style={styles.label}>Estado</Text><View style={styles.statusActions}>{statuses.map((item) => <TouchableOpacity key={item} style={[styles.role, status === item && styles.roleActive]} onPress={() => setStatus(item)}><Text>{item}</Text></TouchableOpacity>)}</View>

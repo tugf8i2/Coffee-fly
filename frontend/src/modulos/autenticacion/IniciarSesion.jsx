@@ -8,6 +8,7 @@ import { styles } from './IniciarSesion.styles';
 import background from '../../assets/brand/coffee-landscape.jpg';
 import panelBackground from '../../assets/brand/coffee-panel.jpg';
 import logo from '../../assets/brand/login-logo.png';
+import { accesoPermitidoEnPlataforma, MENSAJE_CONDUCTOR_SOLO_MOVIL } from '../../servicios/accesoPlataforma';
 
 export default function IniciarSesion({ onLogin }) {
   const { width } = useWindowDimensions();
@@ -33,6 +34,14 @@ export default function IniciarSesion({ onLogin }) {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo iniciar sesión');
+      if (!accesoPermitidoEnPlataforma(data.user?.rol, Platform.OS)) {
+        try {
+          await fetchApi(`${API_BASE_URL}/logout`, {
+            method: 'POST', headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+        } catch { /* El acceso web permanece bloqueado aunque falle el cierre remoto. */ }
+        throw Error(MENSAJE_CONDUCTOR_SOLO_MOVIL);
+      }
       await onLogin(data.user, data.access_token);
     } catch (reason) {
       setError(reason.message);

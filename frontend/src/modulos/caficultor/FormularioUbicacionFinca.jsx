@@ -107,8 +107,8 @@ export default function FormularioUbicacionFinca({ token, obtenerUbicacionActual
 
   return <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <Text style={styles.title}>Ubicación de mi finca</Text>
-    <Text style={styles.muted}>Escribe una dirección y elige una sugerencia, o toca el mapa para marcar el punto exacto donde debe llegar el vehículo.</Text>
-    <Text style={styles.label}>Dirección o punto cercano</Text>
+    <Text style={styles.pageMuted}>Escribe una dirección y elige una sugerencia, o toca el mapa para marcar el punto exacto donde debe llegar el vehículo.</Text>
+    <Text style={styles.pageLabel}>Dirección o punto cercano</Text>
     <TextInput
       style={styles.input}
       value={address}
@@ -116,7 +116,7 @@ export default function FormularioUbicacionFinca({ token, obtenerUbicacionActual
       placeholder="Ejemplo: Vereda El Carmen, Armenia"
       autoCorrect={false}
     />
-    {searching ? <Text style={styles.muted}>Buscando lugares cercanos...</Text> : null}
+    {searching ? <Text style={styles.pageMuted}>Buscando lugares cercanos...</Text> : null}
     {unknown ? <FeedbackMessage type="warning">Ubicación desconocida</FeedbackMessage> : null}
     {suggestions.length ? <View style={styles.suggestions}>{suggestions.map((suggestion) => <TouchableOpacity key={`${suggestion.latitude}-${suggestion.longitude}-${suggestion.direccion}`} style={styles.suggestion} onPress={() => selectPosition(suggestion, suggestion.direccion)}><Text style={styles.suggestionText}>{suggestion.direccion}</Text></TouchableOpacity>)}</View> : null}
     <LocationPicker latitude={position?.latitud} longitude={position?.longitud} onSelect={selectMapPosition} entityLabel="finca" />

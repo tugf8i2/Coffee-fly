@@ -25,7 +25,9 @@ def exportar_registros(formato: str, db: Session = Depends(get_db),
                       _registrador: Usuario = Depends(require_roles('registrador'))):
     if formato not in ('pdf', 'excel'):
         raise HTTPException(status_code=400, detail="El formato debe ser 'pdf' o 'excel'")
-    roles = dict(db.query(Usuario.rol_id, func.count(Usuario.id_usuario)).group_by(Usuario.rol_id).all())
+    roles = dict(db.query(Usuario.rol_id, func.count(Usuario.id_usuario)).filter(
+        Usuario.eliminado_en.is_(None)
+    ).group_by(Usuario.rol_id).all())
     filas = [
         ['Cooperativas', db.query(func.count(Cooperativa.id_cooperativa)).scalar() or 0],
         ['Vehículos', db.query(func.count(Vehiculo.id_vehiculo)).scalar() or 0],
