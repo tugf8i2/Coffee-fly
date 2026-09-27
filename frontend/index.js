@@ -2,10 +2,7 @@ import { registerRootComponent } from 'expo';
 import { LogBox, Platform } from 'react-native';
 import './src/estilos/global';
 
-// Registra la tarea en el ámbito global antes de montar React. Es obligatorio
-// para que el sistema operativo pueda iniciar únicamente el proceso GPS.
-import './src/servicios/ubicacionSegundoPlano';
-import App from './src/aplicacion/AplicacionPrincipal';
+import App from './src/aplicacion/EntradaAplicacion';
 
 // Son avisos del entorno de desarrollo de Expo, no fallos funcionales de la
 // aplicación. Los errores reales de Coffee Fly siguen visibles en pantalla.

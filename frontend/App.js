@@ -1,4 +1,3 @@
-// Entrada compatible con Expo y herramientas que buscan App.js.
-// La única aplicación canónica es AplicacionPrincipal para evitar que se muestre un menú
-// antiguo e incompleto según el comando usado para arrancar el proyecto.
-export { default } from './src/aplicacion/AplicacionPrincipal';
+// Expo resuelve EntradaAplicacion.web.jsx en el sitio web y
+// EntradaAplicacion.native.jsx dentro del APK.
+export { default } from './src/aplicacion/EntradaAplicacion';

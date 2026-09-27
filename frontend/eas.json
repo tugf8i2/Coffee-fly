@@ -14,7 +14,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api"
+        "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api",
+        "EXPO_PUBLIC_APP_URL": "https://coffee-fly.hostless.app"
       },
       "android": {
         "buildType": "apk"
@@ -23,7 +24,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api"
+        "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api",
+        "EXPO_PUBLIC_APP_URL": "https://coffee-fly.hostless.app"
       }
     }
   }
