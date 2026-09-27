@@ -14,6 +14,26 @@ El archivo `hostless.yaml` configura el Dockerfile, una réplica y la sonda
 `/health/ready`. El contenedor detecta una base totalmente vacía, instala el
 esquema inicial una sola vez y después ejecuta todas las migraciones Alembic.
 
+## Preflight automatizado
+
+La clave de despliegue se guarda fuera del repositorio en
+`%USERPROFILE%\.codex\hostless-token.txt`; el archivo debe contener únicamente
+la API key `hlk_...`. Para comprobar la autenticación y enumerar los proyectos
+sin crear ni modificar recursos:
+
+```powershell
+.\scripts\hostless-preflight.ps1
+```
+
+Después de elegir el identificador de proyecto, el mismo script puede revisar
+si ya existen una App o una base de datos para evitar duplicarlas:
+
+```powershell
+.\scripts\hostless-preflight.ps1 -ProjectId '<project-id>'
+```
+
+El script no imprime la clave y todas sus operaciones son de solo lectura.
+
 ## Variables secretas de la App
 
 - `ENV=production`
