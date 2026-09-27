@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$TokenPath = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.codex\hostless-token.txt'),
+    [string]$TokenPath = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.hostless\hostless-token.txt'),
     [string]$ProjectId
 )
 
