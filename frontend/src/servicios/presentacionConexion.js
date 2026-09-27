@@ -15,3 +15,7 @@ export function synchronizationLabel(connectionStatus, synchronizationStatus) {
   if (synchronizationStatus === 'auth_required') return 'Requiere iniciar sesión';
   return 'Sincronizado';
 }
+
+export function syncFeedbackDuration(type) {
+  return type === 'success' || type === 'info' ? 3000 : 0;
+}

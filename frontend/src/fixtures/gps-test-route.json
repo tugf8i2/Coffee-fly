@@ -1,0 +1,14 @@
+{
+  "name": "Ruta rural de prueba Armenia - Calarcá",
+  "country": "CO",
+  "points": [
+    { "offsetMs": 0, "latitude": 4.53390, "longitude": -75.68110, "accuracy": 6, "speed": 0, "heading": 92 },
+    { "offsetMs": 1000, "latitude": 4.53391, "longitude": -75.68099, "accuracy": 7, "speed": 9.5, "heading": 88 },
+    { "offsetMs": 2000, "latitude": 4.53393, "longitude": -75.68088, "accuracy": 8, "speed": 10.2, "heading": 84 },
+    { "offsetMs": 3000, "latitude": 4.53396, "longitude": -75.68077, "accuracy": 6, "speed": 10.8, "heading": 78 },
+    { "offsetMs": 4000, "latitude": 4.53401, "longitude": -75.68068, "accuracy": 9, "speed": 10.1, "heading": 68 },
+    { "offsetMs": 5000, "latitude": 4.53408, "longitude": -75.68060, "accuracy": 7, "speed": 9.7, "heading": 54 },
+    { "offsetMs": 6000, "latitude": 4.53416, "longitude": -75.68054, "accuracy": 8, "speed": 9.2, "heading": 40 },
+    { "offsetMs": 7000, "latitude": 4.53425, "longitude": -75.68050, "accuracy": 6, "speed": 8.8, "heading": 25 }
+  ]
+}

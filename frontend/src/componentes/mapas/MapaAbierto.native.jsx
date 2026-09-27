@@ -21,9 +21,11 @@ const valid = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
   && Number(coordinate.longitude) >= -180 && Number(coordinate.longitude) <= 180;
 const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.latitude)];
 
-function MapaNativo({ camera = {}, completedRoute = [], mapTheme = 'day', showNavigationControls = true, markers = [], onError, onManualMove, onMapPress, route = [], routeColor = '#3214d6', routeWidth = 6, style }) {
+function MapaNativo({ camera = {}, completedRoute = [], mapStyleUrl, mapTheme = 'day', showNavigationControls = true, markers = [], onError, onManualMove, onMapPress, route = [], routeColor = '#3214d6', routeWidth = 6, style }) {
   const cameraRef = useRef(null);
   const appliedFitKeyRef = useRef(null);
+  const appliedZoomCommandRef = useRef(null);
+  const currentZoomRef = useRef(Number(camera.zoom) || 15);
   const [loaded, setLoaded] = useState(false);
   const routeCoordinates = route.filter(valid).map(lngLat);
   const completedCoordinates = completedRoute.filter(valid).map(lngLat);
@@ -47,6 +49,7 @@ function MapaNativo({ camera = {}, completedRoute = [], mapTheme = 'day', showNa
         zoom: camera.zoom || 17,
         bearing: Number(camera.bearing || 0),
         pitch: Number(camera.pitch || 0),
+        padding: camera.followPadding || camera.padding,
         duration: 250,
       });
       return;
@@ -61,22 +64,44 @@ function MapaNativo({ camera = {}, completedRoute = [], mapTheme = 'day', showNa
         500,
       );
     }
-  }, [camera.bearing, camera.fitKey, camera.fitMode, camera.follow, camera.padding, camera.pitch, camera.zoom, followed, loaded, routeCoordinates]);
+  }, [camera.bearing, camera.fitKey, camera.fitMode, camera.follow, camera.followPadding, camera.padding, camera.pitch, camera.zoom, followed, loaded, routeCoordinates]);
+
+  useEffect(() => {
+    const command = camera.zoomCommand;
+    if (!loaded || !cameraRef.current || !command || appliedZoomCommandRef.current === command.id) return;
+    appliedZoomCommandRef.current = command.id;
+    const nextZoom = Math.max(3, Math.min(19, currentZoomRef.current + Number(command.delta || 0)));
+    currentZoomRef.current = nextZoom;
+    cameraRef.current.zoomTo(nextZoom, { duration: 180 });
+  }, [camera.zoomCommand, loaded]);
 
   const initial = followed?.coordinate || route.find(valid) || markers.find((marker) => valid(marker.coordinate))?.coordinate;
   const { Camera, GeoJSONSource, Layer, Map, Marker } = MapLibre;
   return <Map
     style={style}
-    mapStyle={mapTheme === 'dark' ? OPEN_MAP_DARK_STYLE_URL : OPEN_MAP_STYLE_URL}
+    mapStyle={mapStyleUrl || (mapTheme === 'dark' ? OPEN_MAP_DARK_STYLE_URL : OPEN_MAP_STYLE_URL)}
     attribution
     logo={false}
     compass={showNavigationControls}
+    dragPan
+    touchZoom
+    doubleTapZoom
+    doubleTapHoldZoom
+    touchRotate
+    touchPitch
     androidView="surface"
+    onTouchStart={() => onManualMove?.('touch')}
     onPress={(event) => {
       const coordinate = event.nativeEvent?.lngLat;
       if (coordinate) onMapPress?.({ longitude: coordinate[0], latitude: coordinate[1] });
     }}
-    onRegionWillChange={(event) => { if (event.nativeEvent?.userInteraction) onManualMove?.('move'); }}
+    onRegionWillChange={(event) => {
+      if (event.nativeEvent?.userInteraction || event.userInteraction) onManualMove?.('move');
+    }}
+    onRegionDidChange={(event) => {
+      const nextZoom = Number(event.nativeEvent?.zoom ?? event.zoom);
+      if (Number.isFinite(nextZoom)) currentZoomRef.current = nextZoom;
+    }}
     onDidFinishLoadingMap={() => setLoaded(true)}
     onDidFailLoadingMap={() => onError?.('No fue posible cargar las calles del mapa.')}
   >

@@ -10,6 +10,8 @@ class Usuario(Base):
     apellido = Column(String(30), nullable=False)
     correo_usuario = Column(String(30), nullable=False, unique=True)
     telefono_usuario = Column(String(10), nullable=False)
+    tipo_documento = Column(String(20), nullable=True)
+    numero_documento = Column(String(30), nullable=True)
     contrasena = Column(String(255), nullable=False)
     habilitado = Column(Boolean, nullable=False, default=True, server_default="true")
     intentos_fallidos = Column(Integer, nullable=False, default=0, server_default="0")

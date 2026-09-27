@@ -1,0 +1,3 @@
+data/*.mbtiles
+data/*.pmtiles
+!data/.gitkeep

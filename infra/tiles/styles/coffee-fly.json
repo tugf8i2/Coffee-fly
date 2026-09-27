@@ -1,0 +1,123 @@
+{
+  "version": 8,
+  "name": "Coffee Fly Colombia",
+  "center": [-75.02288, 6.16837],
+  "zoom": 5,
+  "glyphs": "{fontstack}/{range}.pbf",
+  "sources": {
+    "coffee-fly-colombia": {
+      "type": "vector",
+      "url": "mbtiles://{coffee-fly-colombia}"
+    }
+  },
+  "layers": [
+    {
+      "id": "fondo",
+      "type": "background",
+      "paint": { "background-color": "#f5f0e5" }
+    },
+    {
+      "id": "cobertura",
+      "type": "fill",
+      "source": "coffee-fly-colombia",
+      "source-layer": "landcover",
+      "paint": { "fill-color": "#dce8cf", "fill-opacity": 0.72 }
+    },
+    {
+      "id": "uso-suelo",
+      "type": "fill",
+      "source": "coffee-fly-colombia",
+      "source-layer": "landuse",
+      "paint": { "fill-color": "#e6dfcc", "fill-opacity": 0.55 }
+    },
+    {
+      "id": "parques",
+      "type": "fill",
+      "source": "coffee-fly-colombia",
+      "source-layer": "park",
+      "paint": { "fill-color": "#cde3bf", "fill-opacity": 0.75 }
+    },
+    {
+      "id": "agua",
+      "type": "fill",
+      "source": "coffee-fly-colombia",
+      "source-layer": "water",
+      "paint": { "fill-color": "#9dcbe3" }
+    },
+    {
+      "id": "cursos-agua",
+      "type": "line",
+      "source": "coffee-fly-colombia",
+      "source-layer": "waterway",
+      "paint": {
+        "line-color": "#79b7d8",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.5, 14, 2.2]
+      }
+    },
+    {
+      "id": "limites",
+      "type": "line",
+      "source": "coffee-fly-colombia",
+      "source-layer": "boundary",
+      "paint": { "line-color": "#9d8c78", "line-width": 1, "line-dasharray": [3, 2] }
+    },
+    {
+      "id": "edificios",
+      "type": "fill",
+      "source": "coffee-fly-colombia",
+      "source-layer": "building",
+      "minzoom": 13,
+      "paint": { "fill-color": "#d8c5ae", "fill-outline-color": "#c0aa90" }
+    },
+    {
+      "id": "vias-borde",
+      "type": "line",
+      "source": "coffee-fly-colombia",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track", "path"]]],
+      "paint": {
+        "line-color": "#9f9588",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 10, 2.2, 14, 6.5]
+      }
+    },
+    {
+      "id": "vias",
+      "type": "line",
+      "source": "coffee-fly-colombia",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track", "path"]]],
+      "paint": {
+        "line-color": ["match", ["get", "class"], ["motorway", "trunk"], "#efb36e", ["primary", "secondary"], "#f6d49a", ["track", "path"], "#eee4d3", "#ffffff"],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.35, 10, 1.4, 14, 4.6]
+      }
+    },
+    {
+      "id": "nombres-vias",
+      "type": "symbol",
+      "source": "coffee-fly-colombia",
+      "source-layer": "transportation_name",
+      "minzoom": 11,
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": ["coalesce", ["get", "name:es"], ["get", "name"], ["get", "ref"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 14, 13],
+        "text-max-angle": 35
+      },
+      "paint": { "text-color": "#514a42", "text-halo-color": "#ffffff", "text-halo-width": 1.4 }
+    },
+    {
+      "id": "lugares",
+      "type": "symbol",
+      "source": "coffee-fly-colombia",
+      "source-layer": "place",
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:es"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 11, 12, 16],
+        "text-allow-overlap": false
+      },
+      "paint": { "text-color": "#3f3933", "text-halo-color": "#f5f0e5", "text-halo-width": 1.5 }
+    }
+  ]
+}

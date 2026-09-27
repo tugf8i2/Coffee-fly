@@ -19,6 +19,7 @@ from app.models.carga_models import Carga
 from app.models.conductor_models import Conductor
 from app.models.cooperativa_models import Cooperativa
 from app.models.entrega_models import Entrega
+from app.models.inspeccion_vehiculo_models import InspeccionVehiculo
 from app.models.rol_models import Rol
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.models.solicitud_models import Solicitud
@@ -148,6 +149,9 @@ def cleanup(data):
         db.query(AuthSession).filter(AuthSession.user_id.in_(data["user_ids"])).delete(synchronize_session=False)
         db.query(SeguimientoUbicacion).filter(
             SeguimientoUbicacion.entrega_id == data["delivery_id"]
+        ).delete(synchronize_session=False)
+        db.query(InspeccionVehiculo).filter(
+            InspeccionVehiculo.viaje_id == data["trip_id"]
         ).delete(synchronize_session=False)
         db.query(Entrega).filter(Entrega.id_entrega == data["delivery_id"]).delete(synchronize_session=False)
         db.query(Viaje).filter(Viaje.id_viaje == data["trip_id"]).delete(synchronize_session=False)

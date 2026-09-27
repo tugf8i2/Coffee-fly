@@ -44,6 +44,26 @@ export function gpsStop(trip, deliveryId, stage) {
     cooperative,
   };
 }
+
+export function navigationCameraLayout(width, height) {
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const landscape = safeWidth > safeHeight;
+  const largeScreen = Math.min(safeWidth, safeHeight) >= 600;
+  return {
+    landscape,
+    largeScreen,
+    desktopLayout: safeWidth >= 1000 || (largeScreen && landscape),
+    pitch: landscape ? 48 : 42,
+    zoom: landscape ? 16.5 : 17,
+    followPadding: landscape
+      ? { top: largeScreen ? 180 : 112, right: 92, bottom: 44, left: 34 }
+      : { top: 210, right: 84, bottom: 105, left: 38 },
+    fitPadding: landscape
+      ? { top: 130, right: 92, bottom: 70, left: 45 }
+      : { top: 190, right: 85, bottom: 160, left: 40 },
+  };
+}
 export function canAdvanceGpsInstruction(point) {
   const time = driverDate(point?.registrada_en)?.getTime();
   return (
@@ -60,6 +80,18 @@ export function canAdvanceGpsInstruction(point) {
     time <= Date.now() + 10000 &&
     Date.now() - time <= 90000
   );
+}
+
+export function instructionIndexForProgress(instructions, routeDistanceM, toleranceM = 20) {
+  if (!Array.isArray(instructions) || !instructions.length) return 0;
+  const progress = Number(routeDistanceM);
+  if (!Number.isFinite(progress) || progress <= 0) return 0;
+  let accumulated = 0;
+  for (let index = 0; index < instructions.length; index += 1) {
+    accumulated += Math.max(0, Number(instructions[index]?.distancia_m) || 0);
+    if (progress <= accumulated + Math.max(0, Number(toleranceM) || 0)) return index;
+  }
+  return instructions.length;
 }
 export function canConfirmDriverPickup(tracking, point) {
   if (tracking?.etapa_viaje !== 'hacia_finca' || tracking?.carga_recogida_en || !canAdvanceGpsInstruction(point)) return false;

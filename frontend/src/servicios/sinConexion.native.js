@@ -156,7 +156,11 @@ export async function encolar(tipo, payload) {
   }
   const idempotencyKey = tipo === 'ubicacion_gps'
     ? payload.client_point_id
-    : tipo === 'solicitud' ? payload.client_request_id : null;
+    : tipo === 'solicitud'
+      ? payload.client_request_id
+      : tipo === 'evento_conductor'
+        ? payload.client_event_id
+        : tipo === 'inspeccion_vehiculo' ? payload.client_inspection_id : null;
   const result = await db.runAsync(
     `INSERT OR IGNORE INTO sync_queue
       (tipo, payload, creado_en, intentos, proximo_intento, ultimo_error, clave_idempotencia, owner_id)
@@ -255,6 +259,29 @@ async function enviarOperacion(tipo, payload, token) {
     const solicitudData = await readJson(solicitud);
     if (!solicitud.ok) throw responseError(solicitud, solicitudData, 'No fue posible sincronizar la solicitud');
     return solicitudData;
+  }
+  if (tipo === 'evento_conductor') {
+    const response = await fetchApi(`${API_BASE_URL}/entregas/${payload.entrega_id}/eventos-conductor`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        tipo_evento: payload.tipo_evento,
+        detalle: payload.detalle,
+        client_event_id: payload.client_event_id,
+        capturada_en: payload.capturada_en,
+      }),
+    });
+    const data = await readJson(response);
+    if (!response.ok) throw responseError(response, data, 'No fue posible sincronizar la novedad');
+    return data;
+  }
+  if (tipo === 'inspeccion_vehiculo') {
+    const response = await fetchApi(`${API_BASE_URL}/inspecciones-vehiculo/`, {
+      method: 'POST', headers, body: JSON.stringify(payload),
+    });
+    const data = await readJson(response);
+    if (!response.ok) throw responseError(response, data, 'No fue posible sincronizar la inspección del vehículo');
+    return data;
   }
   const response = await fetchApi(`${API_BASE_URL}/entregas/${payload.entrega_id}/estado`, {
     method: 'PATCH',

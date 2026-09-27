@@ -15,3 +15,11 @@ for (const [source, destination] of [
   await copyFile(resolve(distribution, source), resolve(publicDirectory, destination));
   console.log(`MapLibre listo: ${destination}`);
 }
+
+for (const [source, destination] of [
+  ['assets/icon.png', 'pwa-icon.png'],
+  ['assets/adaptive-icon.png', 'pwa-icon-maskable.png'],
+]) {
+  await copyFile(resolve(projectRoot, source), resolve(publicDirectory, destination));
+  console.log(`PWA lista: ${destination}`);
+}

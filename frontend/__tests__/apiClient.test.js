@@ -1,3 +1,11 @@
+const mockReadApiResponse = jest.fn();
+const mockStoreApiResponse = jest.fn();
+
+jest.mock('../src/servicios/cacheApi', () => ({
+  readApiResponse: (...args) => mockReadApiResponse(...args),
+  storeApiResponse: (...args) => mockStoreApiResponse(...args),
+}));
+
 import { fetchApi, resolveApiBaseUrl, subscribeSessionExpired } from '../src/configuracion/ClienteApi';
 
 describe('cliente API resiliente', () => {
@@ -6,6 +14,8 @@ describe('cliente API resiliente', () => {
   afterEach(() => {
     global.fetch = originalFetch;
     jest.useRealTimers();
+    mockReadApiResponse.mockReset();
+    mockStoreApiResponse.mockReset();
   });
 
   test('notifica una sesión expirada solamente en peticiones autenticadas', async () => {
@@ -65,5 +75,19 @@ describe('cliente API resiliente', () => {
     const request = fetchApi('https://api.test/slow', { timeoutMs: 100 });
     jest.advanceTimersByTime(101);
     await expect(request).rejects.toThrow('La solicitud tardó demasiado');
+  });
+
+  test('sirve una consulta autenticada desde caché cuando no hay red', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    mockReadApiResponse.mockResolvedValue({
+      body: JSON.stringify({ viajes: [1] }),
+      contentType: 'application/json',
+      savedAt: '2026-09-26T12:00:00.000Z',
+    });
+    const response = await fetchApi('https://api.test/dashboard', {
+      headers: { Authorization: 'Bearer token' }, retryDelayMs: 0,
+    });
+    await expect(response.json()).resolves.toEqual({ viajes: [1] });
+    expect(response.headers.get('x-coffee-fly-offline')).toBe('cache');
   });
 });

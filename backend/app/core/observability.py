@@ -52,17 +52,34 @@ class OperationalMetrics:
     def __init__(self):
         self._started_at = datetime.now(timezone.utc)
         self._counters = Counter()
+        self._observations = defaultdict(lambda: {"count": 0, "sum": 0.0, "max": 0.0})
         self._lock = Lock()
 
     def increment(self, name: str, amount: int = 1) -> None:
         with self._lock:
             self._counters[name] += amount
 
+    def observe(self, name: str, value: float) -> None:
+        number = float(value)
+        with self._lock:
+            observation = self._observations[name]
+            observation["count"] += 1
+            observation["sum"] += number
+            observation["max"] = max(observation["max"], number)
+
     def snapshot(self) -> dict:
         with self._lock:
             return {
                 "desde": self._started_at,
                 "contadores": dict(self._counters),
+                "observaciones": {
+                    name: {
+                        "count": value["count"],
+                        "average": value["sum"] / value["count"] if value["count"] else 0,
+                        "max": value["max"],
+                    }
+                    for name, value in self._observations.items()
+                },
             }
 
 

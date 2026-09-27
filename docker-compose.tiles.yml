@@ -1,0 +1,17 @@
+services:
+  tile-server:
+    image: maptiler/tileserver-gl:v5.6.0
+    profiles: ["maps"]
+    command:
+      - "--config"
+      - "/config/config.json"
+      - "--public_url"
+      - "${TILESERVER_PUBLIC_URL:-http://localhost:8080/maps/}"
+    environment:
+      TILESERVER_GL_ALLOWED_HOSTS: ${TILESERVER_ALLOWED_HOSTS:-*}
+    ports:
+      - "127.0.0.1:${TILESERVER_HOST_PORT:-8081}:8080"
+    volumes:
+      - ${TILESERVER_DATA_DIR:-./infra/tiles/data}:/data:ro
+      - ./infra/tiles:/config:ro
+    restart: unless-stopped

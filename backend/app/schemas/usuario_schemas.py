@@ -9,6 +9,8 @@ class UsuarioBase(BaseModel):
     apellido: str = Field(max_length=30)
     correo_usuario: EmailStr = Field(max_length=30)
     telefono_usuario: str = Field(min_length=10, max_length=10)
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
     contrasena: str = Field(min_length=7, max_length=20)
 
     @field_validator("contrasena")
@@ -56,6 +58,8 @@ class UsuarioUpdate(BaseModel):
     apellido: Optional[str] = Field(default=None, max_length=30)
     correo_usuario: Optional[EmailStr] = Field(default=None, max_length=30)
     telefono_usuario: Optional[str] = Field(default=None, min_length=10, max_length=10)
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
     contrasena: Optional[str] = Field(default=None, min_length=7, max_length=20)
 
     @field_validator("contrasena")
@@ -101,6 +105,8 @@ class UsuarioResponse(BaseModel):
     apellido: str
     correo_usuario: EmailStr
     telefono_usuario: str
+    tipo_documento: Optional[str] = None
+    numero_documento: Optional[str] = None
     rol_id: int
     departamento: Optional[str] = None
     municipio: Optional[str] = None

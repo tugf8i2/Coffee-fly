@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { readApiResponse, storeApiResponse } from '../servicios/cacheApi';
 
 function normalizeBaseUrl(value) {
   const normalized = String(value || '').trim().replace(/\/+$/, '');
@@ -68,6 +69,20 @@ export async function fetchApi(input, options = {}) {
     ...fetchOptions
   } = options;
   const maximumAttempts = isSafeToRetry(fetchOptions.method) ? Math.max(1, Number(retries) + 1) : 1;
+  const canUseOfflineCache = isSafeToRetry(fetchOptions.method) && hasAuthorization(fetchOptions.headers);
+  const cachedFallback = async () => {
+    if (!canUseOfflineCache) return null;
+    const cached = await readApiResponse(input).catch(() => null);
+    if (!cached?.body) return null;
+    return new Response(cached.body, {
+      status: 200,
+      headers: {
+        'content-type': cached.contentType || 'application/json',
+        'x-coffee-fly-offline': 'cache',
+        'x-coffee-fly-cached-at': cached.savedAt || '',
+      },
+    });
+  };
 
   for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
     const controller = new AbortController();
@@ -100,17 +115,22 @@ export async function fetchApi(input, options = {}) {
         invalidResponse.status = response.status;
         throw invalidResponse;
       }
+      if (canUseOfflineCache && response.ok) await storeApiResponse(input, response).catch(() => {});
       return response;
     } catch (error) {
       if (callerSignal?.aborted) throw new Error('La solicitud fue cancelada.');
       if (error?.code === 'API_NON_JSON') throw error;
       if (timedOut) {
+        const cached = await cachedFallback();
+        if (cached) return cached;
         throw new Error('La solicitud tardó demasiado. El servidor puede estar iniciando; espera unos segundos e inténtalo nuevamente.');
       }
       if (attempt < maximumAttempts) {
         await wait(retryDelayMs * attempt);
         continue;
       }
+      const cached = await cachedFallback();
+      if (cached) return cached;
       const connectionError = new Error('No fue posible conectar con Coffee Fly. Tus datos offline se conservarán; revisa la red o el estado del servidor e intenta sincronizar nuevamente.');
       connectionError.code = 'API_UNREACHABLE';
       connectionError.retryable = true;

@@ -1,0 +1,26 @@
+{
+  "options": {
+    "paths": {
+      "root": "/config",
+      "styles": "styles",
+      "mbtiles": "/data",
+      "fonts": "/usr/src/app/node_modules/tileserver-gl-styles/fonts"
+    },
+    "serveAllFonts": false,
+    "serveAllStyles": false,
+    "serveStaticMaps": false,
+    "staticAttributionText": "© OpenMapTiles © OpenStreetMap contributors"
+  },
+  "styles": {
+    "coffee-fly": {
+      "style": "coffee-fly.json",
+      "serve_rendered": false,
+      "serve_data": true
+    }
+  },
+  "data": {
+    "coffee-fly-colombia": {
+      "mbtiles": "coffee-fly-colombia.mbtiles"
+    }
+  }
+}

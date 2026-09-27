@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -19,6 +20,8 @@ from app.api.entrega_api import router as entrega_router
 from app.api.historial_eventos_api import router as historial_eventos_router
 from app.api.login_api import router as login_router
 from app.api.monitoring_api import router as monitoring_router
+from app.api.navigation_api import router as navigation_router
+from app.api.inspeccion_vehiculo_api import router as inspeccion_vehiculo_router
 from app.api.realtime_api import router as realtime_router
 from app.api.reportes_api import router as reportes_router
 from app.api.rol_api import router as rol_router
@@ -43,6 +46,10 @@ from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
 from app.models.historial_eventos_models import HistorialEvento
 from app.core.time import utc_now_naive
+
+
+STATIC_DIR = os.getenv("COFFEE_FLY_STATIC_DIR", "").strip()
+SERVE_WEB_APP = bool(STATIC_DIR and os.path.isdir(STATIC_DIR))
 
 
 async def cleanup_expired_events() -> None:
@@ -117,17 +124,26 @@ app.add_middleware(
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts())
 
 
-@app.get("/")
-def home():
+if not SERVE_WEB_APP:
+    @app.get("/")
+    def home():
+        return {"message": "API funcionando"}
+
+
+@app.get("/api", include_in_schema=False)
+@app.get("/api/", include_in_schema=False)
+def api_home():
     return {"message": "API funcionando"}
 
 
 @app.get("/health/live", include_in_schema=False)
+@app.get("/api/health/live", include_in_schema=False)
 def health_live():
     return {"status": "ok"}
 
 
 @app.get("/health/ready", include_in_schema=False)
+@app.get("/api/health/ready", include_in_schema=False)
 def health_ready():
     with SessionLocal() as db:
         db.execute(text("SELECT 1"))
@@ -152,6 +168,16 @@ for router in (
     dashboard_router,
     realtime_router,
     monitoring_router,
+    navigation_router,
+    inspeccion_vehiculo_router,
     soporte_router,
 ):
     app.include_router(router)
+    if SERVE_WEB_APP:
+        app.include_router(router, prefix="/api")
+
+
+if SERVE_WEB_APP:
+    # Se registra al final para que las rutas HTTP y WebSocket de la API tengan
+    # prioridad. html=True devuelve index.html para la navegación de la SPA.
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="web-app")

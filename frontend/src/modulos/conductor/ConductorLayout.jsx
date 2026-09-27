@@ -12,14 +12,21 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useFonts } from 'expo-font';
+import * as Crypto from 'expo-crypto';
+import { seleccionarEvidenciaImagen } from '../../servicios/evidenciaImagen';
 import Icon from './IconoConductor';
 import MarcoOperativo from '../panel/MarcoOperativo';
 import useDriverSummary from './usarResumenConductor';
 import { readDriverValue, writeDriverValue } from './almacenConductor';
 import { styles as s } from './Conductor.styles';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
-import { obtenerRutaEntrega } from '../../servicios/sinConexion';
-import { driverDate, driverTodayMetrics } from './presentacionConductor';
+import { enviarOSolicitarEnCola, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
+import { attachOfflineMapPackage } from '../../servicios/paqueteNavegacionOffline';
+import {
+  obtenerEstadoMapaSinConexion,
+  prepararMapaSinConexion,
+} from '../../servicios/mapaSinConexion';
+import { driverDate, driverQuickActions, driverTodayMetrics } from './presentacionConductor';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 import { ConductorThemeContext } from './ConductorTheme';
@@ -27,24 +34,23 @@ import { ConductorThemeContext } from './ConductorTheme';
 const logo = require('../../assets/brand/logo.png');
 const landscape = require('../../assets/brand/coffee-landscape.jpg');
 const checks = [
-  ['Niveles de aceite', 'Motor, dirección y otros fluidos'],
-  ['Llantas', 'Presión y estado general'],
-  ['Frenos', 'Funcionamiento correcto'],
-  ['Luces', 'Altas, bajas, direccionales'],
-  ['Documentos', 'SOAT, revisión técnico-mecánica, licencia'],
-  ['Equipo de seguridad', 'Botiquín, extintor, triángulos, chaleco'],
+  ['Niveles de aceite', 'Motor, dirección y otros fluidos', 'aceite'],
+  ['Llantas', 'Presión y estado general', 'llantas'],
+  ['Frenos', 'Funcionamiento correcto', 'frenos'],
+  ['Luces', 'Altas, bajas, direccionales', 'luces'],
+  ['Documentos', 'SOAT, revisión técnico-mecánica, licencia', 'documentos'],
+  ['Equipo de seguridad', 'Botiquín, extintor, triángulos, chaleco', 'seguridad'],
 ];
+const emptyChecklist = () => checks.map(([, , codigo]) => ({
+  codigo, estado: 'pendiente', observacion: '', foto_evidencia: null,
+}));
 const reportTypes = [
-  ['Retraso', 'Demora en ruta', 'clock', 'retraso'],
-  ['Tráfico', 'Tráfico pesado', 'truck', 'inconveniente'],
-  ['Avería', 'Problema mecánico', 'tools', 'daño vehicular'],
+  ['Vía cerrada', 'Cierre total o restricción', 'road', 'inconveniente'],
+  ['Derrumbe', 'Material o caída sobre la vía', 'warning', 'inconveniente'],
   ['Accidente', 'Siniestro en vía', 'warning', 'inconveniente'],
-  [
-    'Condiciones en la vía',
-    'Clima, derrumbes, cierres',
-    'road',
-    'inconveniente',
-  ],
+  ['Vehículo averiado', 'Problema mecánico', 'tools', 'daño vehicular'],
+  ['Retraso', 'Demora en ruta', 'clock', 'retraso'],
+  ['Problema con carga', 'Daño, pérdida o desplazamiento', 'box', 'inconveniente'],
   ['Otro', 'Especifica la novedad', 'bell', 'imprevisto nuevo'],
 ];
 const tabs = [
@@ -58,14 +64,15 @@ const tabs = [
 function Label({ children, style, bold, ...props }) {
   const dark = useContext(ConductorThemeContext);
   return (
-    <Text {...props} style={[s.font, dark && s.darkFont, bold && s.bold, style]}>
+    <Text {...props} style={[s.font, bold && s.bold, style, dark && s.darkFont]}>
       {children}
     </Text>
   );
 }
 function Badge({ children, pending = false }) {
+  const dark = useContext(ConductorThemeContext);
   return (
-    <View style={[s.badge, pending && { backgroundColor: '#fff0c7' }]}>
+    <View style={[s.badge, pending && { backgroundColor: '#fff0c7' }, dark && s.darkBadge]}>
       <View style={[s.dot, pending && { backgroundColor: '#e8a611' }]} />
       <Label style={s.badgeText}>{children}</Label>
     </View>
@@ -78,6 +85,7 @@ function Button({
   secondary = false,
   disabled = false,
 }) {
+  const dark = useContext(ConductorThemeContext);
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -86,13 +94,14 @@ function Button({
       onPress={onPress}
       style={[
         secondary ? s.whiteButton : s.greenButton,
+        secondary && dark && s.darkButton,
         disabled && { opacity: 0.5 },
       ]}
     >
       {icon && (
-        <Icon name={icon} size={20} color={secondary ? '#124f37' : '#fff'} />
+          <Icon name={icon} size={20} color={secondary && !dark ? '#124f37' : '#fff'} />
       )}
-      <Label bold style={secondary ? { color: '#124f37' } : s.buttonText}>
+      <Label bold style={secondary && !dark ? { color: '#124f37' } : s.buttonText}>
         {children}
       </Label>
     </TouchableOpacity>
@@ -192,6 +201,8 @@ export default function ConductorLayout({
   trackingScreen,
   assignedScreen,
   supportScreen,
+  darkMode = false,
+  onToggleDarkMode,
 }) {
   const { width } = useWindowDimensions();
   const [fontsLoaded, fontError] = useFonts({
@@ -204,10 +215,14 @@ export default function ConductorLayout({
   const [selected, setSelected] = useState(null);
   const [detailTracking, setDetailTracking] = useState(null);
   const [profileTab, setProfileTab] = useState('Historial de viajes');
-  const [checklist, setChecklist] = useState([]);
+  const [checklist, setChecklist] = useState(emptyChecklist);
   const [checkReady, setCheckReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState('');
+  const [inspectionSaving, setInspectionSaving] = useState(false);
+  const [driverProfile, setDriverProfile] = useState(user);
   const [savedRoute, setSavedRoute] = useState(null);
+  const [offlineMapState, setOfflineMapState] = useState({ disponible: false, listo: false, progreso: 0 });
+  const [offlineMapBusy, setOfflineMapBusy] = useState(false);
   const [reportType, setReportType] = useState(null);
   const [comment, setComment] = useState('');
   const [reportMessage, setReportMessage] = useState('');
@@ -232,6 +247,8 @@ export default function ConductorLayout({
   };
   const page = localPage || screen;
   const trip = summary.active;
+  const inspectionTrip = trip || summary.trips[0] || null;
+  const checkedCount = checklist.filter((item) => item.estado !== 'pendiente').length;
   const overviewPosition = useTrackingPosition(summary.tracking?.puntos || []);
   const overviewDestination =
     summary.tracking?.destino_latitud != null &&
@@ -266,6 +283,9 @@ export default function ConductorLayout({
   const delivery =
     trip?.cargas?.find((item) => !item.carga_recogida_en) ||
     trip?.cargas?.at(-1);
+  const offlineRouteKey = delivery && summary.tracking?.etapa_viaje
+    ? `${delivery.id_entrega}:${summary.tracking.etapa_viaje}`
+    : null;
   const receiveDriverRoute = useCallback(
     (route) => {
       if (
@@ -301,18 +321,26 @@ export default function ConductorLayout({
   useEffect(() => {
     let disposed = false;
     setCheckReady(false);
-    setChecklist([]);
+    setChecklist(emptyChecklist());
     readDriverValue(checklistKey)
       .then((value) => {
         if (disposed) return;
         const parsed = value ? JSON.parse(value) : [];
-        setChecklist(
-          Array.isArray(parsed)
-            ? parsed.filter(
-                (index) => Number.isInteger(index) && index >= 0 && index < 6,
-              )
-            : [],
-        );
+        if (!Array.isArray(parsed)) return setChecklist(emptyChecklist());
+        if (parsed.every(Number.isInteger)) {
+          const legacy = new Set(parsed);
+          setChecklist(emptyChecklist().map((item, index) => ({
+            ...item, estado: legacy.has(index) ? 'bien' : 'pendiente',
+          })));
+          return;
+        }
+        const byCode = new Map(parsed.map((item) => [item?.codigo, item]));
+        setChecklist(emptyChecklist().map((item) => {
+          const stored = byCode.get(item.codigo);
+          return stored && ['bien', 'novedad'].includes(stored.estado)
+            ? { ...item, ...stored }
+            : item;
+        }));
       })
       .catch(() => {
         if (!disposed)
@@ -327,9 +355,20 @@ export default function ConductorLayout({
   }, [checklistKey]);
   useEffect(() => {
     let disposed = false;
+    fetchApi(`${API_BASE_URL}/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw Error(data.detail || 'No se pudo consultar el perfil.');
+        if (!disposed) setDriverProfile((current) => ({ ...current, ...data }));
+      })
+      .catch(() => {})
+    return () => { disposed = true; };
+  }, [token]);
+  useEffect(() => {
+    let disposed = false;
     setSavedRoute(null);
     if (
-      ['offline', 'tracking'].includes(page) &&
+      ['dashboard', 'tracking'].includes(page) &&
       delivery &&
       summary.tracking?.etapa_viaje
     ) {
@@ -348,11 +387,20 @@ export default function ConductorLayout({
       disposed = true;
     };
   }, [page, delivery?.id_entrega, summary.tracking?.etapa_viaje]);
+  useEffect(() => {
+    let disposed = false;
+    setOfflineMapState({ disponible: false, listo: false, progreso: 0 });
+    if (!offlineRouteKey) return undefined;
+    obtenerEstadoMapaSinConexion(offlineRouteKey, savedRoute?.puntos)
+      .then((state) => { if (!disposed) setOfflineMapState(state); })
+      .catch((error) => { if (!disposed) setOfflineMapState({ disponible: false, listo: false, progreso: 0, motivo: error.message }); });
+    return () => { disposed = true; };
+  }, [offlineRouteKey, savedRoute?.puntos]);
   const navigate = (target) => {
     setNavigationMode(false);
     setSelected(null);
     if (
-      ['events', 'profile', 'checklist', 'offline', 'support', 'settings'].includes(target)
+      ['events', 'profile', 'checklist', 'support', 'settings'].includes(target)
     )
       setLocalPage(target);
     else {
@@ -361,10 +409,8 @@ export default function ConductorLayout({
       if (target === 'tracking') setTrackingStarted(true);
     }
   };
-  const toggleCheck = async (index) => {
-    const next = checklist.includes(index)
-      ? checklist.filter((item) => item !== index)
-      : [...checklist, index];
+  const updateCheck = async (index, changes) => {
+    const next = checklist.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item);
     setChecklist(next);
     try {
       await writeDriverValue(checklistKey, JSON.stringify(next));
@@ -375,38 +421,100 @@ export default function ConductorLayout({
       );
     }
   };
-  const sendReport = async () => {
-    if (!delivery || !reportType || reportBusy.current) return;
-    if (connectionStatus !== 'online') {
-      setReportMessage('Para enviar esta novedad al coordinador, espera a que vuelva la conexión. El texto permanecerá aquí.');
+  const attachCheckPhoto = async (index, camera) => {
+    try {
+      const photo = await seleccionarEvidenciaImagen({ camara: camera });
+      if (photo) await updateCheck(index, { foto_evidencia: photo, estado: 'novedad' });
+    } catch (error) {
+      setStorageMessage(error.message);
+    }
+  };
+  const submitInspection = async () => {
+    if (inspectionSaving) return;
+    if (!inspectionTrip?.id_viaje || !inspectionTrip?.vehiculo_id) {
+      setStorageMessage('Necesitas un viaje y vehículo asignados para enviar la inspección.');
       return;
     }
+    if (checkedCount !== checks.length) {
+      setStorageMessage('Revisa los seis puntos antes de enviar la inspección.');
+      return;
+    }
+    const incompleteIssue = checklist.find((item) => item.estado === 'novedad' && !item.observacion.trim() && !item.foto_evidencia);
+    if (incompleteIssue) {
+      setStorageMessage('Cada novedad necesita una descripción o una fotografía.');
+      return;
+    }
+    setInspectionSaving(true);
+    try {
+      const result = await enviarOSolicitarEnCola('inspeccion_vehiculo', {
+        client_inspection_id: Crypto.randomUUID(),
+        vehiculo_id: inspectionTrip.vehiculo_id,
+        viaje_id: inspectionTrip.id_viaje,
+        capturada_en: new Date().toISOString(),
+        items: checklist.map(({ codigo, estado, observacion, foto_evidencia }) => ({
+          codigo, estado, observacion: observacion.trim(), foto_evidencia,
+        })),
+      }, token);
+      setStorageMessage(result.offline
+        ? 'Inspección guardada sin conexión. Se enviará automáticamente al recuperar Internet.'
+        : checklist.some((item) => item.estado === 'novedad')
+          ? 'Inspección enviada con novedades para revisión del registrador.'
+          : 'Inspección preoperacional enviada: vehículo sin novedades reportadas.');
+    } catch (error) {
+      setStorageMessage(error.message);
+    } finally {
+      setInspectionSaving(false);
+    }
+  };
+  const automaticOfflineRef = useRef(null);
+  useEffect(() => {
+    if (connectionStatus !== 'online' || !offlineRouteKey || !savedRoute?.puntos?.length) return;
+    const points = savedRoute.puntos;
+    const first = points[0];
+    const last = points.at(-1);
+    const attemptKey = `${offlineRouteKey}:${points.length}:${first?.latitude}:${first?.longitude}:${last?.latitude}:${last?.longitude}:${darkMode}`;
+    if (automaticOfflineRef.current === attemptKey) return;
+    automaticOfflineRef.current = attemptKey;
+    setOfflineMapBusy(true);
+    prepararMapaSinConexion({
+      routeKey: offlineRouteKey,
+      route: points,
+      mapTheme: darkMode ? 'dark' : 'day',
+      onProgress: (progress) => setOfflineMapState((current) => ({
+        ...current,
+        disponible: true,
+        listo: false,
+        progreso: progress.progreso,
+        recursos: progress.recursos,
+      })),
+    }).then(async (state) => {
+      const packagedRoute = attachOfflineMapPackage(savedRoute, state);
+      await guardarRutaEntrega(offlineRouteKey, packagedRoute);
+      setSavedRoute(packagedRoute);
+      setOfflineMapState(state);
+    }).catch((error) => {
+      setOfflineMapState((current) => ({ ...current, listo: false, motivo: error.message }));
+      automaticOfflineRef.current = null;
+    }).finally(() => setOfflineMapBusy(false));
+  }, [connectionStatus, darkMode, offlineRouteKey, savedRoute]);
+  const sendReport = async () => {
+    if (!delivery || !reportType || reportBusy.current) return;
     reportBusy.current = true;
     setReportSaving(true);
     setReportMessage('');
     try {
-      const response = await fetchApi(
-        `${API_BASE_URL}/entregas/${delivery.id_entrega}/eventos-conductor`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            tipo_evento: reportType[3],
-            detalle: `${reportType[0]}: ${comment.trim()}`.slice(0, 250),
-          }),
-        },
-      );
-      const data = await response.json();
-      if (!response.ok)
-        throw Error(
-          typeof data.detail === 'string'
-            ? data.detail
-            : 'No se pudo enviar la novedad.',
-        );
-      setReportMessage('Novedad enviada al coordinador.');
+      const result = await enviarOSolicitarEnCola('evento_conductor', {
+        entrega_id: delivery.id_entrega,
+        tipo_evento: reportType[3],
+        detalle: (reportType[0].localeCompare(reportType[3], 'es', { sensitivity: 'base' }) === 0
+          ? comment.trim()
+          : `${reportType[0]}${comment.trim() ? `: ${comment.trim()}` : ''}`).slice(0, 250),
+        client_event_id: Crypto.randomUUID(),
+        capturada_en: new Date().toISOString(),
+      }, token);
+      setReportMessage(result.offline
+        ? 'Novedad guardada. Se enviará automáticamente cuando vuelva la conexión.'
+        : 'Novedad enviada al coordinador.');
       setComment('');
       setReportType(null);
     } catch (error) {
@@ -424,7 +532,6 @@ export default function ConductorLayout({
       detail: 'Detalle de entrega',
       checklist: 'Checklist del vehículo',
       events: 'Reportar novedad',
-      offline: 'Modo offline',
       settings: 'Preferencias',
       profile: 'Perfil e historial',
       support: 'Mensajes del viaje',
@@ -471,15 +578,15 @@ export default function ConductorLayout({
       </View>
     );
   return (
-    <ConductorThemeContext.Provider value={preferences.dark}>
-    <MarcoOperativo user={user} role="Conductor" dark={preferences.dark} menu={[
+    <ConductorThemeContext.Provider value={darkMode}>
+    <MarcoOperativo user={user} role="Conductor" dark={darkMode} menu={[
       ['home','Inicio','dashboard'], ['pin','Ruta activa','tracking'], ['truck','Entregas','assignedDeliveries'],
       ['clipboard','Checklist del vehículo','checklist'], ['bell','Novedades','events'], ['people','Servicio al cliente','support'],
       ['user','Perfil e historial','profile'], ['gear','Preferencias','settings'],
     ]} active={page === 'detail' ? 'assignedDeliveries' : page} go={navigate} onLogout={onLogout} connectionStatus={connectionStatus} immersive={page === 'tracking' && navigationMode}>
-    <View style={[s.root, preferences.dark && s.darkRoot]}>
+    <View style={[s.root, darkMode && s.darkRoot]}>
       {Platform.OS !== 'web' && !(page === 'tracking' && navigationMode) && (
-        <View style={s.top}>
+        <View style={[s.top, darkMode && s.darkTop]}>
           {page === 'dashboard' ? (
             <Image source={logo} resizeMode="contain" style={{ width: 44, height: 44 }} accessibilityLabel="Coffee Fly"/>
           ) : (
@@ -489,7 +596,7 @@ export default function ConductorLayout({
               onPress={() => navigate('dashboard')}
               style={{ padding: 5 }}
             >
-              <Icon name="back" size={22} color="#111c2c" />
+              <Icon name="back" size={22} color={darkMode ? '#edf6ef' : '#111c2c'} />
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
@@ -505,13 +612,7 @@ export default function ConductorLayout({
               </Label>
             )}
           </View>
-          <Badge>
-            {page === 'offline'
-              ? connectionStatus === 'online'
-                ? 'En línea'
-                : 'Sin conexión'
-              : badge}
-          </Badge>
+          <Badge>{badge}</Badge>
         </View>
       )}
       {notice && (
@@ -567,7 +668,7 @@ export default function ConductorLayout({
           {page === 'support' && supportScreen}
           {page === 'tracking' && (
             <>
-              <View style={s.card}>
+              <View style={[s.card, darkMode && s.darkCard]}>
                 <View style={s.row}>
                   <View style={[s.iconTile, { backgroundColor: '#124f37' }]}>
                     <Icon name="route" color="#fff" />
@@ -588,7 +689,7 @@ export default function ConductorLayout({
               </View>
               {trip ? (
                 <View
-                  style={[s.card, { padding: 5, backgroundColor: '#e4efdf' }]}
+                  style={[s.card, { padding: 5 }, darkMode ? s.darkCard : { backgroundColor: '#e4efdf' }]}
                 >
                   <View style={s.map}>
                     <MapaAbierto
@@ -670,12 +771,26 @@ export default function ConductorLayout({
                 <FotoConductor foto={user.foto_perfil} nombre={[user.nombre || user.nombre_usuario, user.apellido].filter(Boolean).join(' ')} size={42} />
                 <View><Label bold>{[user.nombre || user.nombre_usuario, user.apellido].filter(Boolean).join(' ')}</Label><Label style={s.muted}>Conductor</Label></View>
               </View>
+              {inspectionTrip && <View style={[s.offlineStatus, darkMode && s.darkCard]}>
+                <Icon name={offlineMapState.listo ? 'check' : offlineMapBusy ? 'layers' : 'wifi'} size={20} color={offlineMapState.listo ? '#16834c' : '#b26a11'} />
+                <View style={{ flex: 1 }}>
+                  <Label bold>Modo sin conexión automático</Label>
+                  <Label style={s.muted}>{offlineMapState.listo
+                    ? 'Ruta, maniobras y mapa regional listos en este dispositivo.'
+                    : offlineMapBusy
+                      ? `Preparando el mapa del viaje · ${offlineMapState.progreso || 0} %`
+                      : connectionStatus === 'online'
+                        ? 'Se preparará automáticamente al calcular la ruta.'
+                        : 'La app conserva los datos ya guardados y sincronizará al volver Internet.'}</Label>
+                </View>
+              </View>}
               <View style={s.metricRow}>
                 {metrics.map(([value, name, icon]) => (
                   <View
                     key={name}
                     style={[
                       s.metric,
+                      darkMode && s.darkCard,
                       {
                         flexDirection: width >= 650 ? 'row' : 'column',
                         alignItems: width >= 650 ? 'center' : 'flex-start',
@@ -700,7 +815,7 @@ export default function ConductorLayout({
                   </View>
                 ))}
               </View>
-              <View style={s.card}>
+              <View style={[s.card, darkMode && s.darkCard]}>
                 <View style={s.spread}>
                   <View style={s.row}>
                     <View style={[s.iconTile, { backgroundColor: '#124f37' }]}>
@@ -744,24 +859,11 @@ export default function ConductorLayout({
                 )}
               </View>
               <View style={s.quickGrid}>
-                {[
-                  [
-                    trip ? 'Continuar viaje' : 'Iniciar viaje',
-                    'Comenzar ruta',
-                    'play',
-                    trip ? 'tracking' : 'assignedDeliveries',
-                  ],
-                  ['Checklist', 'Revisar vehículo', 'checklist', 'checklist'],
-                  [
-                    'Reportar novedad',
-                    'Incidencias en ruta',
-                    'warning',
-                    'events',
-                  ],
-                ].map(([title, sub, icon, target], index) => (
+                {driverQuickActions(Boolean(trip)).map(([title, sub, icon, target], index) => (
                   <TouchableOpacity
                     key={title}
                     accessibilityRole="button"
+                    accessibilityLabel={`${title}. ${sub}`}
                     onPress={() => navigate(target)}
                     style={[
                       s.quick,
@@ -803,7 +905,7 @@ export default function ConductorLayout({
                       accessibilityState={{ selected: filter === name }}
                       key={name}
                       onPress={() => setFilter(name)}
-                      style={[s.chip, filter === name && s.chipActive]}
+                      style={[s.chip, darkMode && s.darkCard, filter === name && s.chipActive]}
                     >
                       <Label
                         style={[
@@ -825,7 +927,7 @@ export default function ConductorLayout({
                     setSelected(load);
                     setLocalPage('detail');
                   }}
-                  style={[s.card, s.row]}
+                  style={[s.card, s.row, darkMode && s.darkCard]}
                 >
                   <View style={s.iconTile}>
                     <Icon name="box" />
@@ -857,7 +959,7 @@ export default function ConductorLayout({
                 </TouchableOpacity>
               ))}
               {!visibleLoads.length && (
-                <View style={s.card}>
+                <View style={[s.card, darkMode && s.darkCard]}>
                   <Icon name="box" size={38} />
                   <Label>No hay entregas en esta categoría.</Label>
                 </View>
@@ -868,7 +970,7 @@ export default function ConductorLayout({
           )}
           {page === 'detail' && selected && (
             <>
-              <View style={[s.card, s.spread]}>
+              <View style={[s.card, s.spread, darkMode && s.darkCard]}>
                 <View style={s.row}>
                   <View style={s.iconTile}>
                     <Icon name="box" size={28} />
@@ -890,7 +992,7 @@ export default function ConductorLayout({
                       : 'Pendiente'}
                 </Badge>
               </View>
-              <View style={[s.card, s.detailColumns]}>
+              <View style={[s.card, s.detailColumns, darkMode && s.darkCard]}>
                 <View style={s.detailColumn}>
                   <Fact icon="pin" title="Dirección de entrega">
                     {detailTracking?.cooperativa_destino ||
@@ -954,9 +1056,9 @@ export default function ConductorLayout({
                     </Label>
                   </View>
                 </View>
-                <Badge pending={checklist.length < 6}>
-                  {checklist.length}/6{' '}
-                  {checklist.length === 6 ? 'Completado' : 'Por revisar'}
+                <Badge pending={checkedCount < 6}>
+                  {checkedCount}/6{' '}
+                  {checkedCount === 6 ? 'Completado' : 'Por revisar'}
                 </Badge>
               </View>
               <View style={[s.detailColumns, { alignItems: 'stretch' }]}>
@@ -966,37 +1068,58 @@ export default function ConductorLayout({
                     { flexGrow: 2, flexBasis: width < 600 ? '100%' : '60%' },
                   ]}
                 >
-                  {checks.map(([title, subtitle], index) => (
-                    <TouchableOpacity
+                  {checks.map(([title, subtitle, code], index) => {
+                    const item = checklist[index] || emptyChecklist()[index];
+                    return <View
                       key={title}
-                      disabled={!checkReady}
-                      accessibilityRole="checkbox"
-                      aria-checked={checklist.includes(index)}
-                      accessibilityState={{
-                        checked: checklist.includes(index),
-                        disabled: !checkReady,
-                      }}
-                      accessibilityLabel={title}
-                      onPress={() => toggleCheck(index)}
-                      style={s.checklistRow}
+                      style={[s.checklistInspectionItem, darkMode && s.darkCard]}
                     >
-                      <View
-                        style={[
-                          s.checkCircle,
-                          checklist.includes(index) && s.checkDone,
-                        ]}
-                      >
-                        {checklist.includes(index) && (
-                          <Icon name="check" color="#fff" size={17} />
-                        )}
+                      <View style={s.checklistRow}>
+                        <View style={[s.checkCircle, item.estado === 'bien' && s.checkDone, item.estado === 'novedad' && s.checkIssue]}>
+                          {item.estado !== 'pendiente' && <Icon name={item.estado === 'bien' ? 'check' : 'warning'} color="#fff" size={17} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Label bold>{title}</Label>
+                          <Label style={s.muted}>{subtitle}</Label>
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Label bold>{title}</Label>
-                        <Label style={s.muted}>{subtitle}</Label>
+                      <View style={s.inspectionChoices}>
+                        <TouchableOpacity
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: item.estado === 'bien', disabled: !checkReady }}
+                          disabled={!checkReady}
+                          onPress={() => updateCheck(index, { estado: 'bien', observacion: '', foto_evidencia: null })}
+                          style={[s.inspectionChoice, item.estado === 'bien' && s.inspectionGood]}
+                        ><Label bold style={item.estado === 'bien' && { color: '#fff' }}>Bien</Label></TouchableOpacity>
+                        <TouchableOpacity
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: item.estado === 'novedad', disabled: !checkReady }}
+                          disabled={!checkReady}
+                          onPress={() => updateCheck(index, { estado: 'novedad' })}
+                          style={[s.inspectionChoice, item.estado === 'novedad' && s.inspectionIssue]}
+                        ><Label bold style={item.estado === 'novedad' && { color: '#fff' }}>Hay novedad</Label></TouchableOpacity>
                       </View>
-                      <Icon name="right" color="#78818a" size={15} />
-                    </TouchableOpacity>
-                  ))}
+                      {item.estado === 'novedad' && <>
+                        <TextInput
+                          value={item.observacion}
+                          onChangeText={(observacion) => updateCheck(index, { observacion })}
+                          maxLength={300}
+                          multiline
+                          placeholder={`Describe la novedad en ${title.toLowerCase()}`}
+                          placeholderTextColor={darkMode ? '#9ab0a8' : '#78818a'}
+                          style={[s.inspectionNote, darkMode && s.darkField]}
+                        />
+                        <View style={s.inspectionChoices}>
+                          <Button secondary icon="camera" onPress={() => attachCheckPhoto(index, true)}>Tomar foto</Button>
+                          <Button secondary icon="image" onPress={() => attachCheckPhoto(index, false)}>Galería</Button>
+                        </View>
+                        {item.foto_evidencia ? <View style={s.evidenceWrap}>
+                          <Image source={{ uri: item.foto_evidencia }} style={s.evidenceImage} accessibilityLabel={`Evidencia de ${title}`} />
+                          <TouchableOpacity onPress={() => updateCheck(index, { foto_evidencia: null })}><Label bold style={{ color: '#b42318' }}>Quitar foto</Label></TouchableOpacity>
+                        </View> : null}
+                      </>}
+                    </View>;
+                  })}
                 </View>
                 <View
                   style={[
@@ -1014,9 +1137,9 @@ export default function ConductorLayout({
                     style={{ backgroundColor: '#124f37', padding: 16, gap: 5 }}
                   >
                     <Label bold style={{ color: '#fff', fontSize: 19 }}>
-                      {checklist.length === 6
+                    {checkedCount === 6 && !checklist.some((item) => item.estado === 'novedad')
                         ? '¡Todo listo!'
-                        : 'Tu seguridad primero'}
+                        : checklist.some((item) => item.estado === 'novedad') ? 'Novedad detectada' : 'Tu seguridad primero'}
                     </Label>
                     <Label style={{ color: '#e0ecda' }}>
                       Buen viaje, que el mejor café llegue más lejos.
@@ -1025,9 +1148,11 @@ export default function ConductorLayout({
                 </View>
               </View>
               <Label style={s.muted}>
-                Revisión manual guardada por conductor, vehículo y día. No
-                sustituye una inspección mecánica.
+                La revisión queda ligada al vehículo {inspectionTrip?.vehiculo_placa || 'asignado'}, al viaje y al conductor. No sustituye una inspección mecánica.
               </Label>
+              <Button icon="checklist" onPress={submitInspection} disabled={!checkReady || inspectionSaving || checkedCount < 6}>
+                {inspectionSaving ? 'Enviando inspección…' : checklist.some((item) => item.estado === 'novedad') ? 'Reportar inspección con novedades' : 'Enviar inspección preoperacional'}
+              </Button>
               {storageMessage && (
                 <Label accessibilityLiveRegion="polite" style={s.alert}>
                   {storageMessage}
@@ -1052,6 +1177,7 @@ export default function ConductorLayout({
                     onPress={() => setReportType(type)}
                     style={[
                       s.reportType,
+                      darkMode && s.darkCard,
                       width < 650 && { flexBasis: '45%' },
                       reportType?.[0] === type[0] && {
                         backgroundColor: '#ecf3e7',
@@ -1099,7 +1225,7 @@ export default function ConductorLayout({
                     multiline
                     placeholder="Describe la novedad e indica si necesitas asistencia."
                     placeholderTextColor="#78818a"
-                    style={s.field}
+                    style={[s.field, darkMode && s.darkField]}
                   />
                   <Label style={[s.muted, { textAlign: 'right' }]}>
                     {comment.length}/200
@@ -1114,7 +1240,7 @@ export default function ConductorLayout({
                 </View>
               )}
               {reportMessage && (
-                <View style={s.card}>
+                <View style={[s.card, darkMode && s.darkCard]}>
                   <Label accessibilityLiveRegion="polite">
                     {reportMessage}
                   </Label>
@@ -1129,81 +1255,22 @@ export default function ConductorLayout({
               </Button>
             </>
           )}
-          {page === 'offline' && (
-            <>
-              <Label style={s.muted}>
-                Consulta qué puedes conservar al perder la conexión.
-              </Label>
-              <View style={s.metricRow}>
-                <View style={s.metric}>
-                  <Icon name="layers" size={38} />
-                  <Label bold>Ruta guardada</Label>
-                  <Label style={s.muted}>
-                    {savedRoute
-                      ? `${savedRoute.puntos?.length || 0} puntos del recorrido`
-                      : 'No hay una ruta guardada para esta etapa'}
-                  </Label>
-                </View>
-                <View style={s.metric}>
-                  <Icon name="wifi" size={38} />
-                  <Label bold>Estado</Label>
-                  <Label style={s.muted}>
-                    {connectionStatus === 'online'
-                      ? 'En línea'
-                      : connectionStatus === 'checking'
-                        ? 'Comprobando conexión'
-                        : 'Sin conexión'}
-                  </Label>
-                </View>
-              </View>
-              <View style={s.card}>
-                <Label bold>Capacidades sin conexión</Label>
-                <Fact icon="checklist" title="Checklist">
-                  Revisión manual disponible y guardada en este dispositivo.
-                </Fact>
-                <Fact icon="route" title="Navegación móvil">
-                  {savedRoute
-                    ? 'Recorrido guardado disponible en la app móvil.'
-                    : 'Abre una ruta con conexión para guardarla en la app móvil.'}
-                </Fact>
-                <Fact icon="pin" title="Posiciones GPS">
-                  La app móvil conserva las posiciones pendientes para
-                  sincronizarlas.
-                </Fact>
-              </View>
-              <View style={s.alert}>
-                <Label bold>Mapas regionales y recálculo offline</Label>
-                <Label>
-                  La descarga de mapas por región y el recálculo sin Internet
-                  todavía no están disponibles. La capa de calles necesita
-                  conexión.
-                </Label>
-              </View>
-              <Button
-                secondary
-                icon="route"
-                onPress={() => navigate('tracking')}
-              >
-                Ver ruta completa
-              </Button>
-            </>
-          )}
           {page === 'settings' && (
             <>
-              <View style={[s.card, preferences.dark && s.darkCard]}>
+              <View style={[s.card, darkMode && s.darkCard]}>
                 <Label bold style={{ fontSize: 21 }}>Preferencias</Label>
                 <Label style={s.muted}>Personaliza la apariencia del panel del conductor.</Label>
-                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                <View style={[s.preferenceRow, darkMode && s.darkBorder]}>
                   <Label bold>Idioma</Label><Label style={s.muted}>Español</Label>
                 </View>
-                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                <View style={[s.preferenceRow, darkMode && s.darkBorder]}>
                   <Label bold>Zona horaria</Label><Label style={s.muted}>America/Bogota</Label>
                 </View>
-                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                <View style={[s.preferenceRow, darkMode && s.darkBorder]}>
                   <Label bold>Modo oscuro</Label>
-                  <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.dark }} onPress={() => setPreferences({ ...preferences, dark: !preferences.dark })} style={[s.preferenceSwitch, preferences.dark && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, preferences.dark && s.preferenceKnobOn]} /></TouchableOpacity>
+                  <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: darkMode }} onPress={onToggleDarkMode} style={[s.preferenceSwitch, darkMode && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, darkMode && s.preferenceKnobOn]} /></TouchableOpacity>
                 </View>
-                <View style={[s.preferenceRow, preferences.dark && s.darkBorder]}>
+                <View style={[s.preferenceRow, darkMode && s.darkBorder]}>
                   <Label bold>Vista compacta</Label>
                   <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.compact }} onPress={() => setPreferences({ ...preferences, compact: !preferences.compact })} style={[s.preferenceSwitch, preferences.compact && s.preferenceSwitchOn]}><View style={[s.preferenceKnob, preferences.compact && s.preferenceKnobOn]} /></TouchableOpacity>
                 </View>
@@ -1257,7 +1324,7 @@ export default function ConductorLayout({
                 )}
               </View>
               {profileTab === 'Historial de viajes' && (
-                <View style={s.card}>
+                <View style={[s.card, darkMode && s.darkCard]}>
                   <Label bold>Historial de viajes</Label>
                   {summary.history.map((item) => (
                     <View key={item.id_viaje} style={s.checklistRow}>
@@ -1293,7 +1360,7 @@ export default function ConductorLayout({
               {profileTab === 'Estadísticas' && (
                 <View style={s.metricRow}>
                   {metrics.map(([value, name, icon]) => (
-                    <View key={name} style={s.metric}>
+                    <View key={name} style={[s.metric, darkMode && s.darkCard]}>
                       <Icon name={icon} />
                       <Label style={s.metricValue}>{value}</Label>
                       <Label style={s.muted}>{name}</Label>
@@ -1302,13 +1369,20 @@ export default function ConductorLayout({
                 </View>
               )}
               {profileTab === 'Documentos' && (
-                <View style={s.card}>
+                <View style={[s.card, darkMode && s.darkCard]}>
                   <Icon name="document" size={35} />
                   <Label bold>Documentos del conductor</Label>
-                  <Label style={s.muted}>
-                    La consulta de licencia y documentos no está disponible.
-                    Comprueba su vigencia antes de salir.
-                  </Label>
+                  <Fact icon="user" title="Documento de identidad">
+                    {[driverProfile.tipo_documento, driverProfile.numero_documento].filter(Boolean).join(' · ') || 'Pendiente de registrar'}
+                  </Fact>
+                  <Fact icon="document" title="Licencia de conducción">
+                    {[driverProfile.licencia && `Categoría ${driverProfile.licencia}`, driverProfile.numero_licencia && `N.º ${driverProfile.numero_licencia}`].filter(Boolean).join(' · ') || 'Pendiente de registrar'}
+                  </Fact>
+                  <Fact icon="calendar" title="Vigencia de la licencia">
+                    {driverProfile.fecha_vencimiento_licencia ? `${driverProfile.estado_licencia === 'vigente' ? 'Vigente' : 'Vencida'} · vence ${driverDate(driverProfile.fecha_vencimiento_licencia)?.toLocaleDateString('es-CO')}` : 'Sin fecha registrada'}
+                  </Fact>
+                  <Fact icon="phone" title="Contacto">{driverProfile.telefono || driverProfile.telefono_usuario}</Fact>
+                  {driverProfile.foto_licencia ? <Image source={{ uri: driverProfile.foto_licencia }} style={s.licenseImage} resizeMode="contain" accessibilityLabel="Imagen de la licencia registrada" /> : <Label style={s.muted}>No hay imagen de licencia disponible.</Label>}
                   <Button
                     secondary
                     icon="checklist"
@@ -1346,12 +1420,12 @@ export default function ConductorLayout({
         </ScrollView>
       )}
       {Platform.OS !== 'web' && !(page === 'tracking' && navigationMode) && (
-        <View style={s.tabs}>
+        <View style={[s.tabs, darkMode && s.darkTabs]}>
           {tabs.map(([target, name, icon]) => {
             const active =
               target === page ||
               (target === 'assignedDeliveries' && page === 'detail') ||
-              (target === 'profile' && ['offline', 'checklist'].includes(page));
+              (target === 'profile' && page === 'checklist');
             return (
               <TouchableOpacity
                 key={target}
@@ -1365,7 +1439,7 @@ export default function ConductorLayout({
                 <Icon
                   name={icon}
                   size={21}
-                  color={active ? '#124f37' : '#647082'}
+                  color={active ? (darkMode ? '#8de0ba' : '#124f37') : (darkMode ? '#a8bbb5' : '#647082')}
                 />
                 <Label style={[s.tabLabel, active && s.activeLabel]}>
                   {name}

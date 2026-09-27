@@ -1,6 +1,7 @@
 import { Image, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
-import logo from '../../assets/brand/logo.png';
+import truckLogo from '../../assets/brand/logo.png';
+import coffeeLogo from '../../assets/brand/login-logo.png';
 import { SCREEN_LABELS } from '../../configuracion/navegacion';
 import { styles } from './Encabezado.styles';
 
@@ -8,6 +9,8 @@ export default function Encabezado({ user, onLogout, screen, go, darkMode = fals
   const { width } = useWindowDimensions();
   const compact = width < 600;
   const currentLabel = SCREEN_LABELS[screen] || SCREEN_LABELS.dashboard;
+  const driver = String(user?.rol || '').toLowerCase() === 'conductor';
+  const logo = driver ? truckLogo : coffeeLogo;
   const identity = <>
     <Image source={logo} resizeMode="contain" accessibilityLabel="Coffee Fly" style={[styles.logo, !user && styles.loginLogo]} />
     <View style={{ flex: 1, minWidth: 0 }}>

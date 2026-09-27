@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto.native';
 import RoutePreview from '../../componentes/mapas/VistaPreviaRuta';
+import { obtenerEstadoMapaSinConexion } from '../../servicios/mapaSinConexion';
+import { navigationCameraLayout } from './presentacionGps';
 
 export default function MapaGpsConductor({
   controlsRef,
@@ -14,16 +16,23 @@ export default function MapaGpsConductor({
   mapTheme = 'day',
   offline = false,
 }) {
+  const { width, height } = useWindowDimensions();
+  const cameraLayout = navigationCameraLayout(width, height);
   const [follow, setFollow] = useState(true);
   const [fitRevision, setFitRevision] = useState(0);
-  const [zoom, setZoom] = useState(17);
+  const [zoom, setZoom] = useState(cameraLayout.zoom);
   const [zoomCommand, setZoomCommand] = useState(null);
   const [north, setNorth] = useState(false);
+  const [offlineMap, setOfflineMap] = useState({ listo: false, progreso: 0 });
   useEffect(() => {
     setFollow(true);
     setNorth(false);
-    setZoom(17);
+    setZoom(cameraLayout.zoom);
   }, [deliveryId]);
+  useEffect(() => {
+    setFollow(true);
+    setZoom(cameraLayout.zoom);
+  }, [cameraLayout.landscape, cameraLayout.zoom]);
   useEffect(() => {
     controlsRef.current = {
       zoomIn: () => {
@@ -46,15 +55,26 @@ export default function MapaGpsConductor({
         setFollow(false);
         setFitRevision((current) => current + 1);
       },
+      explore: () => setFollow(false),
     };
     return () => {
       controlsRef.current = null;
     };
   }, [controlsRef]);
-  if (offline) return <View style={{ flex: 1, justifyContent: 'center', padding: 12, backgroundColor: '#e8efe9' }}>
+  useEffect(() => {
+    let disposed = false;
+    setOfflineMap({ listo: false, progreso: 0 });
+    obtenerEstadoMapaSinConexion(deliveryId, route)
+      .then((state) => { if (!disposed) setOfflineMap(state); })
+      .catch((error) => { if (!disposed) setOfflineMap({ listo: false, motivo: error.message }); });
+    return () => { disposed = true; };
+  }, [deliveryId, offline, route]);
+  if (offline && !offlineMap.listo) return <View style={{ flex: 1, justifyContent: 'center', padding: 12, backgroundColor: '#e8efe9' }}>
     <RoutePreview route={route} vehicle={vehicle} destination={destination} />
     <Text style={{ color: '#36523b', textAlign: 'center', marginTop: 12 }}>
-      Ruta esquemática sin conexión. El GPS y la ruta guardada siguen disponibles; las calles requieren Internet.
+      {offlineMap.motivo || (offlineMap.progreso > 0
+        ? `El mapa regional esta descargado al ${offlineMap.progreso} %. La ruta y el GPS siguen disponibles.`
+        : 'Ruta esquematica sin conexion. Prepara el mapa regional antes del viaje para conservar las calles.')}
     </Text>
   </View>;
   return (
@@ -66,6 +86,7 @@ export default function MapaGpsConductor({
       routeWidth={13}
       showNavigationControls={false}
       mapTheme={mapTheme}
+      mapStyleUrl={offline ? offlineMap.mapStyle : undefined}
       markers={[
         vehicle
           ? {
@@ -96,8 +117,9 @@ export default function MapaGpsConductor({
         bearing: north ? 0 : heading,
         zoom,
         zoomCommand,
-        pitch: 15,
-        padding: { top: 190, right: 85, bottom: 160, left: 40 },
+        pitch: cameraLayout.pitch,
+        padding: cameraLayout.fitPadding,
+        followPadding: cameraLayout.followPadding,
       }}
       onManualMove={() => setFollow(false)}
       fallback={

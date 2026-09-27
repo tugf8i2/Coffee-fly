@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Text, View } from 'react-native';
 import MapaAbierto from '../../componentes/mapas/MapaAbierto';
+import RoutePreview from '../../componentes/mapas/VistaPreviaRuta';
 
 export default function MapaGpsConductor({
   controlsRef,
@@ -9,6 +11,7 @@ export default function MapaGpsConductor({
   heading,
   deliveryId,
   mapTheme = 'day',
+  offline = false,
 }) {
   const [follow, setFollow] = useState(true);
   const [fitRevision, setFitRevision] = useState(0);
@@ -20,6 +23,7 @@ export default function MapaGpsConductor({
       zoomOut: () => commands.current?.zoomOut?.(),
       north: () => commands.current?.north?.(),
       center: () => setFollow(true),
+      explore: () => setFollow(false),
       fit: () => {
         setFollow(false);
         setFitRevision((current) => current + 1);
@@ -29,6 +33,14 @@ export default function MapaGpsConductor({
       controlsRef.current = null;
     };
   }, [controlsRef]);
+  if (offline) return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: 12, backgroundColor: '#e8efe9' }}>
+      <RoutePreview route={route} vehicle={vehicle} destination={destination} />
+      <Text style={{ color: '#36523b', textAlign: 'center', marginTop: 12 }}>
+        Ruta esquematica sin conexion. La PWA conserva el viaje y el GPS; los mapas regionales descargables estan disponibles en la app movil.
+      </Text>
+    </View>
+  );
   return (
     <MapaAbierto
       style={{ flex: 1 }}

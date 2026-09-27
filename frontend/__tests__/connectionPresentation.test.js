@@ -1,4 +1,4 @@
-import { connectionLabel, synchronizationLabel } from '../src/servicios/presentacionConexion';
+import { connectionLabel, syncFeedbackDuration, synchronizationLabel } from '../src/servicios/presentacionConexion';
 
 describe('connection status presentation', () => {
   test('distinguishes loss of Internet from an unavailable API', () => {
@@ -15,5 +15,11 @@ describe('connection status presentation', () => {
     expect(synchronizationLabel('online', 'syncing')).toBe('Sincronizando');
     expect(synchronizationLabel('online', 'pending')).toBe('Datos pendientes');
     expect(synchronizationLabel('online', 'synced')).toBe('Sincronizado');
+  });
+
+  test('oculta confirmaciones breves sin esconder advertencias', () => {
+    expect(syncFeedbackDuration('success')).toBe(3000);
+    expect(syncFeedbackDuration('info')).toBe(3000);
+    expect(syncFeedbackDuration('warning')).toBe(0);
   });
 });

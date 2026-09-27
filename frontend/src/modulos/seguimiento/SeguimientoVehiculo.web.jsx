@@ -9,6 +9,7 @@ import DriverEventReporter from '../../componentes/entregas/ReportadorNovedadCon
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
+import useKeepNavigationAwake from '../../ganchos/usarPantallaActiva';
 import {
   applyTrackingMessage,
   connectTrackingSocket,
@@ -26,7 +27,8 @@ import {
 import Icon from '../conductor/IconoConductor';
 import CoordinatorIcon from '../panel/IconoRegistrador.web';
 import { driverDate } from '../conductor/presentacionConductor';
-import { guardarRutaEntrega } from '../../servicios/sinConexion';
+import { guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
+import { createOfflineNavigationPackage } from '../../servicios/paqueteNavegacionOffline';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 import {
   createGpsPoint,
@@ -85,6 +87,7 @@ export default function SeguimientoVehiculo({
   const lastWebGpsRef = useRef(null);
   const gpsUploadInProgressRef = useRef(false);
   const role = String(user?.rol || '').toLowerCase();
+  useKeepNavigationAwake(role === 'conductor' && navigationVisible && Boolean(tracking));
   const styles =
     role === 'conductor'
       ? { ...defaultStyles, ...conductorModuleStyles }
@@ -378,6 +381,17 @@ export default function SeguimientoVehiculo({
     }
     const controller = new AbortController();
     let disposed = false;
+    const routeKey = `${delivery}:${tracking.etapa_viaje}`;
+    const restoreSavedRoute = async () => {
+      if (role !== 'conductor') return false;
+      const saved = await obtenerRutaEntrega(routeKey);
+      if (disposed || !saved?.puntos?.length) return false;
+      setNavigationRoute(saved.puntos);
+      setRouteSummary(saved);
+      onDriverRoute?.(saved);
+      setMessage('Sin conexión: continúa la navegación con la ruta guardada.', 'warning');
+      return true;
+    };
     const timeout = setTimeout(() => controller.abort(), 12000);
     fetchApi(`${API_BASE_URL}/entregas/${delivery}/ruta-navegacion`, {
       method: 'POST',
@@ -408,15 +422,20 @@ export default function SeguimientoVehiculo({
             role === 'conductor' &&
             JSON.stringify(data).length <= 1024 * 1024
           ) {
-            guardarRutaEntrega(
-              `${delivery}:${tracking.etapa_viaje}`,
-              data,
-            ).catch(() => {});
+            guardarRutaEntrega(routeKey, createOfflineNavigationPackage({
+              route: data,
+              tripId: activeTrip?.id_viaje,
+              deliveryId: delivery,
+              stage: tracking.etapa_viaje,
+              origin: { latitude: Number(last.latitud), longitude: Number(last.longitud) },
+              destination,
+              routeKey,
+            })).catch(() => {});
           }
         }
       })
-      .catch(() => {
-        if (!disposed) {
+      .catch(async () => {
+        if (!(await restoreSavedRoute()) && !disposed) {
           setNavigationRoute([]);
           setRouteSummary(null);
         }
@@ -435,6 +454,7 @@ export default function SeguimientoVehiculo({
     token,
     role,
     onDriverRoute,
+    activeTrip?.id_viaje,
   ]);
   const allLoadsPicked = canCompleteTrip(activeTrip?.cargas);
 

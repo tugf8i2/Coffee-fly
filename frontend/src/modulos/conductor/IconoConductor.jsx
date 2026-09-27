@@ -42,6 +42,9 @@ export default function Icon({ name, size = 24, color = '#124f37' }) {
     road: 'M7 2 2 23M17 2l5 21M12 2v5M12 11v4M12 20v3',
     tools: 'm4 3 17 18M20 2l-5 5 2 3 5-5M16 10 3 23M3 2v5l5 2 2-2-2-5Z',
     document: 'M5 1h10l5 5v17H5ZM15 1v6h5M8 12h9M8 17h9',
+    camera: 'M3 7h5l2-3h6l2 3h5v15H3ZM8 14a5 5 0 1 0 10 0 5 5 0 0 0-10 0',
+    image: 'M3 4h20v18H3ZM3 18l6-6 4 4 3-3 7 7M17 8h1',
+    calendar: 'M4 5h18v18H4ZM4 10h18M8 2v6M18 2v6',
   };
   return (
     <Svg

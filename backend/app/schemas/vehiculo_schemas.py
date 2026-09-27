@@ -20,6 +20,9 @@ class VehiculoBase(BaseModel):
     marca: str | None = Field(default=None, max_length=60)
     modelo_comercial: str | None = Field(default=None, max_length=60)
     color: str | None = Field(default=None, max_length=40)
+    propietario_nombre: str = Field(min_length=3, max_length=120)
+    propietario_documento: str | None = Field(default=None, max_length=30)
+    foto_vehiculo: str | None = Field(default=None, max_length=3_000_000)
     tipo_servicio: Literal["PARTICULAR", "PUBLICO"]
     configuracion: str = Field(min_length=2, max_length=12)
     numero_ejes: int | None = Field(default=None, ge=2, le=9)
@@ -50,6 +53,9 @@ class VehiculoUpdate(BaseModel):
     marca: str | None = Field(default=None, max_length=60)
     modelo_comercial: str | None = Field(default=None, max_length=60)
     color: str | None = Field(default=None, max_length=40)
+    propietario_nombre: str | None = Field(default=None, min_length=3, max_length=120)
+    propietario_documento: str | None = Field(default=None, max_length=30)
+    foto_vehiculo: str | None = Field(default=None, max_length=3_000_000)
     tipo_servicio: Literal["PARTICULAR", "PUBLICO"] | None = None
     configuracion: str | None = Field(default=None, max_length=12)
     numero_ejes: int | None = Field(default=None, ge=2, le=9)
@@ -77,6 +83,9 @@ class VehiculoResponse(BaseModel):
     marca: str | None = None
     modelo_comercial: str | None = None
     color: str | None = None
+    propietario_nombre: str | None = None
+    propietario_documento: str | None = None
+    foto_vehiculo: str | None = None
     clase_vehiculo: str | None = None
     tipo_servicio: str | None = None
     configuracion: str | None = None

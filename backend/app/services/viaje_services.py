@@ -34,7 +34,9 @@ class ViajeService:
         return {
             "id_viaje": viaje.id_viaje, "estado_viaje": viaje.estado_viaje,
             "orden_cola": viaje.orden_cola, "vehiculo_id": viaje.vehiculo_id,
-            "vehiculo_placa": vehiculo.placa, "conductor_id": viaje.conductor_id,
+            "vehiculo_placa": vehiculo.placa, "vehiculo_foto": vehiculo.foto_vehiculo,
+            "vehiculo_propietario": vehiculo.propietario_nombre,
+            "conductor_id": viaje.conductor_id,
             "conductor_nombre": f"{usuario.nombre_usuario} {usuario.apellido}".strip(),
             "cooperativa_nombre": cooperativa.nombre,
             "peso_total_kg": sum(float(entrega.cantidad_kg) for entrega, _ in cargas),

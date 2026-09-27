@@ -10,6 +10,8 @@ const valid = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
 export default function MapaAbiertoExpoGo({ camera = {}, completedRoute = [], mapTheme = 'day', markers = [], onManualMove, onMapPress, onMarkerDragEnd, route = [], style }) {
   const mapRef = useRef(null);
   const appliedFitKeyRef = useRef(null);
+  const appliedZoomCommandRef = useRef(null);
+  const currentZoomRef = useRef(Number(camera.zoom) || 15);
   const [ready, setReady] = useState(false);
   const routeCoordinates = route.filter(valid).map((coordinate) => ({
     latitude: Number(coordinate.latitude), longitude: Number(coordinate.longitude),
@@ -42,6 +44,15 @@ export default function MapaAbiertoExpoGo({ camera = {}, completedRoute = [], ma
     }
   }, [camera.bearing, camera.fitKey, camera.fitMode, camera.follow, camera.padding, camera.pitch, camera.zoom, followed, ready, routeKey]);
 
+  useEffect(() => {
+    const command = camera.zoomCommand;
+    if (!ready || !mapRef.current || !command || appliedZoomCommandRef.current === command.id) return;
+    appliedZoomCommandRef.current = command.id;
+    const nextZoom = Math.max(3, Math.min(19, currentZoomRef.current + Number(command.delta || 0)));
+    currentZoomRef.current = nextZoom;
+    mapRef.current.animateCamera({ zoom: nextZoom }, { duration: 180 });
+  }, [camera.zoomCommand, ready]);
+
   return <View style={style}>
     <MapView
       ref={mapRef}
@@ -54,9 +65,15 @@ export default function MapaAbiertoExpoGo({ camera = {}, completedRoute = [], ma
         longitudeDelta: initial ? 0.015 : 7,
       }}
       onMapReady={() => setReady(true)}
+      onTouchStart={() => onManualMove?.('touch')}
       onPanDrag={() => onManualMove?.('drag')}
+      onRegionChangeComplete={(_, details) => {
+        if (details?.isGesture) onManualMove?.('move');
+      }}
       onPress={(event) => onMapPress?.(event.nativeEvent.coordinate)}
       rotateEnabled
+      scrollEnabled
+      zoomEnabled
       pitchEnabled
       toolbarEnabled={false}
     >

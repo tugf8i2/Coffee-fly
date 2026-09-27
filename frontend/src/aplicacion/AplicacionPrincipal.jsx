@@ -32,7 +32,7 @@ import VehicleManagement from '../modulos/vehiculos/GestionVehiculos';
 import VehicleStatus from '../modulos/vehiculos/EstadoVehiculos';
 import { API_BASE_URL, fetchApi, subscribeSessionExpired } from '../configuracion';
 import { detenerRastreoSegundoPlano } from '../servicios/ubicacionSegundoPlano';
-import { connectionLabel, synchronizationLabel } from '../servicios/presentacionConexion';
+import { connectionLabel, syncFeedbackDuration, synchronizationLabel } from '../servicios/presentacionConexion';
 import { observarConexion, sincronizarPendientes } from '../servicios/sinConexion';
 import {
   clearAuthenticatedSession,
@@ -113,6 +113,13 @@ export default function AplicacionPrincipal() {
       ].filter(Boolean).join(' · '), result.conflictos || result.descartadas ? 'warning' : 'success');
     }
   };
+  useEffect(() => {
+    if (!syncMessage) return undefined;
+    const duration = syncFeedbackDuration(syncMessageType);
+    if (!duration) return undefined;
+    const timer = setTimeout(() => setSyncMessageText(''), duration);
+    return () => clearTimeout(timer);
+  }, [syncMessage, syncMessageType]);
   const synchronizeSession = async (token) => {
     setSyncStatus('syncing');
     try {
@@ -158,9 +165,6 @@ export default function AplicacionPrincipal() {
     sessionToken,
     (result) => {
       showSyncResult(result);
-      if (result.sincronizadas || result.conflictos) {
-        setSyncMessage(`${result.sincronizadas} registro(s) sincronizado(s)${result.conflictos ? `; ${result.conflictos} conflicto(s) resuelto(s) con la versión del servidor.` : ''}`);
-      }
     },
     (status) => {
       setConnectionStatus(status);
@@ -221,13 +225,13 @@ export default function AplicacionPrincipal() {
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9f1' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: darkMode ? '#102c27' : '#faf9f1' }}>
       <AvisoConexion status={connectionStatus}>
         <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
           <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
         </AppErrorBoundary>
       </AvisoConexion>
-      <StatusBar style="dark" />
+      <StatusBar style={darkMode ? 'light' : 'dark'} />
     </SafeAreaView>
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'coordinador') return <SafeAreaProvider>

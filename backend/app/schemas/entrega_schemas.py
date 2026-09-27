@@ -57,10 +57,13 @@ class EntregaAsignadaResponse(EntregaResponse):
 class ReportarEventoConductorRequest(BaseModel):
     tipo_evento: Literal["inicio del viaje", "retraso", "llegada", "inconveniente", "entrega realizada", "daño vehicular", "parada baño", "imprevisto nuevo"]
     detalle: Optional[str] = Field(default=None, max_length=250)
+    client_event_id: Optional[UUID] = None
+    capturada_en: Optional[datetime] = None
 
 
 class EventoConductorResponse(BaseModel):
     id_evento: UUID
+    client_event_id: Optional[UUID] = None
     tipo_evento: str
     descripcion_evento: str
     fecha_hora_evento: datetime

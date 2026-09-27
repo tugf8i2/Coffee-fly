@@ -27,6 +27,8 @@ class ViajeResponse(BaseModel):
     orden_cola: int
     vehiculo_id: int
     vehiculo_placa: str
+    vehiculo_foto: Optional[str] = None
+    vehiculo_propietario: Optional[str] = None
     conductor_id: int
     conductor_nombre: str
     cooperativa_nombre: str

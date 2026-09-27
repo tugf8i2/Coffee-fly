@@ -2,7 +2,7 @@ import { erroresFormularioVehiculo } from '../src/modulos/vehiculos/GestionVehic
 
 const catalog = [{ codigo: 'C2', clase_vehiculo: 'rigido', pbv_maximo_legal_kg: 17000 }];
 const valid = {
-  placa: 'ABC123', tipo_vehiculo: 'Camión', marca: 'Chevrolet', modelo_comercial: 'NPR', modelo: '2024',
+  placa: 'ABC123', tipo_vehiculo: 'Camión', marca: 'Chevrolet', modelo_comercial: 'NPR', modelo: '2024', propietario_nombre: 'Cooperativa Coffee Fly',
   configuracion: 'C2', tara_kg: '6300', pbv_homologado_kg: '17000',
   soat_vencimiento: '2027-09-22', tecnomecanica_vencimiento: '2027-09-22', seguro_vencimiento: '2027-09-22',
 };

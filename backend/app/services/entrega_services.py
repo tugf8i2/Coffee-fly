@@ -192,7 +192,7 @@ class EntregaService:
             "total": total, "pagina": pagina, "tamano_pagina": 20,
         }
 
-    def _contexto_gps(self, entrega_id: UUID, conductor_id: int):
+    def _contexto_gps(self, entrega_id: UUID, conductor_id: int, allow_completed: bool = False):
         registro = self.repository.get_vehiculo_entrega(entrega_id)
         if not registro:
             raise HTTPException(status_code=404, detail="Entrega con vehículo asignado no encontrada")
@@ -204,7 +204,9 @@ class EntregaService:
             viaje = self.repository.bloquear_viaje(entrega.viaje_id)
             if viaje is None:
                 raise HTTPException(status_code=409, detail="El viaje de la entrega ya no está disponible")
-            if viaje.estado_viaje != "en_camino":
+            if viaje.estado_viaje != "en_camino" and not (
+                allow_completed and viaje.estado_viaje == "completado"
+            ):
                 raise HTTPException(status_code=409, detail="El GPS solo puede actualizarse durante el viaje activo")
             registro = self.repository.get_vehiculo_entrega(entrega_id, for_update=True)
             if not registro:
@@ -218,7 +220,9 @@ class EntregaService:
         conductor_asignado = entrega.viaje.conductor_id if entrega.viaje_id else vehiculo.conductor_id
         if conductor_asignado != conductor_id:
             raise HTTPException(status_code=403, detail="Solo el conductor asignado puede enviar la ubicación")
-        if entrega.estado_entrega != "en camino":
+        if entrega.estado_entrega != "en camino" and not (
+            allow_completed and viaje is not None and viaje.estado_viaje == "completado"
+        ):
             raise HTTPException(status_code=400, detail="El GPS solo puede actualizarse cuando la entrega está en camino")
         return entrega, vehiculo, viaje
 
@@ -275,6 +279,18 @@ class EntregaService:
         capturada_en = _fecha_utc_sin_zona(punto.capturada_en) if punto.capturada_en else ahora
         if capturada_en > ahora + timedelta(minutes=5):
             self._rechazar_punto(entrega_id, punto, "Punto descartado: la hora de captura está en el futuro")
+        if viaje is not None and viaje.estado_viaje == "completado":
+            if (
+                punto.capturada_en is None
+                or viaje.iniciado_en is None
+                or viaje.completado_en is None
+                or not viaje.iniciado_en <= capturada_en <= viaje.completado_en
+            ):
+                self._rechazar_punto(
+                    entrega_id,
+                    punto,
+                    "Punto tardío descartado: la hora de captura no pertenece al viaje completado",
+                )
 
         anterior, siguiente = (
             self.repository.get_puntos_vecinos_viaje(entrega.viaje_id, capturada_en)
@@ -352,7 +368,9 @@ class EntregaService:
         return result
 
     def sincronizar_ubicaciones(self, entrega_id: UUID, lote: SincronizarUbicacionesRequest, conductor_id: int):
-        entrega, vehiculo, viaje = self._contexto_gps(entrega_id, conductor_id)
+        entrega, vehiculo, viaje = self._contexto_gps(
+            entrega_id, conductor_id, allow_completed=True
+        )
         puntos = sorted(
             lote.puntos,
             key=lambda item: _fecha_utc_sin_zona(item.capturada_en) if item.capturada_en else datetime.min,
@@ -720,10 +738,43 @@ class EntregaService:
             raise HTTPException(status_code=400, detail="La entrega no tiene una carga asociada")
         return entrega, solicitud.carga_id
 
-    def reportar_evento_conductor(self, entrega_id: UUID, tipo_evento: str, detalle: str | None, usuario_id: int, conductor_id: int):
+    def reportar_evento_conductor(
+        self,
+        entrega_id: UUID,
+        tipo_evento: str,
+        detalle: str | None,
+        usuario_id: int,
+        conductor_id: int,
+        client_event_id: UUID | None = None,
+        capturada_en: datetime | None = None,
+    ):
         entrega, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
+        if client_event_id:
+            existente = self.repository.get_evento_conductor_por_client_id(
+                client_event_id, conductor_id
+            )
+            if existente:
+                if existente.entrega_id != entrega_id:
+                    raise HTTPException(status_code=409, detail="El identificador de la novedad ya fue utilizado")
+                return existente
+        ahora = utc_now_naive()
+        fecha_evento = to_utc_naive(capturada_en) if capturada_en else ahora
+        if fecha_evento > ahora + timedelta(minutes=5):
+            raise HTTPException(status_code=400, detail="La fecha de la novedad no puede estar en el futuro")
         if entrega.estado_entrega != "en camino":
-            raise HTTPException(status_code=400, detail="Solo puedes reportar eventos durante un viaje en camino")
+            viaje = entrega.viaje
+            captura_valida = bool(
+                client_event_id
+                and capturada_en
+                and viaje
+                and viaje.iniciado_en
+                and viaje.completado_en
+                and viaje.iniciado_en <= fecha_evento <= viaje.completado_en
+            )
+            if not captura_valida:
+                raise HTTPException(status_code=400, detail="Solo puedes reportar eventos durante un viaje en camino")
+        elif entrega.viaje and entrega.viaje.iniciado_en and fecha_evento < entrega.viaje.iniciado_en:
+            raise HTTPException(status_code=400, detail="La novedad es anterior al inicio del viaje")
         etiquetas = {
             "inicio del viaje": "Inicio del viaje",
             "retraso": "Retraso",
@@ -737,13 +788,13 @@ class EntregaService:
         descripcion = etiquetas[tipo_evento]
         if detalle and detalle.strip():
             descripcion = f"{descripcion}: {detalle.strip()}"
-        ahora = utc_now_naive()
         return self.repository.crear_evento_conductor(HistorialEvento(
+            client_event_id=client_event_id,
             carga_id=carga_id,
             entrega_id=entrega_id,
             tipo_evento=tipo_evento,
             descripcion_evento=descripcion,
-            fecha_hora_evento=ahora,
+            fecha_hora_evento=fecha_evento,
             fecha_hora_sincronizacion=ahora,
             conductor_id=conductor_id,
             usuario_id_cambio=usuario_id,

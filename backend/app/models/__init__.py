@@ -17,3 +17,4 @@ from app.models.historial_eventos_models import HistorialEvento
 from app.models.auth_session_models import AuthSession
 from app.models.seguimiento_ubicacion_models import SeguimientoUbicacion
 from app.models.mensaje_soporte_models import MensajeSoporte
+from app.models.inspeccion_vehiculo_models import InspeccionVehiculo

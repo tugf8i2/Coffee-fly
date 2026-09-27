@@ -13,7 +13,7 @@ import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { styles } from './GestionUsuarios.styles';
 
 const emptyForm = {
-  nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', contrasena: '', rol_id: 1,
+  nombre_usuario: '', apellido: '', correo_usuario: '', telefono_usuario: '', tipo_documento: '', numero_documento: '', contrasena: '', rol_id: 1,
   licencia: '', numero_licencia: '', fecha_expedicion_licencia: '', fecha_vencimiento_licencia: '',
   foto_licencia: '', tiene_foto_licencia: false, foto_perfil: '', departamento: '', municipio: '', vereda: '',
 };
@@ -119,6 +119,7 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
     try {
       if (!form.nombre_usuario.trim() || !form.apellido.trim()) return setMessage('Nombre y apellido son obligatorios.');
       if (!/^\d{10}$/.test(form.telefono_usuario)) return setMessage('El teléfono debe tener exactamente 10 dígitos.');
+      if (!form.tipo_documento?.trim() || !form.numero_documento?.trim()) return setMessage('Registra el tipo y número del documento de identidad.');
       if ((!editingId || form.contrasena) && !isValidPassword(form.contrasena)) return setMessage(PASSWORD_HELP);
       const roleId = Number(form.rol_id);
       if (![1, 2, 3, 4].includes(roleId)) return setMessage('Selecciona un rol válido entre 1 y 4.');
@@ -228,6 +229,9 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       <TextInput style={styles.input} value={form.correo_usuario} editable={false} />
       <Text style={styles.muted}>Se actualiza automáticamente al cambiar nombre o apellido.</Text>
       {field('Teléfono (10 dígitos)', 'telefono_usuario', { keyboardType: 'phone-pad', maxLength: 10 })}
+      <Text style={styles.label}>Tipo de documento</Text>
+      <SelectorFormulario label="Tipo de documento" value={form.tipo_documento || ''} onValueChange={(value) => updateField('tipo_documento', value)} options={[["CC", "Cédula de ciudadanía"], ["CE", "Cédula de extranjería"], ["TI", "Tarjeta de identidad"], ["PAS", "Pasaporte"]]} placeholder="Selecciona el documento" />
+      {field('Número de documento', 'numero_documento', { maxLength: 30 })}
       {field(editingId ? 'Nueva contraseña (opcional)' : 'Contraseña (7 a 20 caracteres)', 'contrasena', { secureTextEntry: true, textContentType: 'newPassword', maxLength: 20 })}
       <Text style={styles.muted}>{PASSWORD_HELP}{editingId ? ' Deja el campo vacío para conservar la contraseña actual.' : ''}</Text>
       <Text style={styles.label}>Rol</Text>
@@ -290,7 +294,7 @@ export default function GestionUsuarios({ go, token, initialRole = 'all' }) {
       return <View style={styles.card} key={user.id_usuario}>
         {Number(user.rol_id) === 2 && user.foto_perfil ? <Image source={{ uri: user.foto_perfil }} style={styles.profilePreview} accessibilityLabel={`Foto de ${user.nombre_usuario} ${user.apellido}`} /> : null}
         <Text style={styles.cardTitle}>{user.nombre_usuario} {user.apellido}</Text>
-        <Text>{user.correo_usuario}</Text><Text style={styles.muted}>{label}</Text>
+        <Text>{user.correo_usuario}</Text><Text style={styles.muted}>{[user.tipo_documento, user.numero_documento].filter(Boolean).join(' · ') || 'Documento pendiente'} · {label}</Text>
         {Number(user.rol_id) === 2 ? <Text style={styles.muted}>Licencia {user.licencia || 'pendiente'} · {alertaVencimiento(user.fecha_vencimiento_licencia)}</Text> : null}
         <TouchableOpacity style={styles.primary} onPress={() => startEdit(user)}><Text style={styles.primaryText}>Editar perfil</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => changeStatus(user.id_usuario, state.habilitado === false)}><Text style={styles.link}>{state.habilitado === false ? 'Habilitar y desbloquear' : 'Deshabilitar perfil'}</Text></TouchableOpacity>

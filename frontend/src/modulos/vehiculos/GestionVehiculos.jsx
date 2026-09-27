@@ -2,14 +2,15 @@ import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion'
 import SelectorFormulario from '../../componentes/comunes/SelectorFormulario';
 import SelectorFecha from '../../componentes/comunes/SelectorFecha';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { alertaVencimiento } from '../../servicios/alertasDocumentales';
+import { seleccionarEvidenciaImagen } from '../../servicios/evidenciaImagen';
 import { styles } from './GestionVehiculos.styles';
 
 const empty = {
-  placa: '', tipo_vehiculo: '', marca: '', modelo_comercial: '', modelo: '', color: '',
+  placa: '', tipo_vehiculo: '', marca: '', modelo_comercial: '', modelo: '', color: '', propietario_nombre: '', propietario_documento: '', foto_vehiculo: '',
   tipo_servicio: 'PUBLICO', configuracion: '', numero_ejes: '', tipo_carroceria: '',
   tara_kg: '', pbv_homologado_kg: '', soat_vencimiento: '',
   tecnomecanica_vencimiento: '', seguro_vencimiento: '', estado_vehiculo: 'disponible',
@@ -36,6 +37,7 @@ export function erroresFormularioVehiculo(form, catalog) {
   if (!form.tipo_vehiculo) errors.push('Tipo de vehículo: selecciona una opción.');
   else if (!vehicleTypes.includes(form.tipo_vehiculo)) errors.push('Tipo de vehículo: la opción seleccionada no es válida.');
   if (!form.marca.trim()) errors.push('Marca: es obligatoria.');
+  if (!String(form.propietario_nombre || '').trim()) errors.push('Propietario: es obligatorio.');
   if (!form.modelo_comercial.trim()) errors.push('Modelo comercial: es obligatorio.');
   if (!form.modelo.trim()) errors.push('Año del modelo: es obligatorio.');
   else if (!Number.isInteger(modelYear) || form.modelo.length !== 4 || modelYear < 2000 || modelYear > new Date().getFullYear() + 1) errors.push(`Año del modelo: escribe un año entre 2000 y ${new Date().getFullYear() + 1}.`);
@@ -106,6 +108,12 @@ export default function GestionVehiculos({ go, token }) {
   const limit = configuration && pbv > 0 ? Math.min(pbv, configuration.pbv_maximo_legal_kg || pbv) : null;
   const calculated = limit != null && tara > 0 ? limit - tara : null;
   const license = configuration?.[form.tipo_servicio === 'PUBLICO' ? 'licencia_publico' : 'licencia_particular'];
+  const selectVehiclePhoto = async (camera = false) => {
+    try {
+      const photo = await seleccionarEvidenciaImagen({ camara: camera });
+      if (photo) { set('foto_vehiculo', photo); setMessage('Imagen del vehículo seleccionada.', 'success'); }
+    } catch (error) { setMessage(error.message); }
+  };
   const save = async () => {
     if (saving) return;
     const validationErrors = erroresFormularioVehiculo(form, catalog);
@@ -121,6 +129,8 @@ export default function GestionVehiculos({ go, token }) {
         tipo_vehiculo: form.tipo_vehiculo,
         modelo: String(modelYear),
         marca: form.marca.trim(), modelo_comercial: form.modelo_comercial.trim(), color: form.color.trim() || null,
+        propietario_nombre: form.propietario_nombre.trim(), propietario_documento: form.propietario_documento.trim() || null,
+        foto_vehiculo: form.foto_vehiculo || null,
         tipo_servicio: form.tipo_servicio, configuracion: form.configuracion,
         numero_ejes: form.numero_ejes ? Number(form.numero_ejes) : null,
         tipo_carroceria: form.tipo_carroceria.trim() || null,
@@ -150,7 +160,7 @@ export default function GestionVehiculos({ go, token }) {
       tipo_vehiculo: vehicle.tipo_vehiculo,
       modelo: vehicle.modelo || '',
       marca: vehicle.marca || '', modelo_comercial: vehicle.modelo_comercial || '',
-      color: vehicle.color || '', tipo_servicio: vehicle.tipo_servicio || 'PUBLICO',
+      color: vehicle.color || '', propietario_nombre: vehicle.propietario_nombre || '', propietario_documento: vehicle.propietario_documento || '', foto_vehiculo: vehicle.foto_vehiculo || '', tipo_servicio: vehicle.tipo_servicio || 'PUBLICO',
       configuracion: vehicle.configuracion || '', numero_ejes: String(vehicle.numero_ejes || ''),
       tipo_carroceria: vehicle.tipo_carroceria || '',
       tara_kg: String(vehicle.tara_kg || ''), pbv_homologado_kg: String(vehicle.pbv_homologado_kg || ''),
@@ -188,6 +198,16 @@ export default function GestionVehiculos({ go, token }) {
       <TextInput style={styles.input} value={form.modelo_comercial} onChangeText={(value) => set('modelo_comercial', value)} placeholder="NPR" />
       <Text style={styles.label}>Color</Text>
       <TextInput style={styles.input} value={form.color} onChangeText={(value) => set('color', value)} />
+      <Text style={styles.section}>Propietario e imagen del vehículo</Text>
+      <Text style={styles.label}>Nombre del propietario</Text>
+      <TextInput style={styles.input} value={form.propietario_nombre} onChangeText={(value) => set('propietario_nombre', value)} maxLength={120} placeholder="Persona, cooperativa o empresa" />
+      <Text style={styles.label}>Documento o NIT del propietario</Text>
+      <TextInput style={styles.input} value={form.propietario_documento} onChangeText={(value) => set('propietario_documento', value)} maxLength={30} />
+      <View style={styles.statusActions}>
+        <TouchableOpacity style={styles.primary} onPress={() => selectVehiclePhoto(true)}><Text style={styles.primaryText}>Tomar foto</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.role} onPress={() => selectVehiclePhoto(false)}><Text>Elegir imagen</Text></TouchableOpacity>
+      </View>
+      {form.foto_vehiculo ? <Image source={{ uri: form.foto_vehiculo }} style={{ width: '100%', height: 210, borderRadius: 10 }} resizeMode="cover" /> : <Text style={styles.muted}>La foto ayuda al conductor y al coordinador a identificar el vehículo asignado.</Text>}
       <Text style={styles.label}>Tipo de servicio</Text>
       <SelectorFormulario label="Tipo de servicio" value={form.tipo_servicio} onValueChange={(value) => set('tipo_servicio', value)} options={[["PUBLICO", "Público"], ["PARTICULAR", "Particular"]]} />
       <Text style={styles.label}>Configuración vehicular</Text>
@@ -216,7 +236,9 @@ export default function GestionVehiculos({ go, token }) {
     </View>
     <Text style={styles.section}>Vehículos registrados</Text>
     <View style={styles.grid}>{vehicles.map((vehicle) => <View key={vehicle.id_vehiculo} style={styles.card}>
+      {vehicle.foto_vehiculo ? <Image source={{ uri: vehicle.foto_vehiculo }} style={{ width: '100%', height: 180, borderRadius: 10 }} resizeMode="cover" /> : null}
       <Text style={styles.cardTitle}>{vehicle.placa} · {vehicle.tipo_vehiculo}</Text>
+      <Text>Propietario: {vehicle.propietario_nombre || 'Pendiente'}{vehicle.propietario_documento ? ` · ${vehicle.propietario_documento}` : ''}</Text>
       <Text>Modelo: {vehicle.modelo || 'Sin modelo'}</Text>
       <Text>Configuración: {vehicle.configuracion || 'Pendiente de completar'}</Text>
       <Text>PBV homologado: {vehicle.pbv_homologado_kg?.toLocaleString('es-CO') || 'Pendiente'} kg · Tara: {vehicle.tara_kg?.toLocaleString('es-CO') || 'Pendiente'} kg</Text>

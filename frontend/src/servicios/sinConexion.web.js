@@ -45,7 +45,7 @@ const getQueue = () => readArray(QUEUE_KEY);
 const putQueue = (items) => window.localStorage.setItem(QUEUE_KEY, JSON.stringify(items));
 
 function idempotencyKey(tipo, payload) {
-  const key = payload.client_point_id || payload.client_request_id;
+  const key = payload.client_point_id || payload.client_request_id || payload.client_event_id || payload.client_inspection_id;
   return key ? `${tipo}:${key}` : null;
 }
 
@@ -187,6 +187,23 @@ async function enviar(tipo, payload, token) {
       }),
     });
     fallback = 'No fue posible sincronizar la solicitud';
+  } else if (tipo === 'evento_conductor') {
+    response = await fetchApi(`${API_BASE_URL}/entregas/${payload.entrega_id}/eventos-conductor`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        tipo_evento: payload.tipo_evento,
+        detalle: payload.detalle,
+        client_event_id: payload.client_event_id,
+        capturada_en: payload.capturada_en,
+      }),
+    });
+    fallback = 'No fue posible sincronizar la novedad';
+  } else if (tipo === 'inspeccion_vehiculo') {
+    response = await fetchApi(`${API_BASE_URL}/inspecciones-vehiculo/`, {
+      method: 'POST', headers, body: JSON.stringify(payload),
+    });
+    fallback = 'No fue posible sincronizar la inspección del vehículo';
   } else {
     response = await fetchApi(`${API_BASE_URL}/entregas/${payload.entrega_id}/estado`, {
       method: 'PATCH',

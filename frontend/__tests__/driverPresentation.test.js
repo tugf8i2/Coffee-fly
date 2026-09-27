@@ -1,4 +1,4 @@
-import { driverDate, driverTodayMetrics } from '../src/modulos/conductor/presentacionConductor';
+import { driverDate, driverQuickActions, driverTodayMetrics } from '../src/modulos/conductor/presentacionConductor';
 
 describe('presentación del conductor', () => {
   test('las fechas PostgreSQL sin zona se interpretan como UTC', () => {
@@ -17,5 +17,9 @@ describe('presentación del conductor', () => {
   });
   test('sin viajes no inventa métricas', () => {
     expect(driverTodayMetrics(null, [])).toEqual({ trips: 0, deliveries: 0, km: 0 });
+  });
+  test('el modo offline es automático y no exige una acción manual', () => {
+    expect(driverQuickActions(true).some((action) => action[3] === 'offline')).toBe(false);
+    expect(driverQuickActions(false).some((action) => action[3] === 'offline')).toBe(false);
   });
 });

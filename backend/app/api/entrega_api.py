@@ -351,4 +351,6 @@ def reportar_evento_conductor(
         reporte.detalle,
         conductor.id_usuario,
         conductor.conductor.id_conductor,
+        reporte.client_event_id,
+        reporte.capturada_en,
     )

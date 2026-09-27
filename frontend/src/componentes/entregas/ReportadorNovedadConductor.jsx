@@ -2,8 +2,10 @@ import FeedbackMessage from '../comunes/MensajeRetroalimentacion';
 import SelectorFormulario from '../comunes/SelectorFormulario';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as Crypto from 'expo-crypto';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
+import { enviarOSolicitarEnCola } from '../../servicios/sinConexion';
 
 const options = [
   ['inicio del viaje', 'Inicio del viaje'],
@@ -40,16 +42,18 @@ export default function ReportadorNovedadConductor({ deliveryId, token, styles }
     if (!selected || saving) return;
     setSaving(true); setError(''); setMessage('');
     try {
-      const response = await fetchApi(`${API_BASE_URL}/entregas/${deliveryId}/eventos-conductor`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo_evento: selected, detalle: detail.trim() || null }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw Error(data.detail || 'No se pudo notificar el evento.');
-      setMessage('Evento notificado correctamente al sistema.');
+      const result = await enviarOSolicitarEnCola('evento_conductor', {
+        entrega_id: deliveryId,
+        tipo_evento: selected,
+        detalle: detail.trim() || null,
+        client_event_id: Crypto.randomUUID(),
+        capturada_en: new Date().toISOString(),
+      }, token);
+      setMessage(result.offline
+        ? 'Evento guardado. Se notificará automáticamente cuando vuelva la conexión.'
+        : 'Evento notificado correctamente al sistema.');
       setSelected(''); setDetail('');
-      await load();
+      if (!result.offline) await load();
     } catch (reason) { setError(reason.message); } finally { setSaving(false); }
   };
 

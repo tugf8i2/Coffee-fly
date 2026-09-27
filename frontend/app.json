@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.coffeefly.mobile",
@@ -57,26 +57,41 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Coffee Fly usa el movimiento y la orientación del dispositivo para mejorar el rumbo durante la navegación."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Coffee Fly accede a tus fotos para adjuntar evidencias y registrar el vehículo.",
+          "cameraPermission": "Coffee Fly usa la cámara para fotografiar novedades del vehículo.",
+          "microphonePermission": false
+        }
+      ],
       "expo-sharing",
       "expo-status-bar",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./src/assets/brand/login-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "imageWidth": 200
+          "backgroundColor": "#001c17",
+          "imageWidth": 240
         }
       ],
       "@maplibre/maplibre-react-native",
       "expo-font",
       "@react-native-community/datetimepicker"
     ],
+
     "extra": {
       "eas": {
-        "projectId": "f4f6eab6-9353-483e-a29c-e20849f1e75f"
+        "projectId": "a09e0e55-6fef-4fc6-889c-f4e3c634a181"
       }
     },
-    "owner": "jose5372hbj"
+    "owner": "tugf8i2"
   }
 }

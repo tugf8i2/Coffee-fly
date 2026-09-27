@@ -370,6 +370,51 @@ class GpsQualityTests(unittest.TestCase):
         self.assertTrue(self.repository.committed)
         self.assertFalse(self.repository.rolled_back)
 
+    def test_batch_accepts_offline_point_captured_before_trip_completed(self):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        self.repository.delivery.estado_entrega = "entregado"
+        self.repository.delivery.viaje_id = uuid4()
+        self.repository.delivery.viaje = SimpleNamespace(
+            conductor_id=self.repository.driver_id,
+            estado_viaje="completado",
+            iniciado_en=now - timedelta(hours=1),
+            completado_en=now - timedelta(minutes=1),
+            distancia_recorrida_m=0,
+        )
+        batch = SincronizarUbicacionesRequest(puntos=[
+            self.point(capturada_en=(now - timedelta(minutes=10)).replace(tzinfo=timezone.utc)),
+        ])
+
+        result = self.service.sincronizar_ubicaciones(
+            self.repository.delivery_id, batch, self.repository.driver_id
+        )
+
+        self.assertEqual(result["guardados"], 1)
+        self.assertEqual(result["rechazados"], 0)
+
+    def test_batch_rejects_point_captured_after_trip_completed(self):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        self.repository.delivery.estado_entrega = "entregado"
+        self.repository.delivery.viaje_id = uuid4()
+        self.repository.delivery.viaje = SimpleNamespace(
+            conductor_id=self.repository.driver_id,
+            estado_viaje="completado",
+            iniciado_en=now - timedelta(hours=1),
+            completado_en=now - timedelta(minutes=10),
+            distancia_recorrida_m=0,
+        )
+        batch = SincronizarUbicacionesRequest(puntos=[
+            self.point(capturada_en=(now - timedelta(minutes=5)).replace(tzinfo=timezone.utc)),
+        ])
+
+        result = self.service.sincronizar_ubicaciones(
+            self.repository.delivery_id, batch, self.repository.driver_id
+        )
+
+        self.assertEqual(result["guardados"], 0)
+        self.assertEqual(result["rechazados"], 1)
+        self.assertIn("viaje completado", result["resultados"][0]["detalle"])
+
 
 if __name__ == "__main__":
     unittest.main()

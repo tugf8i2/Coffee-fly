@@ -172,6 +172,7 @@ def main():
             vehicle = expect(client.post("/vehiculos/", headers=registrador_headers, json={
                 "placa": f"E{suffix}"[:7], "tipo_vehiculo": "Camión", "modelo": "2024",
                 "marca": "Chevrolet", "modelo_comercial": "NPR", "tipo_servicio": "PUBLICO",
+                "propietario_nombre": "Coffee Fly E2E",
                 "configuracion": "C2", "tara_kg": 6300, "pbv_homologado_kg": 17000,
                 "soat_vencimiento": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),
                 "tecnomecanica_vencimiento": (datetime.now(timezone.utc).date() + timedelta(days=365)).isoformat(),

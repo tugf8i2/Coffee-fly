@@ -1,5 +1,6 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import { useState } from 'react';
+import { useFonts, DancingScript_600SemiBold } from '@expo-google-fonts/dancing-script';
 import { Image, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
@@ -11,6 +12,7 @@ import logo from '../../assets/brand/login-logo.png';
 import { accesoPermitidoEnPlataforma, MENSAJE_CONDUCTOR_SOLO_MOVIL } from '../../servicios/accesoPlataforma';
 
 export default function IniciarSesion({ onLogin }) {
+  const [mottoFontLoaded] = useFonts({ DancingScript_600SemiBold });
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
   const [email, setEmail] = useState('');
@@ -55,8 +57,8 @@ export default function IniciarSesion({ onLogin }) {
     <Text style={styles.loginSlogan}>Tu café viaja</Text>
   </View>;
   const motto = <View style={[styles.loginMotto, !desktop && styles.loginMottoMobile]}>
-    <Text style={[styles.loginMottoText, !desktop && styles.loginMottoTextMobile]}>Del campo</Text>
-    <Text style={[styles.loginMottoText, styles.loginMottoSecondLine, !desktop && styles.loginMottoTextMobile]}>a su destino</Text>
+    <Text style={[styles.loginMottoText, mottoFontLoaded && styles.loginMottoFont, !desktop && styles.loginMottoTextMobile]}>Del campo</Text>
+    <Text style={[styles.loginMottoText, mottoFontLoaded && styles.loginMottoFont, styles.loginMottoSecondLine, !desktop && styles.loginMottoTextMobile]}>a su destino</Text>
     <View style={styles.loginMottoUnderline} />
   </View>;
 

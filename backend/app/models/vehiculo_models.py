@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, DateTime, Float, String, Integer, ForeignKey
+from sqlalchemy import Column, Date, DateTime, Float, String, Integer, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -14,6 +14,9 @@ class Vehiculo(Base):
     marca = Column(String(60), nullable=True)
     modelo_comercial = Column(String(60), nullable=True)
     color = Column(String(40), nullable=True)
+    propietario_nombre = Column(String(120), nullable=True)
+    propietario_documento = Column(String(30), nullable=True)
+    foto_vehiculo = Column(Text, nullable=True)
     clase_vehiculo = Column(String(40), nullable=True)
     tipo_servicio = Column(String(12), nullable=True)
     configuracion = Column(String(12), ForeignKey("configuracion_vehicular.codigo"), nullable=True)

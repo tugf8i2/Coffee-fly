@@ -15,7 +15,7 @@ class HistorialEvento(Base):
         Index("ix_historial_eventos_expira", "expira_en"),
     )
     id_evento = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-
+    client_event_id = Column(UUID(as_uuid=True), unique=True, nullable=True, index=True)
 
     carga_id = Column(UUID(as_uuid=True), ForeignKey("carga.id_carga"), nullable=False)
     entrega_id = Column(UUID(as_uuid=True), ForeignKey("entrega.id_entrega"))

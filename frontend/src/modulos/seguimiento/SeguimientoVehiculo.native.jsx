@@ -1,7 +1,7 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import FotoConductor from '../../componentes/comunes/FotoConductor';
 import { readDriverValue, writeDriverValue } from '../conductor/almacenConductor';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
@@ -13,6 +13,8 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { RUNNING_IN_EXPO_GO } from '../../configuracion/mapasNativos';
 import usePolling from '../../ganchos/usarSondeo';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
+import useKeepNavigationAwake from '../../ganchos/usarPantallaActiva';
+import useNavigationSensors from '../../ganchos/usarSensoresNavegacion';
 import {
   detenerRastreoSegundoPlano,
   iniciarRastreoSegundoPlano,
@@ -22,17 +24,21 @@ import {
 } from '../../servicios/ubicacionSegundoPlano';
 import { canStartTrackingFromGpsResult } from '../../servicios/calidadGps';
 import { estaEnLinea, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
+import { createOfflineNavigationPackage } from '../../servicios/paqueteNavegacionOffline';
 import { styles as defaultStyles } from './SeguimientoVehiculo.styles';
 import { conductorModuleStyles } from '../conductor/Conductor.styles';
 import { applyTrackingMessage, connectTrackingSocket } from '../../servicios/seguimientoTiempoReal';
 import { canCompleteTrip, realtimeLabel, trackingModeLabel } from '../../servicios/presentacionSeguimiento';
 import { formatDistance, formatDuration, navigationGreeting, normalizeRouteInstructions, spanishVoiceCapability } from '../../servicios/navegacionVoz';
+import { instructionIndexForProgress } from '../conductor/presentacionGps';
 import { obtenerCalleActual } from '../../servicios/calleActual';
 import { createNavigationEngine } from '../../servicios/motorNavegacionGps';
+import { NAVIGATION_STATES, navigationStateLabel, navigationStateReducer } from '../../servicios/estadoNavegacion';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 import { createLatestRequestController } from '../../servicios/controlSolicitudes';
 import VistaGpsConductor from '../conductor/VistaGpsConductor';
 import MapaGpsConductor from '../conductor/MapaGpsConductor';
+import { navigationSensorLabel, speedKmhLabel } from '../../servicios/sensoresNavegacion';
 
 const toCoordinate = (latitud, longitud) => ({ latitude: Number(latitud), longitude: Number(longitud) });
 const distanceMeters = (first, second) => {
@@ -48,8 +54,11 @@ const distanceMeters = (first, second) => {
 const logGpsStage = (stage, details = {}) => {
   if (__DEV__) console.info(`[Coffee Fly GPS] ${stage}`, details);
 };
+const voiceProgressKey = (userId, tripId, deliveryId, stage) => (
+  `coffee-fly:voice-progress:${userId || 'driver'}:${tripId || 'trip'}:${deliveryId || 'delivery'}:${stage || 'stage'}`
+);
 
-export default function SeguimientoVehiculo({ go, token, user, connectionStatus, onDriverRoute, onDriverAction }) {
+export default function SeguimientoVehiculo({ go, token, user, connectionStatus, onDriverRoute, onDriverAction, navigationVisible = true, darkMode = false }) {
   const gpsControlsRef = useRef(null);
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
@@ -65,6 +74,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   const [completingTrip, setCompletingTrip] = useState(false);
   const [tripCompleted, setTripCompleted] = useState(false);
   const [navigationStarting, setNavigationStarting] = useState(false);
+  const [navigationState, dispatchNavigation] = useReducer(navigationStateReducer, NAVIGATION_STATES.IDLE);
   const [navigationError, setNavigationError] = useState('');
   const [instructionIndex, setInstructionIndex] = useState(0);
   const [followVehicle, setFollowVehicle] = useState(true);
@@ -72,7 +82,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceIdentifier, setVoiceIdentifier] = useState(null);
   const [voiceStatus, setVoiceStatus] = useState('Comprobando voz en español…');
-  const [mapTheme, setMapTheme] = useState('day');
+  const [mapTheme, setMapTheme] = useState(darkMode ? 'dark' : 'day');
   const [currentRoad, setCurrentRoad] = useState('Localizando calle actual...');
   const [navigationPosition, setNavigationPosition] = useState(null);
   const [navigationEngine] = useState(() => createNavigationEngine());
@@ -83,6 +93,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   const maneuverProgressRef = useRef({ index: 0, minimumDistance: Number.POSITIVE_INFINITY });
   const roadLookupRef = useRef({ requestedAt: 0, coordinate: null, id: 0 });
   const rerouteRef = useRef(0);
+  const arrivedTargetRef = useRef(null);
   const completionRef = useRef(false);
   const serverTripLoadedRef = useRef(false);
   const deliveryRef = useRef(null);
@@ -91,6 +102,13 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   if (!trackingRequestsRef.current) trackingRequestsRef.current = createLatestRequestController();
   if (!routeRequestsRef.current) routeRequestsRef.current = createLatestRequestController();
   const role = String(user?.rol || '').toLowerCase();
+  useEffect(() => setMapTheme(darkMode ? 'dark' : 'day'), [darkMode]);
+  useKeepNavigationAwake(role === 'conductor' && navigationVisible && Boolean(tracking));
+  const navigationSensors = useNavigationSensors({
+    active: role === 'conductor' && navigationVisible && Boolean(tracking),
+    gpsHeading: navigationPosition?.headingDeg,
+    speedMps: navigationPosition?.speedMps,
+  });
   const styles = role === 'conductor' ? { ...defaultStyles, ...conductorModuleStyles } : defaultStyles;
   useEffect(() => { if (route?.proveedor) onDriverRoute?.(route); }, [route, onDriverRoute]);
   const pickup = tracking?.recoleccion_latitud != null && tracking?.recoleccion_longitud != null
@@ -301,6 +319,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
     setRoute(null);
     setRouteFitRequest(0);
     navigationEngine.reset();
+    dispatchNavigation('RESET');
     setNavigationPosition(null);
     setInstructionIndex(0);
     announcedInstructionRef.current = null;
@@ -310,6 +329,15 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   useEffect(() => {
     if (route?.puntos?.length > 1) navigationEngine.setRoute(route.puntos);
   }, [navigationEngine, route?.puntos]);
+
+  useEffect(() => {
+    if (!route?.instrucciones?.length || !Number.isFinite(navigationPosition?.routeDistanceM)) return;
+    const restoredIndex = instructionIndexForProgress(
+      route.instrucciones,
+      navigationPosition.routeDistanceM,
+    );
+    setInstructionIndex((current) => Math.max(current, restoredIndex));
+  }, [navigationPosition?.routeDistanceM, route?.instrucciones]);
 
   useEffect(() => {
     if (role !== 'conductor') return undefined;
@@ -339,6 +367,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
         const normalized = { ...saved, instrucciones: supportsVoice ? instructions : [] };
         if (routeRequestsRef.current.isCurrent(routeRequest)) {
           setRoute(normalized);
+          dispatchNavigation('ROUTE_READY');
           setMessage(supportsVoice
             ? 'Sin internet: navegación por voz usando la ruta guardada.'
             : 'Sin internet: mostrando una ruta visual antigua. La voz se reactivará al actualizar la ruta.', 'warning');
@@ -348,6 +377,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
       const directRoute = { puntos: [origin, routeDestination], instrucciones: [], etapa: stage };
       if (routeRequestsRef.current.isCurrent(routeRequest)) {
         setRoute(directRoute);
+        dispatchNavigation('ROUTE_READY');
         setMessage('Sin internet y sin una ruta guardada: se muestra la dirección directa al destino.', 'warning');
       }
       return directRoute;
@@ -364,15 +394,18 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
       const data = await response.json();
       if (!routeRequestsRef.current.isCurrent(routeRequest)) return null;
       if (!response.ok || !data.puntos?.length) throw Error(apiErrorMessage(data, 'No se encontró una ruta vial para estas coordenadas.'));
-      const next = {
-        ...data,
-        entrega_id: routeDeliveryId,
-        etapa: data.etapa || stage,
-        calculada_en: Date.now(),
-      };
+      const next = createOfflineNavigationPackage({
+        route: data,
+        tripId: activeTrip?.id_viaje,
+        deliveryId: routeDeliveryId,
+        stage,
+        origin,
+        destination: routeDestination,
+      });
       if (JSON.stringify(next).length <= 1024 * 1024) await guardarRutaEntrega(routeKey, next);
       if (!routeRequestsRef.current.isCurrent(routeRequest)) return null;
       setRoute(next);
+      dispatchNavigation('ROUTE_READY');
       setMessage('Ruta vial cargada y guardada para usarla también sin internet.', 'success');
       return next;
     } catch (error) {
@@ -382,6 +415,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
         const supportsVoice = instructions.every((instruction) => instruction.coordenada);
         const normalized = { ...saved, instrucciones: supportsVoice ? instructions : [] };
         setRoute(normalized);
+        dispatchNavigation('ROUTE_READY');
         setMessage(supportsVoice
           ? 'No se pudo actualizar la ruta; continúa la navegación con la copia guardada.'
           : 'Se muestra una ruta visual antigua; las indicaciones habladas requieren conexión para actualizarla.', 'warning');
@@ -389,6 +423,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
       }
       const directRoute = { puntos: [origin, routeDestination], instrucciones: [], etapa: stage };
       setRoute(directRoute);
+      dispatchNavigation('FAIL');
       setMessage(error.message);
       return directRoute;
     }
@@ -493,6 +528,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
       : 'La finca debe tener coordenadas antes de iniciar el viaje.');
     try {
       setNavigationStarting(true);
+      dispatchNavigation('PREPARE');
       setNavigationError('');
       setMessage('Buscando una ubicación GPS precisa…', 'info');
       const current = await obtainCurrentPosition();
@@ -517,6 +553,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
         throw Error(initial.quality?.reason || 'El GPS no entregó una lectura válida.');
       }
       const mode = await iniciarRastreoSegundoPlano(delivery, token, { requestBackground: true });
+      dispatchNavigation('START');
       logGpsStage('rastreo_iniciado', { background: mode.background, batteryOptimization: mode.batteryOptimization });
       await refreshGpsState();
       if (mode.background) {
@@ -528,24 +565,40 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
         setMessage(mode.message, 'warning');
       }
       const greetingKey = `${activeTrip?.id_viaje}:${delivery}:${tracking?.etapa_viaje}`;
-      if (voiceEnabled && greetingRef.current !== greetingKey) {
+      const progressKey = voiceProgressKey(
+        user.id || user.id_usuario,
+        activeTrip?.id_viaje,
+        delivery,
+        tracking?.etapa_viaje,
+      );
+      const savedVoiceProgress = await readDriverValue(progressKey).then((value) => {
+        try { return value ? JSON.parse(value) : null; } catch { return null; }
+      }).catch(() => null);
+      if (savedVoiceProgress?.greeted) {
+        greetingRef.current = greetingKey;
+        announcedInstructionRef.current = Number.isInteger(savedVoiceProgress.lastInstructionIndex)
+          ? savedVoiceProgress.lastInstructionIndex
+          : null;
+      } else if (voiceEnabled && greetingRef.current !== greetingKey) {
         greetingRef.current = greetingKey;
         setInstructionIndex(0);
         announcedInstructionRef.current = 0;
         maneuverProgressRef.current = { index: 0, minimumDistance: Number.POSITIVE_INFINITY };
         await Speech.stop();
-        speak(navigationGreeting(
+        const greeting = navigationGreeting(
           user?.nombre || user?.nombre_usuario,
           tracking?.destino,
           navigationRoute?.distancia_m,
           navigationRoute?.duracion_s,
-        ));
+        );
         const firstInstruction = navigationRoute?.instrucciones?.[0];
-        if (firstInstruction?.texto) speak(firstInstruction.texto);
+        speak(firstInstruction?.texto ? `${greeting} ${firstInstruction.texto}` : greeting);
+        writeDriverValue(progressKey, JSON.stringify({ greeted: true, lastInstructionIndex: 0 })).catch(() => {});
       }
     } catch (error) {
       setMessage(error.message);
       setNavigationError(error.message);
+      dispatchNavigation('FAIL');
     } finally {
       setNavigationStarting(false);
     }
@@ -594,6 +647,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
       await detenerRastreoSegundoPlano();
       setActiveTrip(null); setTracking(null); selectDelivery(null); trackingRequestsRef.current.invalidate();
       setTripCompleted(true);
+      dispatchNavigation('COMPLETE');
       setMessage('Viaje completado. El vehículo quedó disponible para su siguiente asignación.', 'success');
     } catch (error) { setMessage(error.message); }
     finally { completionRef.current = false; setCompletingTrip(false); }
@@ -605,8 +659,11 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   const rawVehicle = last ? toCoordinate(last.latitud, last.longitud) : null;
   const vehicle = role === 'conductor' && navigationPosition?.display ? navigationPosition.display : rawVehicle;
   const exactVehicle = role === 'conductor' && navigationPosition?.raw ? navigationPosition.raw : rawVehicle;
-  const vehicleHeading = role === 'conductor' && navigationPosition?.headingDeg != null
-    ? navigationPosition.headingDeg : last?.rumbo_grados;
+  const vehicleHeading = role === 'conductor' && navigationSensors.headingDeg != null
+    ? navigationSensors.headingDeg
+    : role === 'conductor' && navigationPosition?.headingDeg != null
+      ? navigationPosition.headingDeg : last?.rumbo_grados;
+  const currentSpeedMps = navigationPosition?.speedMps ?? last?.velocidad_m_s;
   const vehicleTimestamp = navigationPosition?.timestampMs || (last ? Date.parse(last.registrada_en) : null);
   const distanceToPickup = distanceMeters(exactVehicle, pickup);
   const displayedRoute = role === 'conductor'
@@ -633,6 +690,15 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
   const currentInstruction = route?.instrucciones?.[instructionIndex] || null;
 
   useEffect(() => {
+    if (role !== 'conductor' || !exactVehicle || !destination || navigationPosition?.predicted) return;
+    const targetKey = `${delivery || ''}:${tracking?.etapa_viaje || ''}:${destination.latitude}:${destination.longitude}`;
+    const arrivalRadius = Math.min(100, Math.max(35, Number(tracking?.radio_confirmacion_m || 60)));
+    if (distanceMeters(exactVehicle, destination) > arrivalRadius || arrivedTargetRef.current === targetKey) return;
+    arrivedTargetRef.current = targetKey;
+    dispatchNavigation('ARRIVE');
+  }, [delivery, destination?.latitude, destination?.longitude, exactVehicle?.latitude, exactVehicle?.longitude, navigationPosition?.predicted, role, tracking?.etapa_viaje, tracking?.radio_confirmacion_m]);
+
+  useEffect(() => {
     if (!vehicle || !currentInstruction?.coordenada || !vehicleTimestamp || navigationPosition?.predicted) return;
     if (lastVoicePointRef.current === vehicleTimestamp) return;
     lastVoicePointRef.current = vehicleTimestamp;
@@ -646,11 +712,17 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
     if (voiceEnabled && distance <= 300 && announcedInstructionRef.current !== instructionIndex) {
       announcedInstructionRef.current = instructionIndex;
       speak(`En ${formatDistance(distance)}, ${currentInstruction.texto}`);
+      writeDriverValue(voiceProgressKey(
+        user.id || user.id_usuario,
+        activeTrip?.id_viaje,
+        delivery,
+        tracking?.etapa_viaje,
+      ), JSON.stringify({ greeted: true, lastInstructionIndex: instructionIndex })).catch(() => {});
     }
     const passedManeuver = maneuverProgressRef.current.minimumDistance <= 100
       && distance >= maneuverProgressRef.current.minimumDistance + 35;
     if (distance <= 35 || passedManeuver) setInstructionIndex((current) => current + 1);
-  }, [currentInstruction, navigationPosition?.predicted, speak, vehicle?.latitude, vehicle?.longitude, vehicleTimestamp, voiceEnabled]);
+  }, [activeTrip?.id_viaje, currentInstruction, delivery, instructionIndex, navigationPosition?.predicted, speak, tracking?.etapa_viaje, user.id, user.id_usuario, vehicle?.latitude, vehicle?.longitude, vehicleTimestamp, voiceEnabled]);
 
 
   useEffect(() => {
@@ -669,15 +741,23 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
 
   useEffect(() => {
     if (!navigationPosition?.rerouteSuggested || !vehicle || !destination) return;
+    const online = connectionStatus === 'online';
+    dispatchNavigation({ type: 'OFF_ROUTE', online });
+    if (!online) {
+      setMessage('Fuera de la ruta. Sin conexión para recalcular; se conserva la ruta anterior.', 'warning');
+      return;
+    }
     if (Date.now() - rerouteRef.current < 30000) return;
     rerouteRef.current = Date.now();
+    dispatchNavigation('RECALCULATE');
     cargarRuta(vehicle, destination, tracking?.etapa_viaje, delivery).then(() => {
       setInstructionIndex(0);
       announcedInstructionRef.current = null;
       maneuverProgressRef.current = { index: 0, minimumDistance: Number.POSITIVE_INFINITY };
+      dispatchNavigation('REROUTED');
       setMessage('Ruta recalculada después de detectar una salida del recorrido.', 'warning');
-    }).catch((error) => setMessage(error.message));
-  }, [delivery, destination?.latitude, destination?.longitude, navigationPosition?.rerouteSuggested, tracking?.etapa_viaje, vehicle?.latitude, vehicle?.longitude]);
+    }).catch((error) => { dispatchNavigation('FAIL'); setMessage(error.message); });
+  }, [connectionStatus, delivery, destination?.latitude, destination?.longitude, navigationPosition?.rerouteSuggested, tracking?.etapa_viaje, vehicle?.latitude, vehicle?.longitude]);
 
   const nextInstruction = route?.instrucciones?.[instructionIndex + 1] || null;
   const allInstructions = route?.instrucciones || [];
@@ -713,7 +793,7 @@ export default function SeguimientoVehiculo({ go, token, user, connectionStatus,
     onFinish={tracking.etapa_viaje === 'hacia_cooperativa' ? completeTrip : confirmPickup}
     finishDisabled={tracking.etapa_viaje === 'hacia_cooperativa' ? !allLoadsPicked : !canConfirmPickup}
     finishBusy={confirmingPickup || completingTrip}
-    gpsStatus={`${connectionStatus === 'online' ? 'En línea' : 'Sin conexión'} · ${currentRoad} · ${locationFreshness}${navigationPosition?.accuracyM != null ? ` · GPS ±${Math.round(navigationPosition.accuracyM)} m` : ''} · ${trackingMode}`}
+    gpsStatus={`${navigationStateLabel(navigationState)} · ${connectionStatus === 'online' ? 'En línea' : 'Sin conexión'} · ${speedKmhLabel(currentSpeedMps)} · ${navigationSensorLabel(navigationSensors)} · ${currentRoad} · ${locationFreshness}${navigationPosition?.accuracyM != null ? ` · GPS ±${Math.round(navigationPosition.accuracyM)} m` : ''} · ${trackingMode}`}
     message={message || navigationError} onRetry={navigationError ? retryNavigation : undefined}
   />;
   return (

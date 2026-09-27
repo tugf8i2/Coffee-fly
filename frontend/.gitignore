@@ -5,10 +5,14 @@ node_modules/
 
 # Expo
 .expo/
+.expo-audit/
 .expo-validation/
 .expo-android-check/
 .expo-verify/
 .expo-role-verify/
+.expo-*-verification/
+.expo-*-verification*/
+.expo-*-audit/
 .verification-*/
 dist/
 web-build/
@@ -44,3 +48,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Copiados desde node_modules durante prepare:map-worker.
+/public/maplibre-gl-csp-worker.js
+/public/maplibre-gl-shared.mjs
+/public/pwa-icon.png
+/public/pwa-icon-maskable.png
+
+# Gradle
+.gradle/
+android/.gradle/

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
-import logo from '../../assets/brand/logo.png';
+import logo from '../../assets/brand/login-logo.png';
 import './MarcaCafe.css';
 const src = typeof logo === 'string' ? logo : logo?.uri || Image.resolveAssetSource?.(logo)?.uri;
 export default function MarcaCafe({ compact = false }) {

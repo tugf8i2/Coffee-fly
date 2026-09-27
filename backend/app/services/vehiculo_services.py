@@ -14,6 +14,7 @@ AUDIT_FIELDS = (
     "placa", "tipo_vehiculo", "marca", "modelo_comercial", "modelo", "tipo_servicio",
     "configuracion", "tara_kg", "pbv_homologado_kg", "capacidad_kg", "estado_vehiculo",
     "soat_vencimiento", "tecnomecanica_vencimiento", "seguro_vencimiento", "cooperativa_id",
+    "propietario_nombre", "propietario_documento",
 )
 
 
@@ -48,6 +49,13 @@ class VehiculoService:
         return catalogo
 
     def _preparar(self, datos):
+        if not str(datos.get("propietario_nombre") or "").strip():
+            raise HTTPException(status_code=400, detail="El nombre del propietario es obligatorio")
+        datos["propietario_nombre"] = datos["propietario_nombre"].strip()
+        if datos.get("propietario_documento"):
+            datos["propietario_documento"] = datos["propietario_documento"].strip()
+        if datos.get("foto_vehiculo") and not datos["foto_vehiculo"].startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+            raise HTTPException(status_code=400, detail="La foto del vehículo no tiene un formato válido")
         codigo = datos.get("configuracion")
         catalogo = self.db.get(ConfiguracionVehicular, codigo)
         if not catalogo or not catalogo.activo:
@@ -87,7 +95,8 @@ class VehiculoService:
             raise HTTPException(status_code=409, detail="No se pueden cambiar datos de un vehículo con viaje asignado o en ruta")
         antes = snapshot(record, AUDIT_FIELDS)
         datos = {**{key: getattr(record, key) for key in AUDIT_FIELDS if key not in ("capacidad_kg", "clase_vehiculo")},
-                 "color": record.color, "numero_ejes": record.numero_ejes, "tipo_carroceria": record.tipo_carroceria}
+                 "color": record.color, "numero_ejes": record.numero_ejes, "tipo_carroceria": record.tipo_carroceria,
+                 "foto_vehiculo": record.foto_vehiculo}
         datos.update(vehiculo.model_dump(exclude_unset=True))
         for required in ("configuracion", "tipo_servicio", "tara_kg", "pbv_homologado_kg"):
             if datos.get(required) is None:

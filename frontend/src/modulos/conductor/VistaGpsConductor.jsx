@@ -101,9 +101,14 @@ export default function VistaGpsConductor({
 }) {
   const { width, height } = useWindowDimensions();
   const wide = width >= 1000;
+  const landscape = width > height;
+  const largeScreen = Math.min(width, height) >= 600;
+  const landscapePhone = landscape && !largeScreen;
+  const desktopLayout = wide || (landscape && largeScreen);
   const stop = gpsStop(trip, deliveryId, tracking?.etapa_viaje);
   const [statusOpen, setStatusOpen] = useState(false);
   const [stopsOpen, setStopsOpen] = useState(false);
+  const [mapOnly, setMapOnly] = useState(false);
   const eta =
     routeAvailable && Number.isFinite(Number(remainingDuration))
       ? new Date(
@@ -272,28 +277,28 @@ export default function VistaGpsConductor({
     </>
   );
   const routeSummary = (
-    <View style={[styles.summary, !wide && styles.summarySmall]}>
+    <View style={[styles.summary, !wide && styles.summarySmall, mapOnly && styles.summaryMapOnly]}>
       {[
         [
           Math.ceil(Number(remainingDuration || 0) / 60) + ' min',
-          `${compactDistance(remainingDistance)} restantes`,
+          'Tiempo restante',
           'road',
         ],
-        [eta, 'Llegada estimada', 'clock'],
-        [compactDistance(remainingDistance), 'Restantes', 'flag'],
+        [eta, 'Llegada', 'clock'],
+        [compactDistance(remainingDistance), 'Distancia', 'flag'],
       ].map(([value, label, icon], index) => (
         <View
           key={icon}
-          style={[styles.summaryMetric, index > 0 && styles.summaryBorder]}
+          style={[styles.summaryMetric, !wide && styles.summaryMetricSmall, index > 0 && styles.summaryBorder]}
         >
-          <View style={[styles.metricIcon, !wide && { width: 36, height: 36 }]}>
-            <Icon name={icon} size={wide ? 30 : 23} />
+          <View style={[styles.metricIcon, !wide && { width: 32, height: 32 }]}>
+            <Icon name={icon} size={wide ? 30 : 20} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Copy bold style={{ fontSize: wide ? 27 : 19 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Copy bold numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: wide ? 27 : 18 }}>
               {routeAvailable ? value : '—'}
             </Copy>
-            <Copy style={[styles.secondary, { fontSize: wide ? 16 : 11 }]}>
+            <Copy numberOfLines={1} style={[styles.secondary, { fontSize: wide ? 16 : 10 }]}>
               {label}
             </Copy>
           </View>
@@ -306,11 +311,16 @@ export default function VistaGpsConductor({
       style={[
         styles.mapStage,
         {
-          minHeight: wide
+          minHeight: mapOnly
+            ? height
+            : wide
             ? Math.max(560, height - 170)
-            : Math.max(490, height - 230),
-          flex: wide ? 1 : undefined,
+            : landscapePhone
+              ? Math.max(320, height - 40)
+              : Math.max(490, height - 230),
+          flex: desktopLayout ? 1 : undefined,
         },
+        mapOnly && styles.mapOnlyStage,
       ]}
     >
       {map}
@@ -361,13 +371,29 @@ export default function VistaGpsConductor({
             </View>
           )}
         </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={mapOnly ? 'Salir del modo solo mapa' : 'Abrir solo mapa en pantalla completa'}
+          onPress={() => {
+            if (!mapOnly) controlsRef.current?.explore?.();
+            setMapOnly((current) => !current);
+          }}
+          style={[styles.mapOnlyButton, landscapePhone && { top: 72 }]}
+        >
+          <Icon name={mapOnly ? 'back' : 'map'} size={22} color="#fff" />
+          <Copy bold style={{ color: '#fff', fontSize: 13 }}>
+            {mapOnly ? 'Volver a la ruta' : 'Solo mapa'}
+          </Copy>
+        </TouchableOpacity>
         <View
           style={[
             styles.mapButtons,
-            { top: wide ? 156 : 130, gap: wide ? 13 : 9 },
+            landscapePhone
+              ? { top: 112, right: 10, gap: 8, flexDirection: 'row', alignItems: 'flex-start' }
+              : { top: wide ? 156 : 130, gap: wide ? 13 : 9 },
           ]}
         >
-          {!offline && <><TouchableOpacity
+          <><TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Orientar mapa al norte"
             onPress={() => controlsRef.current?.north?.()}
@@ -399,7 +425,7 @@ export default function VistaGpsConductor({
             >
               <Icon name="minus" size={28} />
             </TouchableOpacity>
-          </View></>}
+          </View></>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={
@@ -434,7 +460,7 @@ export default function VistaGpsConductor({
           ]}
         >
           <View style={styles.mapUtility}>
-            {!offline && <TouchableOpacity
+            <TouchableOpacity
               accessibilityRole="button"
               onPress={() => controlsRef.current?.center?.()}
               style={styles.center}
@@ -443,7 +469,7 @@ export default function VistaGpsConductor({
               <Copy bold style={{ fontSize: wide ? 15 : 13 }}>
                 Centrar en mi ubicación
               </Copy>
-            </TouchableOpacity>}
+            </TouchableOpacity>
             {wide && (
               <TouchableOpacity
                 accessibilityRole="button"
@@ -460,9 +486,14 @@ export default function VistaGpsConductor({
       </View>
     </View>
   );
+  if (mapOnly) return <View style={styles.mapOnlyRoot}>{gpsMap}</View>;
   return (
     <View style={styles.root}>
-      <View style={[styles.header, !wide && { padding: 10, minHeight: 80 }]}>
+      <View style={[
+        styles.header,
+        !wide && { padding: 10, minHeight: 80 },
+        landscapePhone && { paddingVertical: 4, minHeight: 58 },
+      ]}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Salir del GPS al inicio"
@@ -471,12 +502,12 @@ export default function VistaGpsConductor({
           <BrandArt
             maskClock
             crop={[91, 66, 162, 104]}
-            width={wide ? 132 : 76}
-            height={wide ? 88 : 51}
+            width={wide ? 132 : landscapePhone ? 54 : 76}
+            height={wide ? 88 : landscapePhone ? 36 : 51}
           />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Copy bold style={{ fontSize: wide ? 27 : 21 }}>
+          <Copy bold style={{ fontSize: wide ? 27 : landscapePhone ? 17 : 21 }}>
             Panel del conductor
           </Copy>
           {wide && (
@@ -487,7 +518,7 @@ export default function VistaGpsConductor({
           accessibilityRole="button"
           accessibilityLabel="Estado de navegación GPS"
           onPress={() => setStatusOpen(!statusOpen)}
-          style={[styles.status, !wide && { padding: 10, gap: 7 }]}
+          style={[styles.status, !wide && { padding: 10, gap: 7 }, landscapePhone && { paddingVertical: 7 }]}
         >
           <View style={styles.dot} />
           <Copy bold style={{ fontSize: wide ? 20 : 14 }}>
@@ -534,7 +565,7 @@ export default function VistaGpsConductor({
           <Copy accessibilityLiveRegion="polite">{message}</Copy>
         </View>
       )}
-      {wide ? (
+      {desktopLayout ? (
         <View style={styles.body}>
           {gpsMap}
           <ScrollView
@@ -546,17 +577,17 @@ export default function VistaGpsConductor({
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 8, gap: 12, paddingBottom: 15 }}
+          contentContainerStyle={{ padding: landscapePhone ? 4 : 8, gap: 12, paddingBottom: 15 }}
         >
           {gpsMap}
           <View style={{ gap: 10 }}>{details}</View>
         </ScrollView>
       )}
-      <View style={styles.footer}>
+      {!landscapePhone && <View style={styles.footer}>
         <Copy numberOfLines={2} style={{ fontSize: 12, color: '#557563' }}>
           {gpsStatus} · {voiceStatus}
         </Copy>
-      </View>
+      </View>}
     </View>
   );
 }
@@ -684,6 +715,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 4px 12px #14362914',
   },
   summarySmall: { paddingHorizontal: 5, paddingVertical: 13 },
+  summaryMapOnly: { paddingVertical: 8, borderRadius: 15 },
   summaryMetric: {
     flex: 1,
     flexDirection: 'row',
@@ -691,6 +723,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 8,
   },
+  summaryMetricSmall: { gap: 5, paddingHorizontal: 5 },
   summaryBorder: { borderLeftWidth: 1, borderColor: '#c7d9c1' },
   metricIcon: {
     backgroundColor: '#edf3e6',
@@ -699,6 +732,22 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  mapOnlyRoot: { flex: 1, backgroundColor: '#0b2118' },
+  mapOnlyStage: { flex: 1, minHeight: 0, borderWidth: 0, borderRadius: 0 },
+  mapOnlyButton: {
+    position: 'absolute',
+    left: 12,
+    top: 145,
+    zIndex: 4,
+    minHeight: 45,
+    paddingHorizontal: 13,
+    borderRadius: 24,
+    backgroundColor: '#063f2f',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    boxShadow: '0 2px 10px #10241a33',
   },
   delivery: {
     backgroundColor: '#fffefb',

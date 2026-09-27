@@ -1,10 +1,13 @@
 import json
 import math
+import time
 
 import httpx
 from fastapi import HTTPException
 
 from app.core.config import ROUTING_PROVIDER, ROUTING_TIMEOUT_SECONDS, ROUTING_URL
+from app.core.observability import process_metrics
+from app.core.time import as_utc_aware
 
 
 def _decode_polyline6(encoded: str) -> list[dict[str, float]]:
@@ -125,6 +128,7 @@ def normalize_valhalla_route(data: dict, etapa: str) -> dict:
 
 
 async def calculate_navigation_route(origin: dict, destination: dict, etapa: str) -> dict:
+    started = time.perf_counter()
     try:
         async with httpx.AsyncClient(timeout=ROUTING_TIMEOUT_SECONDS) as client:
             if ROUTING_PROVIDER == "valhalla":
@@ -140,7 +144,9 @@ async def calculate_navigation_route(origin: dict, destination: dict, etapa: str
                 if response.status_code == 405:
                     response = await client.get(f"{ROUTING_URL}/route", params={"json": json.dumps(payload)})
                 response.raise_for_status()
-                return normalize_valhalla_route(response.json(), etapa)
+                result = normalize_valhalla_route(response.json(), etapa)
+                process_metrics.increment("route_requests_success")
+                return result
             coordinates = (
                 f'{origin["longitude"]},{origin["latitude"]};'
                 f'{destination["longitude"]},{destination["latitude"]}'
@@ -150,6 +156,142 @@ async def calculate_navigation_route(origin: dict, destination: dict, etapa: str
                 params={"overview": "full", "geometries": "geojson", "steps": "true"},
             )
             response.raise_for_status()
-            return normalize_osrm_route(response.json(), etapa)
+            result = normalize_osrm_route(response.json(), etapa)
+            process_metrics.increment("route_requests_success")
+            return result
     except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
+        process_metrics.increment("route_requests_failure")
         raise HTTPException(status_code=503, detail="No se pudo calcular una ruta vial en este momento") from error
+    finally:
+        process_metrics.observe("route_request_duration_ms", (time.perf_counter() - started) * 1000)
+
+
+async def navigation_health() -> dict:
+    started = time.perf_counter()
+    path = "/status" if ROUTING_PROVIDER == "valhalla" else (
+        "/route/v1/driving/-75.6811,4.5339;-75.6805,4.5342"
+    )
+    params = None if ROUTING_PROVIDER == "valhalla" else {"overview": "false", "steps": "false"}
+    try:
+        async with httpx.AsyncClient(timeout=min(ROUTING_TIMEOUT_SECONDS, 5)) as client:
+            response = await client.get(f"{ROUTING_URL}{path}", params=params)
+        available = response.status_code < 500
+        return {
+            "status": "ok" if available else "degraded",
+            "api": "ok",
+            "routing": {
+                "provider": ROUTING_PROVIDER,
+                "status": "available" if available else "unavailable",
+                "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        }
+    except httpx.HTTPError:
+        return {
+            "status": "degraded",
+            "api": "ok",
+            "routing": {
+                "provider": ROUTING_PROVIDER,
+                "status": "unavailable",
+                "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        }
+
+
+def normalize_osrm_match(data: dict, points: list[dict]) -> dict:
+    tracepoints = data.get("tracepoints") or []
+    matchings = data.get("matchings") or []
+    results = []
+    for index, source in enumerate(points):
+        matched = tracepoints[index] if index < len(tracepoints) else None
+        location = (matched or {}).get("location") or []
+        matching_index = (matched or {}).get("matchings_index")
+        confidence = None
+        if isinstance(matching_index, int) and 0 <= matching_index < len(matchings):
+            confidence = max(0.0, min(1.0, float(matchings[matching_index].get("confidence", 0))))
+        valid = matched is not None and len(location) == 2
+        results.append({
+            "rawLatitude": source["latitude"],
+            "rawLongitude": source["longitude"],
+            "matchedLatitude": float(location[1]) if valid else None,
+            "matchedLongitude": float(location[0]) if valid else None,
+            "confidence": confidence,
+            "distanceFromRoadM": None,
+            "matched": valid,
+        })
+    return {"provider": "osrm", "points": results}
+
+
+def normalize_valhalla_match(data: dict, points: list[dict]) -> dict:
+    matched_points = data.get("matched_points") or []
+    results = []
+    for index, source in enumerate(points):
+        matched = matched_points[index] if index < len(matched_points) else {}
+        valid = matched.get("type") != "unmatched" and matched.get("lat") is not None and matched.get("lon") is not None
+        distance = float(matched["distance_from_trace_point"]) if valid and matched.get("distance_from_trace_point") is not None else None
+        confidence = None
+        if valid and distance is not None:
+            confidence = max(0.0, min(1.0, 1 - distance / max(30.0, source.get("accuracy", 20) * 3)))
+        results.append({
+            "rawLatitude": source["latitude"],
+            "rawLongitude": source["longitude"],
+            "matchedLatitude": float(matched["lat"]) if valid else None,
+            "matchedLongitude": float(matched["lon"]) if valid else None,
+            "confidence": confidence,
+            "distanceFromRoadM": distance,
+            "matched": valid,
+        })
+    return {"provider": "valhalla", "points": results}
+
+
+async def map_match_navigation(points: list[dict]) -> dict:
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=ROUTING_TIMEOUT_SECONDS) as client:
+            if ROUTING_PROVIDER == "valhalla":
+                accuracies = [max(1.0, min(100.0, float(point.get("accuracy", 20)))) for point in points]
+                shape = []
+                for point in points:
+                    item = {"lat": point["latitude"], "lon": point["longitude"]}
+                    if point.get("capturedAt") is not None:
+                        item["time"] = int(as_utc_aware(point["capturedAt"]).timestamp())
+                    shape.append(item)
+                response = await client.post(f"{ROUTING_URL}/trace_attributes", json={
+                    "shape": shape,
+                    "costing": "auto",
+                    "shape_match": "map_snap",
+                    "trace_options": {
+                        "gps_accuracy": round(sum(accuracies) / len(accuracies), 1),
+                        "search_radius": min(100, max(accuracies) * 2),
+                    },
+                    "filters": {
+                        "action": "include",
+                        "attributes": [
+                            "matched.point", "matched.type", "matched.edge_index",
+                            "matched.distance_along_edge", "matched.distance_from_trace_point",
+                        ],
+                    },
+                })
+                response.raise_for_status()
+                result = normalize_valhalla_match(response.json(), points)
+            else:
+                coordinates = ";".join(f'{point["longitude"]},{point["latitude"]}' for point in points)
+                params = {
+                    "overview": "false",
+                    "steps": "false",
+                    "tidy": "true",
+                    "radiuses": ";".join(str(max(5, min(100, round(point.get("accuracy", 20) * 2)))) for point in points),
+                }
+                if all(point.get("capturedAt") is not None for point in points):
+                    params["timestamps"] = ";".join(
+                        str(int(as_utc_aware(point["capturedAt"]).timestamp())) for point in points
+                    )
+                response = await client.get(f"{ROUTING_URL}/match/v1/driving/{coordinates}", params=params)
+                response.raise_for_status()
+                result = normalize_osrm_match(response.json(), points)
+        process_metrics.increment("map_match_success")
+        return result
+    except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
+        process_metrics.increment("map_match_failure")
+        raise HTTPException(status_code=503, detail="No se pudo ajustar la traza GPS a la red vial") from error
+    finally:
+        process_metrics.observe("map_match_duration_ms", (time.perf_counter() - started) * 1000)

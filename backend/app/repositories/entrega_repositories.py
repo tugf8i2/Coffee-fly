@@ -433,6 +433,14 @@ class EntregaRepository:
         self.db.refresh(evento)
         return evento
 
+    def get_evento_conductor_por_client_id(
+        self, client_event_id: UUID, conductor_id: int
+    ) -> HistorialEvento | None:
+        return self.db.query(HistorialEvento).filter(
+            HistorialEvento.client_event_id == client_event_id,
+            HistorialEvento.conductor_id == conductor_id,
+        ).first()
+
     def get_eventos_conductor(self, carga_id: UUID, conductor_id: int, ahora: datetime):
         return self.db.query(HistorialEvento).filter(
             HistorialEvento.carga_id == carga_id,

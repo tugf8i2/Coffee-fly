@@ -231,7 +231,9 @@ La hoja preparada para registrar esa evidencia está en `Docs/PRUEBAS-FISICAS-GP
 | Desvío persistente, cancelación y recálculo | Implementada y probada | Motor GPS y controlador de última solicitud cubiertos por Jest. |
 | Ruta guardada, cola GPS cifrada y sincronización | Implementada y probada | SQLite/AES-256-GCM, lotes, idempotencia y reintentos. |
 | GPS con pantalla bloqueada | Implementada, pendiente de prueba física | Necesita development build, permisos y acta F-09/F-11. |
-| Mapas descargados con PMTiles | Pendiente | Requiere definir región/tamaño y empaquetado local; no se descarga del servidor estándar OSM. |
+| Mapas regionales offline en móvil | Implementada y validada hasta el servidor; pendiente de prueba física | Se generó y sirvió el MBTiles Colombia zoom 0–14 (725.347 teselas), y se comprobaron por HTTP el estilo `coffee-fly`, una tesela real y la fuente local. Falta certificar la descarga y el modo avión en un celular con development build/APK. |
+| Novedades sin conexión | Implementada | La app conserva incidentes en la cola local, mantiene la hora real de captura y usa un UUID idempotente para impedir duplicados al reintentar. |
+| Servicio PMTiles/MBTiles autohospedado | Preparado, pendiente de datos | `docker-compose.tiles.yml` integra TileServer GL 5.6.0 y el proxy `/maps/`. El repositorio no incluye ni genera todavía el MBTiles de Colombia. No se descarga del servidor estándar OSM ni del OpenFreeMap público. |
 | Recálculo totalmente offline | Pendiente | Requiere Valhalla/Ferrostar nativo y grafo regional dentro del dispositivo. |
 | Tráfico en vivo | Pendiente | No existe fuente de tráfico contratada o abierta con cobertura validada. |
 
@@ -254,8 +256,8 @@ operación crítica debe autoalojar teselas o contratar un proveedor compatible.
 
 Resultado de la última revisión local:
 
-- Frontend: 93 pruebas aprobadas en 23 suites, incluida la cobertura de navegación, mapa seguro, voz en español, vista previa de rutas, estados de conexión, reinicio GPS y consulta de historial por lote.
-- Backend: 86 pruebas y 21 subpruebas aprobadas, incluidas las fronteras de GPS, autorización y normalización de rutas OSRM/Valhalla.
+- Frontend: 154 pruebas aprobadas en 40 suites, incluida la cobertura de navegación, mapa seguro, voz en español, vista previa de rutas, estados de conexión, reinicio GPS, cálculo de corredores, ciclo de paquetes offline y novedades idempotentes sin red.
+- Backend: 130 pruebas y 21 subpruebas aprobadas, incluidas las fronteras de GPS, autorización, normalización de rutas OSRM/Valhalla y sincronización tardía de incidentes.
 - El adaptador consultó una ruta real de Valhalla en Bogotá: 50 puntos, 3 maniobras y 1.219 m normalizados, primero contra la API oficial de demostración y después contra el contenedor autohospedado.
 - Expo Doctor: 21/21 comprobaciones aprobadas.
 - Android y web: exportaciones completas sin errores de código.

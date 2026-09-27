@@ -28,3 +28,16 @@ export function driverTodayMetrics(active, history, now = new Date()) {
       ) / 1000,
   };
 }
+
+export function driverQuickActions(hasActiveTrip) {
+  return [
+    [
+      hasActiveTrip ? 'Continuar viaje' : 'Iniciar viaje',
+      'Comenzar ruta',
+      'play',
+      hasActiveTrip ? 'tracking' : 'assignedDeliveries',
+    ],
+    ['Checklist', 'Revisar vehículo', 'checklist', 'checklist'],
+    ['Reportar novedad', 'Incidencias en ruta', 'warning', 'events'],
+  ];
+}

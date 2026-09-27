@@ -9,6 +9,7 @@ from app.schemas.vehiculo_schemas import VehiculoCreate, VehiculoUpdate
 def valid_vehicle(**changes):
     data = dict(placa="ABC123", tipo_vehiculo="Camión", modelo="2024",
                 marca="Chevrolet", modelo_comercial="NPR", tipo_servicio="PUBLICO",
+                propietario_nombre="Cooperativa Coffee Fly",
                 configuracion="C2", tara_kg=6300, pbv_homologado_kg=17000,
                 soat_vencimiento=date(2028, 1, 1), tecnomecanica_vencimiento=date(2028, 1, 1),
                 seguro_vencimiento=date(2028, 1, 1))
