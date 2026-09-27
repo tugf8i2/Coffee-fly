@@ -21,7 +21,6 @@ function Read-HostlessToken {
 
     return $token
 }
-
 function Invoke-HostlessMcp {
     param(
         [Parameter(Mandatory)][string]$Token,
@@ -108,4 +107,3 @@ if ($ProjectId) {
     Invoke-HostlessTool -Token $token -Name 'databases_list' -Arguments @{ projectId = $ProjectId } -Id 13 |
         ConvertTo-Json -Depth 12
 }
-
