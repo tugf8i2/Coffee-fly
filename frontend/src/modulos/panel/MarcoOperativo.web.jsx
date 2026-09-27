@@ -15,6 +15,12 @@ export default function MarcoOperativo({ user, role, menu, active, go, onLogout,
   const [profileOpen, setProfileOpen] = useState(false);
   const name = [user?.nombre || user?.nombre_usuario || role, user?.apellido].filter(Boolean).join(' ');
   const navigate = target => { setProfileOpen(false); go(target); if (window.innerWidth < 850) setCollapsed(true); };
+  const toggleNavigation = () => { setProfileOpen(false); setCollapsed(!collapsed); };
+  const toggleProfile = () => {
+    const opening = !profileOpen;
+    if (opening && window.innerWidth < 850) setCollapsed(true);
+    setProfileOpen(opening);
+  };
   useEffect(() => { setProfileOpen(false); }, [active]);
   useEffect(() => {
     const close = event => { if (event.key === 'Escape') { setProfileOpen(false); if (window.innerWidth < 850) setCollapsed(true); } };
@@ -32,8 +38,8 @@ export default function MarcoOperativo({ user, role, menu, active, go, onLogout,
     </aside>
     {!collapsed && <button className="op-menu-backdrop" aria-label="Cerrar menú" onClick={() => setCollapsed(true)}/>}
     <div className="reg-workspace">
-      <header className="reg-topbar"><button className="reg-icon-button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed} aria-controls="op-navigation"><Icon name="menu"/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><span className="op-section-title">{menu.find(([, , target]) => target === active)?.[1] || role}</span>
-        <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, ${role}`} aria-expanded={profileOpen} onClick={() => setProfileOpen(!profileOpen)}><span className="op-avatar">{role === 'Conductor' && user?.foto_perfil ? <img src={user.foto_perfil} alt=""/> : <Icon name="user"/>}</span><span><strong>{name}</strong><small>{role}</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <div className="reg-popover"><strong>{name}</strong><p>{user?.correo_usuario || role}</p>{role === 'Conductor' && <button onClick={() => navigate('profile')}>Ver perfil e historial de viajes</button>}<button onClick={onLogout}>Cerrar sesión</button></div>}</div>
+      <header className="reg-topbar"><button className="reg-icon-button" onClick={toggleNavigation} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed} aria-controls="op-navigation"><Icon name="menu"/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><span className="op-section-title">{menu.find(([, , target]) => target === active)?.[1] || role}</span>
+        <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, ${role}`} aria-expanded={profileOpen} aria-controls="op-account-menu" onClick={toggleProfile}><span className="op-avatar">{role === 'Conductor' && user?.foto_perfil ? <img src={user.foto_perfil} alt=""/> : <Icon name="user"/>}</span><span><strong>{name}</strong><small>{role}</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <><button className="cf-profile-backdrop" aria-label="Cerrar opciones de cuenta" onClick={() => setProfileOpen(false)}/><div id="op-account-menu" className="reg-popover" role="menu"><div className="reg-popover-header"><span className="op-avatar">{role === 'Conductor' && user?.foto_perfil ? <img src={user.foto_perfil} alt=""/> : <Icon name="user"/>}</span><span><strong>{name}</strong><p>{user?.correo_usuario || role}</p></span></div><div className="reg-popover-actions">{role === 'Conductor' && <button role="menuitem" onClick={() => navigate('profile')}><Icon name="user" size={20}/><span>Ver perfil e historial</span></button>}<button className="reg-popover-danger" role="menuitem" onClick={onLogout}><Icon name="arrow" size={20}/><span>Cerrar sesión</span></button></div></div></>}</div>
       </header>
       <main className={`op-content ${contentClassName}`.trim()}>{children}</main>
     </div>

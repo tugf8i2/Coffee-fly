@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { BackHandler, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 
@@ -27,8 +27,8 @@ export default function EntradaAplicacion() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#001c17" />
+    <View style={styles.container}>
+      <StatusBar hidden animated />
       <WebView
         ref={webViewRef}
         source={{ uri: APP_URL }}
@@ -58,7 +58,7 @@ export default function EntradaAplicacion() {
           </TouchableOpacity>
         </View>
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 

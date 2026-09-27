@@ -7,6 +7,11 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "androidStatusBar": {
+      "hidden": true,
+      "translucent": true,
+      "backgroundColor": "#001c17"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.coffeefly.mobile",

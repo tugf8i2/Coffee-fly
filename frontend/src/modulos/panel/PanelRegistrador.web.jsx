@@ -69,6 +69,12 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
     if (['registryReports', 'settings'].includes(target)) { setSection(target); return; }
     setSection(null); go(target); if (window.innerWidth < 850) setCollapsed(true);
   };
+  const toggleNavigation = () => { setProfileOpen(false); setCollapsed(!collapsed); };
+  const toggleProfile = () => {
+    const opening = !profileOpen;
+    if (opening && window.innerWidth < 850) setCollapsed(true);
+    setProfileOpen(opening);
+  };
   const active = section || screen;
   const totals = summary?.totals || {};
   const coops = summary?.cooperatives || [];
@@ -92,7 +98,7 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
   };
   return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''} ${preferences.dark ? 'reg-dark' : ''} ${preferences.compact ? 'reg-compact' : ''}`}>
     <style>{`@font-face{font-family:Registrar;src:url('${fontUrl(regular)}');font-weight:400;font-display:swap}@font-face{font-family:Registrar;src:url('${fontUrl(bold)}');font-weight:600 900;font-display:swap}`}</style>
-    <aside className="reg-sidebar" aria-label="Navegación del registrador" inert={collapsed ? true : undefined}>
+    <aside id="reg-navigation" className="reg-sidebar" aria-label="Navegación del registrador" inert={collapsed ? true : undefined}>
       <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
       <div className="reg-sidebar-user"><span className="cf-avatar"><Icon name="user" size={30}/></span><div><strong>{name}</strong><small>Registrador</small><span className="reg-online"><i className={online ? '' : 'offline'}/>{online ? 'En línea' : 'Sin conexión'}</span></div></div>
       <nav>{menu.map(([icon, label, target]) => <button key={target} className={active === target ? 'active' : ''} aria-current={active === target ? 'page' : undefined} onClick={() => navigate(target)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
@@ -100,8 +106,8 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
     </aside>
     {!collapsed && <button className="cf-menu-backdrop" aria-label="Cerrar menú" onClick={() => setCollapsed(true)}/>}
     <div className="reg-workspace">
-      <header className="reg-topbar"><button className="reg-icon-button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed}><Icon name="menu" size={26}/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><div className="reg-topbar-right">
-        <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, registrador`} aria-expanded={profileOpen} onClick={() => { setProfileOpen(!profileOpen); }}><span className="cf-avatar"><Icon name="user" size={26}/></span><span><strong>{name}</strong><small>Registrador</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <div className="reg-popover"><strong>{name}</strong><p>{user?.correo_usuario || 'Cuenta de registrador'}</p><button onClick={() => { setSection('settings'); setProfileOpen(false); }}>Configuración de cuenta</button><button onClick={onLogout}>Cerrar sesión</button></div>}</div>
+      <header className="reg-topbar"><button className="reg-icon-button" onClick={toggleNavigation} aria-label={collapsed ? 'Mostrar menú' : 'Ocultar menú'} aria-expanded={!collapsed} aria-controls="reg-navigation"><Icon name="menu" size={26}/></button><span className="cf-mobile-brand"><MarcaCafe compact/></span><div className="reg-topbar-right">
+        <div className="reg-popover-anchor"><button className="reg-profile" aria-label={`Cuenta de ${name}, registrador`} aria-expanded={profileOpen} aria-controls="reg-account-menu" onClick={toggleProfile}><span className="cf-avatar"><Icon name="user" size={26}/></span><span><strong>{name}</strong><small>Registrador</small></span><Icon name="chevron" size={16}/></button>{profileOpen && <><button className="cf-profile-backdrop" aria-label="Cerrar opciones de cuenta" onClick={() => setProfileOpen(false)}/><div id="reg-account-menu" className="reg-popover" role="menu"><div className="reg-popover-header"><span className="cf-avatar"><Icon name="user" size={24}/></span><span><strong>{name}</strong><p>{user?.correo_usuario || 'Cuenta de registrador'}</p></span></div><div className="reg-popover-actions"><button role="menuitem" onClick={() => { navigate('users'); setProfileOpen(false); }}><Icon name="people" size={20}/><span>Registrar o gestionar cuentas</span></button><button role="menuitem" onClick={() => { setSection('settings'); setProfileOpen(false); }}><Icon name="gear" size={20}/><span>Configuración de cuenta</span></button><button className="reg-popover-danger" role="menuitem" onClick={onLogout}><Icon name="arrow" size={20}/><span>Cerrar sesión</span></button></div></div></>}</div>
       </div></header>
       <main className="reg-main">
         {notice && <div className="reg-alert" role="status">{notice}</div>}
