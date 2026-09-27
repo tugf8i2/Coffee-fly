@@ -1,5 +1,6 @@
 import {
   coordinatorRows,
+  includeActiveDeliveries,
   searchCoordinatorRows,
 } from '../src/modulos/coordinador/presentacionCoordinador';
 
@@ -54,5 +55,12 @@ describe('panel del coordinador', () => {
       ).map((item) => item.id),
     ).toEqual(['delivery-1', 'request-2']);
     expect(coordinatorRows([], [])).toEqual([]);
+  });
+  test('mantiene visible una carga en camino aunque no esté en la página actual', () => {
+    const active = { ...delivery, id_entrega: 'active-1', estado_entrega: 'en camino' };
+    expect(includeActiveDeliveries([delivery], [active])).toEqual([active, delivery]);
+    expect(includeActiveDeliveries([active, delivery], [active])).toEqual([active, delivery]);
+    expect(coordinatorRows([], includeActiveDeliveries([delivery], [active]))
+      .some((item) => item.id === 'active-1' && item.status === 'En transporte')).toBe(true);
   });
 });

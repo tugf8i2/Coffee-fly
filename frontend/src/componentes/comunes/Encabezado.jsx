@@ -4,7 +4,7 @@ import logo from '../../assets/brand/logo.png';
 import { SCREEN_LABELS } from '../../configuracion/navegacion';
 import { styles } from './Encabezado.styles';
 
-export default function Encabezado({ user, onLogout, screen, go }) {
+export default function Encabezado({ user, onLogout, screen, go, darkMode = false, onToggleDarkMode }) {
   const { width } = useWindowDimensions();
   const compact = width < 600;
   const currentLabel = SCREEN_LABELS[screen] || SCREEN_LABELS.dashboard;
@@ -27,6 +27,7 @@ export default function Encabezado({ user, onLogout, screen, go }) {
     {user ? <View style={[styles.headerActions, compact && styles.compactActions]}>
       {!compact && screen !== 'dashboard' ? <TouchableOpacity accessibilityRole="button" accessibilityLabel="Volver al panel principal" style={styles.backButton} onPress={() => go('dashboard')}><Text style={styles.backButtonText}>← Panel</Text></TouchableOpacity> : null}
       <View style={[styles.userBadge, compact && styles.compactUser]}><Text numberOfLines={1} style={styles.userName}>{user.nombre || user.nombre_usuario || 'Usuario'}</Text><Text style={styles.userRole}>{user.rol || ''}</Text></View>
+      <TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: darkMode }} accessibilityLabel="Cambiar modo oscuro" style={styles.backButton} onPress={onToggleDarkMode}><Text style={styles.backButtonText}>{darkMode ? '☀ Claro' : '☾ Oscuro'}</Text></TouchableOpacity>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={onLogout}><Text style={styles.headerButton}>Cerrar sesión</Text></TouchableOpacity>
     </View> : null}
   </View></View>;

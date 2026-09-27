@@ -22,6 +22,8 @@ export default function RegistrarRecoleccionCafe({ go, token, user, initialReque
   const [history, setHistory] = useState({});
   const [saving, setSaving] = useState(false);
   const [cancelingId, setCancelingId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
   const savingRef = useRef(false);
   const cancelingRef = useRef(null);
 
@@ -87,6 +89,8 @@ export default function RegistrarRecoleccionCafe({ go, token, user, initialReque
   };
 
   const cancelDelivery = async (delivery) => {
+    const reason = cancelReason.trim();
+    if (reason.length < 10) return setError('Explica el motivo de cancelación con al menos 10 caracteres.');
     if (cancelingRef.current || !(await confirmCancellation(delivery))) return;
     cancelingRef.current = delivery.id_entrega;
     setCancelingId(delivery.id_entrega);
@@ -94,11 +98,14 @@ export default function RegistrarRecoleccionCafe({ go, token, user, initialReque
     setMessage('');
     try {
       const response = await fetchApi(`${API_BASE_URL}/entregas/${delivery.id_entrega}/cancelar`, {
-        method: 'PATCH', headers: { Authorization: `Bearer ${token}` },
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo: reason }),
       });
       const result = await response.json();
       if (!response.ok) throw Error(apiErrorMessage(result, 'No se pudo cancelar la recolección.'));
-      setMessage('Recolección cancelada correctamente.');
+      setMessage(delivery.estado_entrega === 'en camino' ? 'Carga en camino cancelada y operación actualizada correctamente.' : 'Recolección cancelada correctamente.');
+      setCancelTarget(null);
+      setCancelReason('');
       await load();
     } catch (reason) { setError(reason.message); }
     finally { cancelingRef.current = null; setCancelingId(null); }
@@ -134,7 +141,7 @@ export default function RegistrarRecoleccionCafe({ go, token, user, initialReque
       <Text style={styles.readonly}>{formatDate(new Date())}</Text>
       <Text style={styles.label}>Observaciones (opcional)</Text>
       <TextInput style={[styles.input, styles.textArea]} value={observations} onChangeText={setObservations} editable={Boolean(selected)} multiline placeholder="Observaciones de la recolección" />
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !selected || saving, busy: saving }} style={[styles.deliverySubmit, (!selected || saving) && styles.buttonDisabled]} disabled={!selected || saving} onPress={register}>
+      <TouchableOpacity dataSet={{ coordinatorDeliverySubmit: 'true' }} accessibilityRole="button" accessibilityState={{ disabled: !selected || saving, busy: saving }} style={[styles.deliverySubmit, (!selected || saving) && styles.buttonDisabled]} disabled={!selected || saving} onPress={register}>
         <Text style={styles.primaryText}>{saving ? 'Registrando recolección…' : 'Registrar recolección de café'}</Text>
       </TouchableOpacity>
     </View>
@@ -145,8 +152,15 @@ export default function RegistrarRecoleccionCafe({ go, token, user, initialReque
       <Text>Caficultor: #{delivery.caficultor_id}</Text>
       <Text>Fecha: {formatDate(delivery.fecha_hora_entrega)}</Text>
       {delivery.observaciones ? <Text>Observaciones: {delivery.observaciones}</Text> : null}
+      {delivery.motivo_cancelacion ? <Text style={styles.error}>Motivo de cancelación: {delivery.motivo_cancelacion}</Text> : null}
       {history[delivery.id_entrega]?.length ? <View style={styles.history}><Text style={styles.label}>Último cambio</Text><Text>{history[delivery.id_entrega][0].estado_anterior} → {history[delivery.id_entrega][0].estado_nuevo} · {history[delivery.id_entrega][0].usuario_nombre} · {formatDate(history[delivery.id_entrega][0].fecha_hora_cambio)}</Text></View> : <Text style={styles.muted}>Aún no hay cambios de estado.</Text>}
-      {delivery.estado_entrega === 'pendiente' ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: Boolean(cancelingId), busy: cancelingId === delivery.id_entrega }} disabled={Boolean(cancelingId)} style={[styles.secondary, cancelingId && styles.buttonDisabled]} onPress={() => cancelDelivery(delivery)}><Text style={styles.error}>{cancelingId === delivery.id_entrega ? 'Cancelando…' : 'Cancelar recolección'}</Text></TouchableOpacity> : null}
+      {['pendiente', 'en camino'].includes(delivery.estado_entrega) ? cancelTarget === delivery.id_entrega ? <View style={styles.formCard}>
+        <Text style={styles.label}>{delivery.estado_entrega === 'en camino' ? 'Motivo obligatorio para cancelar la carga en camino' : 'Motivo de cancelación'}</Text>
+        <TextInput accessibilityLabel="Motivo de cancelación" style={[styles.input, styles.textArea]} value={cancelReason} onChangeText={setCancelReason} multiline maxLength={500} placeholder="Explica claramente por qué debe cancelarse esta carga" />
+        <Text style={styles.muted}>{cancelReason.trim().length}/500 · mínimo 10 caracteres</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: Boolean(cancelingId) || cancelReason.trim().length < 10, busy: cancelingId === delivery.id_entrega }} disabled={Boolean(cancelingId) || cancelReason.trim().length < 10} style={[styles.primary, (cancelingId || cancelReason.trim().length < 10) && styles.buttonDisabled]} onPress={() => cancelDelivery(delivery)}><Text style={styles.primaryText}>{cancelingId === delivery.id_entrega ? 'Cancelando…' : 'Confirmar cancelación'}</Text></TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" disabled={Boolean(cancelingId)} style={styles.secondary} onPress={() => { setCancelTarget(null); setCancelReason(''); }}><Text style={styles.secondaryText}>Conservar carga</Text></TouchableOpacity>
+      </View> : <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: Boolean(cancelingId) }} disabled={Boolean(cancelingId)} style={[styles.secondary, cancelingId && styles.buttonDisabled]} onPress={() => { setCancelTarget(delivery.id_entrega); setCancelReason(''); setError(''); }}><Text style={styles.error}>{delivery.estado_entrega === 'en camino' ? 'Cancelar carga en camino' : 'Cancelar recolección'}</Text></TouchableOpacity> : null}
     </View>)}</View>
     {!deliveries.length ? <Text style={styles.muted}>Aún no hay recolecciones registradas.</Text> : null}
     <Text style={styles.muted}>El listado se actualiza automáticamente cada 15 segundos.</Text><TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar listado</Text></TouchableOpacity>

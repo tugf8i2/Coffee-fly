@@ -365,12 +365,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
+  flex-wrap: wrap;
   margin: 6px 0 24px;
 }
 .coord-heading p {
   margin-top: 5px;
 }
-.coord-button {
+.registrar-app .coord-content button.coord-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -383,11 +384,70 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.coord-button.secondary {
+.registrar-app .coord-content button.coord-button.secondary {
   background: var(--surface);
   color: #154d43;
   border-color: var(--line);
 }
+.registrar-app .coord-content button.coord-take-button,
+.registrar-app .coord-content button.coord-view-button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #075440;
+  border-radius: 6px;
+  background: linear-gradient(#0a5b47, #064635);
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.registrar-app .coord-content button.coord-view-button {
+  background: var(--surface);
+  color: #075440;
+  border-color: var(--line);
+}
+.registrar-app .coord-content button.coord-cancel-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #a92327;
+  border-radius: 6px;
+  background: #a92327;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.registrar-app .coord-content button.coord-cancel-button:hover { background: #861b20; }
+.coord-active-summary {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border: 1px solid #7fb49a;
+  border-radius: 7px;
+  background: #eaf5ed;
+  color: #123e30;
+  font-weight: 600;
+}
+.coord-cancel-form { display: grid; gap: 12px; margin-bottom: 18px; }
+.coord-cancel-form label { font-weight: 700; }
+.coord-cancel-form textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+}
+.coord-cancel-form small { color: var(--muted); }
+.coord-cancel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.coord-cancel-error { color: #9c2025 !important; font-weight: 700; }
+.coord-dark .coord-active-summary { background: #173d31; border-color: #5b9e79; color: #e8f7eb; }
+.coord-dark .coord-cancel-error { color: #ffbdbd !important; }
+.coord-take-button:focus-visible,
+.coord-view-button:focus-visible {
+  outline: 3px solid #79b789;
+  outline-offset: 2px;
+}
+.registrar-app .coord-dark button.coord-view-button { color: #b8e7cf; }
 .coord-permission {
   color: var(--muted);
   font-size: 13px;
@@ -800,9 +860,13 @@
   color: #eaf4ef;
 }
 .coord-dark .coord-card-heading button,
-.coord-dark .coord-network,
-.coord-dark .coord-button.secondary {
+.coord-dark .coord-network {
   color: #a8dfb8;
+}
+.registrar-app .coord-dark button.coord-button.secondary {
+  color: #c8f4d8;
+  background: #20473a;
+  border-color: #70a38e;
 }
 .coord-compact td,
 .coord-compact th {
@@ -910,6 +974,15 @@
   }
   .coord-heading h1 {
     font-size: 24px;
+  }
+  .coord-heading > button.coord-button {
+    width: 100%;
+    min-height: 44px;
+  }
+  .coord-take-button,
+  .coord-view-button {
+    min-height: 40px;
+    padding-inline: 14px;
   }
   .coord-metrics {
     gap: 9px;
@@ -1076,6 +1149,26 @@
 }
 .coord-content button { cursor: pointer; }
 .coord-content button:disabled { opacity: .48; cursor: not-allowed; }
+.registrar-app .coord-content [data-coordinator-delivery-submit="true"] {
+  background: #075441;
+  color: #fff;
+  border: 1px solid #075441;
+  border-radius: 6px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.registrar-app .coord-content [data-coordinator-delivery-submit="true"]:disabled {
+  background: #84968c;
+  border-color: #84968c;
+  color: #fff;
+  cursor: not-allowed;
+}
+.registrar-app .coord-content [data-coordinator-delivery-submit="true"] * {
+  color: #fff;
+}
 .coord-content button:focus-visible,
 .coord-content input:focus-visible,
 .coord-content select:focus-visible {

@@ -19,6 +19,9 @@ class Entrega(Base):
     estado_entrega = Column(String(20), nullable=False, default="pendiente", index=True)
     actualizado_en = Column(DateTime, nullable=True)
     carga_recogida_en = Column(DateTime, nullable=True)
+    motivo_cancelacion = Column(String(500), nullable=True)
+    cancelada_en = Column(DateTime, nullable=True)
+    cancelada_por = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=True)
     distancia_recorrida_m = Column(Float, nullable=False, default=0, server_default="0")
     viaje_id = Column(UUID(as_uuid=True), ForeignKey("viaje.id_viaje"), nullable=True, index=True)
     orden_recoleccion = Column(Integer, nullable=True)
@@ -28,7 +31,8 @@ class Entrega(Base):
     finca_ubicacion_snapshot_en = Column(DateTime, nullable=True)
 
     solicitud = relationship("Solicitud")
-    caficultor = relationship("Usuario")
+    caficultor = relationship("Usuario", foreign_keys=[caficultor_id])
+    usuario_cancelacion = relationship("Usuario", foreign_keys=[cancelada_por])
     viaje = relationship("Viaje", back_populates="entregas")
     historial_estados = relationship(
         "HistorialEstadoEntrega", back_populates="entrega", cascade="all, delete-orphan"

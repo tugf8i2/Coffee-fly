@@ -85,7 +85,7 @@ def get_user_from_token(token: str, db: Session) -> Usuario:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión inconsistente")
 
     user = db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
-    if user is None or not user.habilitado:
+    if user is None or not user.habilitado or user.eliminado_en is not None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no disponible")
     return user
 

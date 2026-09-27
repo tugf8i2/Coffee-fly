@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { gruposPorRol } from '../../configuracion/navegacion';
 
-export default function NavegacionPrincipal({ user, screen, go }) {
+export default function NavegacionPrincipal({ user, screen, go, darkMode = false }) {
   const { width } = useWindowDimensions();
   const compact = width < 1000;
   const [expanded, setExpanded] = useState(false);
@@ -10,19 +10,19 @@ export default function NavegacionPrincipal({ user, screen, go }) {
   const item = (label, target) => <TouchableOpacity key={target} accessibilityRole="button"
     accessibilityState={{ selected: screen === target }} onPress={() => navigate(target)}
     style={[s.item, screen === target && s.active]}>
-    <Text style={[s.label, screen === target && s.activeLabel]}>{label}</Text>
+    <Text style={[s.label, darkMode && s.darkLabel, screen === target && s.activeLabel]}>{label}</Text>
     {screen === target ? <Text style={s.activeLabel}>•</Text> : null}
   </TouchableOpacity>;
-  return <View style={compact ? s.mobile : s.sidebar}>
+  return <View style={[compact ? s.mobile : s.sidebar, darkMode && s.darkSurface]}>
     {compact ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded }}
       onPress={() => setExpanded(!expanded)} style={s.toggle}>
-      <Text style={s.toggleLabel}>{expanded ? 'Cerrar menú' : '☰  Explorar módulos'}</Text>
-      <Text style={s.toggleLabel}>{expanded ? '−' : '+'}</Text>
+      <Text style={[s.toggleLabel, darkMode && s.darkLabel]}>{expanded ? 'Cerrar menú' : '☰  Explorar módulos'}</Text>
+      <Text style={[s.toggleLabel, darkMode && s.darkLabel]}>{expanded ? '−' : '+'}</Text>
     </TouchableOpacity> : null}
     {!compact || expanded ? <ScrollView style={compact ? s.mobileScroll : s.scroll} contentContainerStyle={s.content}>
       {item('Inicio · Mi panel', 'dashboard')}
       {gruposPorRol(user?.rol).map(({ title, cards }) => <View key={title} style={s.group}>
-        <Text style={s.groupTitle}>{title}</Text>
+        <Text style={[s.groupTitle, darkMode && s.darkGroupTitle]}>{title}</Text>
         {cards.map(([label, target]) => item(label, target))}
       </View>)}
     </ScrollView> : null}
@@ -43,4 +43,7 @@ const s = StyleSheet.create({
   activeLabel: { color: '#123F34', fontWeight: '700' },
   toggle: { minHeight: 48, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   toggleLabel: { color: '#123F34', fontWeight: '700' },
+  darkSurface: { backgroundColor: '#17382f', borderColor: '#34594f' },
+  darkLabel: { color: '#f0f7f2' },
+  darkGroupTitle: { color: '#b8d8c9' },
 });

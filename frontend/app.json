@@ -69,7 +69,8 @@
         }
       ],
       "@maplibre/maplibre-react-native",
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

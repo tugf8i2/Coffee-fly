@@ -50,7 +50,7 @@ export default function SolicitarRecoleccion({ go, token }) {
 
   return <ScrollView contentContainerStyle={styles.page}><View style={styles.content}>
     <Text style={styles.title}>Solicitar recolección</Text>
-    <Text style={styles.muted}>Agrupa los bultos que tengan el mismo peso. Puedes agregar todos los grupos diferentes que necesites.</Text>
+    <Text style={styles.pageMuted}>Agrupa los bultos que tengan el mismo peso. Puedes agregar todos los grupos diferentes que necesites.</Text>
     <View style={styles.formCard}>
       <Text style={styles.cardTitle}>1. Confirma el punto de recogida</Text>
       <Text style={styles.muted}>Revisa que la ubicación de tu finca sea correcta. Será el punto al que llegará el conductor para recoger tu café.</Text>

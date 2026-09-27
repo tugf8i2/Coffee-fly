@@ -1,6 +1,7 @@
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import SelectorFormulario from '../../componentes/comunes/SelectorFormulario';
-import { useEffect, useState } from 'react';
+import SelectorFecha from '../../componentes/comunes/SelectorFecha';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
@@ -15,14 +16,70 @@ const empty = {
 };
 const vehicleTypes = ['Camioneta', 'Van', 'Camión', 'Tractomula'];
 
+const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
+const apiFieldNames = {
+  placa: 'Placa', tipo_vehiculo: 'Tipo de vehículo', modelo: 'Año del modelo', marca: 'Marca',
+  modelo_comercial: 'Modelo comercial', configuracion: 'Configuración vehicular', numero_ejes: 'Número de ejes',
+  tara_kg: 'Tara', pbv_homologado_kg: 'PBV homologado', soat_vencimiento: 'Vencimiento del SOAT',
+  tecnomecanica_vencimiento: 'Vencimiento de técnico-mecánica', seguro_vencimiento: 'Vencimiento del seguro',
+};
+
+export function erroresFormularioVehiculo(form, catalog) {
+  const errors = [];
+  const plate = form.placa.trim();
+  const modelYear = Number(form.modelo);
+  const configuration = catalog.find((item) => item.codigo === form.configuracion);
+  const tara = Number(form.tara_kg);
+  const pbv = Number(form.pbv_homologado_kg);
+  if (!plate) errors.push('Placa: es obligatoria.');
+  else if (!/^[A-Z0-9-]{5,7}$/i.test(plate)) errors.push('Placa: usa entre 5 y 7 letras, números o guion (por ejemplo, ABC123).');
+  if (!form.tipo_vehiculo) errors.push('Tipo de vehículo: selecciona una opción.');
+  else if (!vehicleTypes.includes(form.tipo_vehiculo)) errors.push('Tipo de vehículo: la opción seleccionada no es válida.');
+  if (!form.marca.trim()) errors.push('Marca: es obligatoria.');
+  if (!form.modelo_comercial.trim()) errors.push('Modelo comercial: es obligatorio.');
+  if (!form.modelo.trim()) errors.push('Año del modelo: es obligatorio.');
+  else if (!Number.isInteger(modelYear) || form.modelo.length !== 4 || modelYear < 2000 || modelYear > new Date().getFullYear() + 1) errors.push(`Año del modelo: escribe un año entre 2000 y ${new Date().getFullYear() + 1}.`);
+  if (!configuration) errors.push('Configuración vehicular: selecciona una opción del catálogo.');
+  else {
+    const compatible = { liviano: ['Camioneta', 'Van'], rigido: ['Camión'], articulado: ['Tractomula'] }[configuration.clase_vehiculo] || [];
+    if (form.tipo_vehiculo && !compatible.includes(form.tipo_vehiculo)) errors.push(`Configuración vehicular: ${configuration.codigo} no corresponde a un vehículo tipo ${form.tipo_vehiculo}.`);
+  }
+  if (!form.tara_kg) errors.push('Tara: es obligatoria.');
+  else if (!Number.isFinite(tara) || tara <= 0) errors.push('Tara: debe ser un número mayor que cero.');
+  if (!form.pbv_homologado_kg) errors.push('PBV homologado: es obligatorio.');
+  else if (!Number.isFinite(pbv) || pbv <= 0) errors.push('PBV homologado: debe ser un número mayor que cero.');
+  else if (Number.isFinite(tara) && tara > 0 && pbv <= tara) errors.push('PBV homologado: debe ser mayor que la tara para obtener una capacidad útil positiva.');
+  else if (configuration?.pbv_maximo_legal_kg && Number.isFinite(tara) && tara >= configuration.pbv_maximo_legal_kg) errors.push(`Tara: debe ser menor que el PBV máximo legal de ${configuration.pbv_maximo_legal_kg.toLocaleString('es-CO')} kg para ${configuration.codigo}.`);
+  [['SOAT', form.soat_vencimiento], ['Técnico-mecánica', form.tecnomecanica_vencimiento], ['Seguro', form.seguro_vencimiento]].forEach(([label, value]) => {
+    if (!value) errors.push(`${label}: selecciona la fecha de vencimiento.`);
+    else if (!validDate(value)) errors.push(`${label}: la fecha seleccionada no es válida.`);
+  });
+  return errors;
+}
+
+function apiErrorMessage(data) {
+  const issues = Array.isArray(data?.errors) ? data.errors : Array.isArray(data?.detail) ? data.detail : null;
+  if (issues?.length) return issues.map((item) => {
+    const rawField = String(item.field || item.loc?.at(-1) || '').replace(/^body\./, '');
+    const field = apiFieldNames[rawField] || rawField || 'Dato';
+    return `${field}: ${item.message || item.msg || 'valor inválido'}.`;
+  }).join('\n');
+  return typeof data?.detail === 'string' ? data.detail : 'El servidor no pudo guardar el vehículo. Revisa los datos e inténtalo nuevamente.';
+}
+
 export default function GestionVehiculos({ go, token }) {
+  const pageRef = useRef(null);
   const [vehicles, setVehicles] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
   const [message, setMessageText] = useState('');
   const [messageType, setMessageType] = useState('info');
-  const setMessage = (text, type = 'error') => { setMessageText(text); setMessageType(type); };
+  const [messageAttempt, setMessageAttempt] = useState(0);
+  const setMessage = (text, type = 'error') => {
+    setMessageText(text); setMessageType(type); setMessageAttempt((current) => current + 1);
+    globalThis.requestAnimationFrame?.(() => pageRef.current?.scrollTo({ y: 0, animated: true }));
+  };
   const [saving, setSaving] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -51,17 +108,14 @@ export default function GestionVehiculos({ go, token }) {
   const license = configuration?.[form.tipo_servicio === 'PUBLICO' ? 'licencia_publico' : 'licencia_particular'];
   const save = async () => {
     if (saving) return;
+    const validationErrors = erroresFormularioVehiculo(form, catalog);
+    if (validationErrors.length) {
+      setMessage(`Corrige ${validationErrors.length === 1 ? 'este dato' : `estos ${validationErrors.length} datos`} antes de guardar:\n• ${validationErrors.join('\n• ')}`);
+      return;
+    }
     setSaving(true);
     try {
       const modelYear = Number(form.modelo);
-      if (!form.placa.trim() || !vehicleTypes.includes(form.tipo_vehiculo) || !form.modelo.trim() || !configuration || !form.marca.trim() || !form.modelo_comercial.trim()) {
-        throw Error('Completa placa, marca, modelo, año y configuración.');
-      }
-      if (!Number.isInteger(modelYear) || modelYear < 2000) {
-        throw Error('El modelo debe ser un año igual o posterior a 2000.');
-      }
-      if (calculated == null || calculated <= 0) throw Error('La tara debe ser menor que el PBV homologado y el máximo legal.');
-      if (!form.soat_vencimiento || !form.tecnomecanica_vencimiento || !form.seguro_vencimiento) throw Error('Registra el vencimiento de SOAT, técnico-mecánica y seguro.');
       const payload = {
         placa: form.placa.trim(),
         tipo_vehiculo: form.tipo_vehiculo,
@@ -82,7 +136,7 @@ export default function GestionVehiculos({ go, token }) {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw Error(data.detail || 'No se pudo guardar el vehículo.');
+      if (!response.ok) throw Error(apiErrorMessage(data));
       setMessage(editing ? 'Vehículo actualizado correctamente.' : `Vehículo ${data.placa} registrado correctamente.`, 'success');
       setForm(empty);
       setEditing(null);
@@ -116,10 +170,10 @@ export default function GestionVehiculos({ go, token }) {
     } catch (error) { setMessage(error.message); }
   };
 
-  return <ScrollView contentContainerStyle={styles.page}>
+  return <ScrollView ref={pageRef} contentContainerStyle={styles.page}>
     <Text style={styles.title}>{editing ? 'Editar vehículo' : 'Registro de vehículos'}</Text>
     <Text style={styles.muted}>El registrador crea vehículos. El coordinador asigna vehículo y conductor; solo el conductor inicia el viaje.</Text>
-    {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
+    {message ? <FeedbackMessage key={messageAttempt} type={messageType}>{message}</FeedbackMessage> : null}
     <View style={styles.formCard}>
       <Text style={styles.label}>Placa</Text>
       <TextInput style={styles.input} value={form.placa} onChangeText={(value) => set('placa', value)} maxLength={7} autoCapitalize="characters" placeholder="ABC123" />
@@ -152,10 +206,7 @@ export default function GestionVehiculos({ go, token }) {
       <Text>Licencia mínima: {license || 'Selecciona configuración y servicio'}</Text>
       <Text style={styles.muted}>El servidor recalcula estos valores; no se puede editar directamente la capacidad.</Text>
       <Text style={styles.section}>Documentos · fechas de vencimiento</Text>
-      {[['SOAT', 'soat_vencimiento'], ['Técnico-mecánica', 'tecnomecanica_vencimiento'], ['Seguro', 'seguro_vencimiento']].map(([label, key]) => <View key={key}>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput style={styles.input} value={form[key]} onChangeText={(value) => set(key, value)} placeholder="AAAA-MM-DD" />
-      </View>)}
+      {[['Vencimiento del SOAT', 'soat_vencimiento'], ['Vencimiento de técnico-mecánica', 'tecnomecanica_vencimiento'], ['Vencimiento del seguro', 'seguro_vencimiento']].map(([label, key]) => <SelectorFecha key={key} label={label} value={form[key]} onChange={(value) => set(key, value)} styles={styles} />)}
       {form.estado_vehiculo === 'en camino' ? <Text style={styles.muted}>Estado: En camino. Solo cambia desde la entrega del conductor.</Text> : <>
         <Text style={styles.label}>Estado operativo</Text>
         <View style={styles.statusActions}>{['disponible', 'en mantenimiento'].map((state) => <TouchableOpacity key={state} style={[styles.role, form.estado_vehiculo === state && styles.roleActive]} onPress={() => set('estado_vehiculo', state)}><Text>{state}</Text></TouchableOpacity>)}</View>

@@ -30,7 +30,7 @@ const ACCESS_DETAILS = {
   support: ['✉', 'Conversa sobre una carga con la persona responsable.'],
 };
 
-export default function PanelPorRol({ user, token, go }) {
+export default function PanelPorRol({ user, token, go, darkMode = false, onToggleDarkMode }) {
   const [showAll, setShowAll] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [data, setData] = useState(null);
@@ -38,12 +38,12 @@ export default function PanelPorRol({ user, token, go }) {
   const [error, setError] = useState('');
   const role = String(user?.rol || '').toLowerCase();
   const [showPreferences, setShowPreferences] = useState(false);
-  const [preferences, setPreferences] = useState({ dark: false, compact: false });
+  const [preferences, setPreferences] = useState({ compact: false });
   const preferenceKey = `coffee-fly:${role}:prefs:${user?.id || user?.id_usuario}`;
   useEffect(() => {
     readDriverValue(preferenceKey).then((value) => {
       if (!value) return;
-      try { setPreferences((current) => ({ ...current, ...JSON.parse(value) })); } catch { /* Valores predeterminados. */ }
+      try { const saved = JSON.parse(value); setPreferences((current) => ({ ...current, compact: Boolean(saved.compact) })); } catch { /* Valores predeterminados. */ }
     }).catch(() => {});
   }, [preferenceKey]);
   const savePreferences = () => writeDriverValue(preferenceKey, JSON.stringify(preferences)).catch(() => {});
@@ -75,23 +75,23 @@ export default function PanelPorRol({ user, token, go }) {
   const groups = gruposPorRol(role);
   const visibleGroups = showAll ? groups : [{ title: 'Tareas principales', cards: groups.flatMap((group) => group.cards).filter(([, screen]) => primaryScreens.includes(screen)) }];
   if (Platform.OS === 'web' && role === 'caficultor') return <ResumenCaficultor user={user} data={data} error={error} go={go} onRefresh={load}/>;
-  return <ScrollView style={preferences.dark ? styles.darkPage : null} contentContainerStyle={[styles.page, preferences.compact && styles.compactPage]}>
-    <View style={[styles.dashboardIntro, preferences.dark && styles.darkCard]}>
+  return <ScrollView style={darkMode ? styles.darkPage : null} contentContainerStyle={[styles.page, preferences.compact && styles.compactPage]}>
+    <View style={[styles.dashboardIntro, darkMode && styles.darkCard]}>
       <Text style={styles.dashboardEyebrow}>Vista general</Text>
-      <Text style={[styles.title, preferences.dark && styles.darkText]}>Hola, {user?.nombre || user?.nombre_usuario || 'bienvenido'}</Text>
-      <Text style={[styles.muted, preferences.dark && styles.darkMuted]}>Este es tu espacio de trabajo como {role || 'usuario'}. Elige una tarea para continuar.</Text>
+      <Text style={[styles.title, darkMode && styles.darkText]}>Hola, {user?.nombre || user?.nombre_usuario || 'bienvenido'}</Text>
+      <Text style={[styles.muted, darkMode && styles.darkMuted]}>Este es tu espacio de trabajo como {role || 'usuario'}. Elige una tarea para continuar.</Text>
       {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : <Text style={[styles.success, styles.dashboardStatus]}>{data ? (data.actualizado_en ? `Actualizado: ${new Date(data.actualizado_en).toLocaleString()}` : 'Resumen disponible') : 'Cargando tu resumen…'}</Text>}
     </View>
-    <Text style={[styles.section, preferences.dark && styles.darkText]}>Resumen operativo</Text>
-    <View style={styles.grid}>{Object.entries(metrics).map(([key, value]) => <View key={key} style={[styles.metric, preferences.dark && styles.darkCard]}><Text style={[styles.metricLabel, preferences.dark && styles.darkMuted]}>{key.replaceAll('_', ' ')}</Text><Text style={[styles.metricValue, preferences.dark && styles.darkText]}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}</View>
+    <Text style={[styles.section, darkMode && styles.darkText]}>Resumen operativo</Text>
+    <View style={styles.grid}>{Object.entries(metrics).map(([key, value]) => <View key={key} style={[styles.metric, darkMode && styles.darkCard]}><Text style={[styles.metricLabel, darkMode && styles.darkMuted]}>{key.replaceAll('_', ' ')}</Text><Text style={[styles.metricValue, darkMode && styles.darkText]}>{typeof value === 'number' ? value.toLocaleString('es-CO') : value}</Text></View>)}</View>
     {data && !Object.keys(metrics).length ? <Text style={styles.muted}>Todavía no hay movimientos para mostrar. Puedes comenzar con una de las tareas de abajo.</Text> : null}
     {visibleGroups.map(({ title, cards }) => <View key={title} style={{ gap: 14 }}>
-    <Text style={[styles.section, preferences.dark && styles.darkText]}>{title}</Text>
+    <Text style={[styles.section, darkMode && styles.darkText]}>{title}</Text>
     <View style={styles.grid}>{cards.map(([label, screen]) => {
       const [icon, description] = ACCESS_DETAILS[screen] || ['→', 'Abre este módulo de Coffee Fly.'];
-      return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Abrir ${label}`} key={screen} style={[styles.card, styles.actionCard, preferences.dark && styles.darkCard]} onPress={() => go(screen)}>
-        <View style={styles.actionTop}><View style={styles.actionIcon}><Text style={styles.actionIconText}>{icon}</Text></View><Text style={[styles.cardTitle, preferences.dark && styles.darkText]}>{label}</Text><Text style={[styles.actionDescription, preferences.dark && styles.darkMuted]}>{description}</Text></View>
-        <View style={styles.actionLinkRow}><Text style={[styles.cardLink, preferences.dark && styles.darkText]}>Abrir módulo</Text><Text style={styles.actionArrow}>→</Text></View>
+      return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Abrir ${label}`} key={screen} style={[styles.card, styles.actionCard, darkMode && styles.darkCard]} onPress={() => go(screen)}>
+        <View style={styles.actionTop}><View style={styles.actionIcon}><Text style={styles.actionIconText}>{icon}</Text></View><Text style={[styles.cardTitle, darkMode && styles.darkText]}>{label}</Text><Text style={[styles.actionDescription, darkMode && styles.darkMuted]}>{description}</Text></View>
+        <View style={styles.actionLinkRow}><Text style={[styles.cardLink, darkMode && styles.darkText]}>Abrir módulo</Text><Text style={styles.actionArrow}>→</Text></View>
       </TouchableOpacity>;
     })}</View></View>)}
     {groups.flatMap((group) => group.cards).length > primaryScreens.length ? <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showAll }} style={styles.secondary} onPress={() => setShowAll(!showAll)}><Text style={styles.secondaryText}>{showAll ? 'Mostrar solo tareas principales' : 'Ver todas las herramientas'}</Text></TouchableOpacity> : null}
@@ -99,9 +99,9 @@ export default function PanelPorRol({ user, token, go }) {
       <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showMessages }} style={styles.secondary} onPress={() => setShowMessages(!showMessages)}><Text style={styles.secondaryText}>{showMessages ? 'Ocultar mensajes y novedades' : 'Consultar mensajes y novedades'}</Text></TouchableOpacity>
       {showMessages ? <EventMessageInbox token={token} styles={styles} role={role} /> : null}
     </> : null}
-    {role === 'registrador' ? <>
+    {role !== 'conductor' ? <>
       <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showPreferences }} style={styles.secondary} onPress={() => setShowPreferences((value) => !value)}><Text style={styles.secondaryText}>{showPreferences ? 'Ocultar preferencias' : 'Preferencias'}</Text></TouchableOpacity>
-      {showPreferences ? <View style={[styles.preferenceCard, preferences.dark && styles.darkCard]}><Text style={[styles.cardTitle, preferences.dark && styles.darkText]}>Preferencias</Text><View style={styles.preferenceRow}><Text style={[styles.cardTitle, preferences.dark && styles.darkText]}>Modo oscuro</Text><TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.dark }} onPress={() => setPreferences({...preferences, dark: !preferences.dark})} style={[styles.preferenceSwitch, preferences.dark && styles.preferenceSwitchOn]}><View style={[styles.preferenceKnob, preferences.dark && styles.preferenceKnobOn]} /></TouchableOpacity></View><View style={styles.preferenceRow}><Text style={[styles.cardTitle, preferences.dark && styles.darkText]}>Vista compacta</Text><TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.compact }} onPress={() => setPreferences({...preferences, compact: !preferences.compact})} style={[styles.preferenceSwitch, preferences.compact && styles.preferenceSwitchOn]}><View style={[styles.preferenceKnob, preferences.compact && styles.preferenceKnobOn]} /></TouchableOpacity></View><TouchableOpacity style={styles.primary} onPress={savePreferences}><Text style={styles.primaryText}>Guardar cambios</Text></TouchableOpacity></View> : null}
+      {showPreferences ? <View style={[styles.preferenceCard, darkMode && styles.darkCard]}><Text style={[styles.cardTitle, darkMode && styles.darkText]}>Preferencias</Text><View style={styles.preferenceRow}><Text style={[styles.cardTitle, darkMode && styles.darkText]}>Modo oscuro</Text><TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: darkMode }} onPress={onToggleDarkMode} style={[styles.preferenceSwitch, darkMode && styles.preferenceSwitchOn]}><View style={[styles.preferenceKnob, darkMode && styles.preferenceKnobOn]} /></TouchableOpacity></View><View style={styles.preferenceRow}><Text style={[styles.cardTitle, darkMode && styles.darkText]}>Vista compacta</Text><TouchableOpacity accessibilityRole="switch" accessibilityState={{ checked: preferences.compact }} onPress={() => setPreferences({ ...preferences, compact: !preferences.compact })} style={[styles.preferenceSwitch, preferences.compact && styles.preferenceSwitchOn]}><View style={[styles.preferenceKnob, preferences.compact && styles.preferenceKnobOn]} /></TouchableOpacity></View><TouchableOpacity style={styles.primary} onPress={savePreferences}><Text style={styles.primaryText}>Guardar cambios</Text></TouchableOpacity></View> : null}
     </> : null}
     <TouchableOpacity accessibilityRole="button" style={[styles.secondary, styles.refreshButton]} onPress={load}><Text style={styles.secondaryText}>Actualizar resumen</Text></TouchableOpacity>
   </ScrollView>;

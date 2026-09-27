@@ -23,5 +23,7 @@ export const estilosEstructura = {
   content: { width: '100%', maxWidth: 740, alignSelf: 'center', gap: 14 },
   title: { fontSize: 28, lineHeight: 36, fontWeight: '700', color: colores.bosque, letterSpacing: -0.5 },
   section: { fontSize: 20, lineHeight: 27, fontWeight: '700', color: colores.bosque, marginTop: 14, paddingBottom: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(56,102,65,.2)' },
+  pageMuted: { color: '#526451', fontSize: 14, lineHeight: 21 },
+  pageLabel: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: colores.bosque, marginBottom: 5 },
   grid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch', gap: 14 },
 };

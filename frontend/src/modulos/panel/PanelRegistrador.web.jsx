@@ -8,6 +8,7 @@ import bold from '../../assets/fonts/RobotoCondensed-Bold.ttf';
 import Icon from './IconoRegistrador.web';
 import './PanelRegistrador.css';
 import './PreferenciasOperativas.css';
+import './TemaOscuro.css';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 
 const referenceUrl = Image.resolveAssetSource ? Image.resolveAssetSource(reference)?.uri : reference;

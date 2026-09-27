@@ -6,6 +6,8 @@ __pycache__/
 .expo/
 frontend/dist/
 frontend/dist-*/
+frontend/public/maplibre-gl-csp-worker.js
+frontend/public/maplibre-gl-shared.mjs
 frontend/.verification-*/
 .env
 *.log

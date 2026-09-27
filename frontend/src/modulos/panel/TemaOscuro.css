@@ -1,0 +1,38 @@
+/* Selectores compartidos para controles web y contenido React Native Web. */
+.registrar-app .coffee-date-input {
+  background: #fff;
+  color: #17251c;
+  border: 1px solid #789789;
+  box-shadow: 0 1px 2px #092d2214;
+}
+.reg-dark .coffee-date-input {
+  background: #17382f;
+  color: #f4fbf6;
+  border-color: #70a38e;
+  color-scheme: dark;
+  box-shadow: 0 0 0 1px #0b221b;
+}
+.reg-dark .coffee-date-input:focus {
+  outline: 3px solid #9dd5b4;
+  outline-offset: 2px;
+}
+.reg-dark .coffee-date-input:disabled {
+  background: #29483f;
+  color: #b9cdc4;
+  opacity: .8;
+}
+.reg-dark .reg-module > div > [dir='auto'],
+.reg-dark .reg-module > div > div > [dir='auto'] {
+  color: #f0f7f2 !important;
+  border-color: #527568 !important;
+}
+.reg-dark .reg-module input:not([type='file']):not(.coffee-date-input),
+.reg-dark .reg-module select {
+  background: #f8fbf9 !important;
+  color: #142b22 !important;
+  border-color: #789789 !important;
+}
+.reg-dark .reg-module input::placeholder {
+  color: #647a70 !important;
+  opacity: 1;
+}

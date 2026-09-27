@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { Pressable, Text, View } from 'react-native';
 
 import MapaAbierto from './MapaAbierto.native';
+import { temaOscuroActivo } from '../../estilos/temaGlobal';
 
 const validCoordinate = (latitude, longitude) => Number.isFinite(Number(latitude))
   && Number.isFinite(Number(longitude))
@@ -12,6 +13,9 @@ const validCoordinate = (latitude, longitude) => Number.isFinite(Number(latitude
   && Number(longitude) <= 180;
 
 export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa' }) {
+  const dark = temaOscuroActivo();
+  const helperColor = dark ? '#c5ddd0' : '#526451';
+  const headingColor = dark ? '#f0f7f2' : '#386641';
   const [locating, setLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState('');
   const selected = validCoordinate(latitude, longitude)
@@ -45,11 +49,11 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
   };
 
   return <View style={{ width: '100%', gap: 7 }}>
-    <Text style={{ color: '#386641', fontWeight: '700' }}>Toca el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
+    <Text style={{ color: headingColor, fontWeight: '700' }}>Toca el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={`Usar mi ubicación actual para la ${entityLabel}`} disabled={locating} onPress={useCurrentLocation} style={{ alignSelf: 'flex-start', backgroundColor: locating ? '#87978a' : '#386641', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9 }}>
       <Text style={{ color: '#fff', fontWeight: '700' }}>{locating ? 'Obteniendo ubicación precisa...' : 'Usar mi ubicación actual'}</Text>
     </Pressable>
-    {locationStatus ? <Text accessibilityLiveRegion="polite" style={{ color: '#526451', fontSize: 12 }}>{locationStatus}</Text> : null}
+    {locationStatus ? <Text accessibilityLiveRegion="polite" style={{ color: helperColor, fontSize: 12 }}>{locationStatus}</Text> : null}
     <View style={{ width: '100%', height: 360, overflow: 'hidden', borderRadius: 14 }}>
       <MapaAbierto
         style={{ flex: 1 }}
@@ -59,6 +63,6 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
         onMarkerDragEnd={(_id, coordinate) => onSelect?.(coordinate)}
       />
     </View>
-    <Text style={{ color: '#526451', fontSize: 12 }}>Toca o arrastra el marcador para ajustar el punto exacto.</Text>
+    <Text style={{ color: helperColor, fontSize: 12 }}>Toca o arrastra el marcador para ajustar el punto exacto.</Text>
   </View>;
 }

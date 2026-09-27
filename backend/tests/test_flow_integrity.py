@@ -97,7 +97,7 @@ class FlowIntegrityTests(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 409)
 
     def test_coordinator_cancels_unassigned_collection(self):
-        load = SimpleNamespace(vehiculo_id=None, cooperativa_id=None)
+        load = SimpleNamespace(id_carga=uuid4(), vehiculo_id=None, cooperativa_id=None)
         request = SimpleNamespace(estado_solicitud="pendiente", carga=load)
         delivery = SimpleNamespace(
             id_entrega=uuid4(), viaje_id=None, orden_recoleccion=None,
@@ -109,7 +109,7 @@ class FlowIntegrityTests(unittest.TestCase):
         service = EntregaService.__new__(EntregaService)
         service.repository = SimpleNamespace(db=db)
 
-        result = service.cancelar_recoleccion(delivery.id_entrega, 10)
+        result = service.cancelar_recoleccion(delivery.id_entrega, 10, "El caficultor canceló la recolección")
 
         self.assertIs(result, delivery)
         self.assertEqual(delivery.estado_entrega, "cancelado")
@@ -118,12 +118,12 @@ class FlowIntegrityTests(unittest.TestCase):
 
     def test_coordinator_cancels_last_collection_and_promotes_queue(self):
         trip_id = uuid4()
-        trip = SimpleNamespace(id_viaje=trip_id, vehiculo_id=3, estado_viaje="asignado")
+        trip = SimpleNamespace(id_viaje=trip_id, vehiculo_id=3, conductor_id=4, estado_viaje="asignado", completado_en=None)
         next_trip = SimpleNamespace(
             id_viaje=uuid4(), estado_viaje="en_cola", orden_cola=6,
             creado_en=SimpleNamespace(),
         )
-        load = SimpleNamespace(vehiculo_id=3, cooperativa_id=2)
+        load = SimpleNamespace(id_carga=uuid4(), vehiculo_id=3, cooperativa_id=2)
         request = SimpleNamespace(estado_solicitud="pendiente", carga=load)
         delivery = SimpleNamespace(
             id_entrega=uuid4(), viaje_id=trip_id, orden_recoleccion=1,
@@ -139,7 +139,7 @@ class FlowIntegrityTests(unittest.TestCase):
         service = EntregaService.__new__(EntregaService)
         service.repository = SimpleNamespace(db=db)
 
-        service.cancelar_recoleccion(delivery.id_entrega, 10)
+        service.cancelar_recoleccion(delivery.id_entrega, 10, "El destino ya no puede recibir la carga")
 
         self.assertEqual(trip.estado_viaje, "cancelado")
         self.assertEqual(next_trip.estado_viaje, "asignado")
@@ -148,24 +148,36 @@ class FlowIntegrityTests(unittest.TestCase):
         self.assertIsNone(load.vehiculo_id)
         self.assertIsNone(load.cooperativa_id)
 
-    def test_coordinator_cannot_cancel_started_collection(self):
+    def test_coordinator_can_cancel_started_collection_with_reason(self):
         trip_id = uuid4()
-        trip = SimpleNamespace(id_viaje=trip_id, estado_viaje="en_camino")
+        trip = SimpleNamespace(id_viaje=trip_id, vehiculo_id=3, conductor_id=4, estado_viaje="en_camino", completado_en=None)
+        load = SimpleNamespace(id_carga=uuid4(), vehiculo_id=3, cooperativa_id=2)
+        request = SimpleNamespace(estado_solicitud="en camino", carga=load)
         delivery = SimpleNamespace(
-            id_entrega=uuid4(), viaje_id=trip_id, estado_entrega="pendiente",
-            carga_recogida_en=None,
+            id_entrega=uuid4(), viaje_id=trip_id, orden_recoleccion=1, estado_entrega="en camino",
+            carga_recogida_en=SimpleNamespace(), solicitud=request, actualizado_en=None,
         )
         db = MagicMock()
         db.query.side_effect = [
             self.query(first=(trip_id,)), self.query(first=trip), self.query(first=delivery),
+            self.query(all_results=[]), self.query(all_results=[]),
         ]
         service = EntregaService.__new__(EntregaService)
         service.repository = SimpleNamespace(db=db)
 
-        with self.assertRaises(HTTPException) as context:
-            service.cancelar_recoleccion(delivery.id_entrega, 10)
+        result = service.cancelar_recoleccion(delivery.id_entrega, 10, "Emergencia operativa informada por el coordinador")
 
-        self.assertEqual(context.exception.status_code, 409)
+        self.assertIs(result, delivery)
+        self.assertEqual(delivery.estado_entrega, "cancelado")
+        self.assertEqual(trip.estado_viaje, "cancelado")
+        self.assertEqual(delivery.motivo_cancelacion, "Emergencia operativa informada por el coordinador")
+
+    def test_cancellation_requires_explanation(self):
+        service = EntregaService.__new__(EntregaService)
+        service.repository = SimpleNamespace(db=MagicMock())
+        with self.assertRaises(HTTPException) as context:
+            service.cancelar_recoleccion(uuid4(), 10, "muy corto")
+        self.assertEqual(context.exception.status_code, 400)
 
 
 if __name__ == "__main__":

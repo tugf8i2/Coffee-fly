@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import MapaAbierto from './MapaAbierto';
-import { buscarUbicacionPrecisa } from '../../servicios/ubicacionPrecisaWeb';
+import { buscarUbicacionPrecisa, validarAccesoUbicacionWeb } from '../../servicios/ubicacionPrecisaWeb';
 
 const valid = (latitude, longitude) => Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
   && Number(latitude) >= -90 && Number(latitude) <= 90
@@ -24,15 +24,14 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
     id: 'selected-location', kind: 'selected', coordinate: selected, color: '#b42318', draggable: true,
     title: `Ubicación de la ${entityLabel}`, description: `${selected.latitude.toFixed(6)}, ${selected.longitude.toFixed(6)}`,
   }] : [];
-  const useCurrentLocation = () => {
+  const useCurrentLocation = async () => {
     if (locating) return;
-    if (!navigator.geolocation) {
-      setLocationStatus('Este navegador no permite obtener la ubicación actual.');
-      return;
-    }
     setLocating(true);
     setLocationStatus('');
-    cancelLocation.current = buscarUbicacionPrecisa(navigator.geolocation, {
+    let geolocation;
+    try { geolocation = await validarAccesoUbicacionWeb(); }
+    catch (error) { setLocationStatus(error.message); setLocating(false); return; }
+    cancelLocation.current = buscarUbicacionPrecisa(geolocation, {
       onProgress: setLocationStatus,
       onSuccess: ({ coords }) => {
       const accuracy = Number(coords.accuracy);
