@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.models.carga_models import Carga
 from app.models.entrega_models import Entrega
 from app.models.solicitud_models import Solicitud
 from app.models.usuario_models import Usuario
 from app.models.vehiculo_models import Vehiculo
+from app.models.viaje_models import Viaje
 
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -31,9 +31,12 @@ def obtener_dashboard(usuario: Usuario = Depends(get_current_user), db: Session 
         return {"rol": role, "actualizado_en": datetime.now(), "metricas": {"solicitudes_activas": activas, "entregas_realizadas": entregadas}}
     if role == "conductor":
         conductor_id = usuario.conductor.id_conductor if usuario.conductor else -1
-        asignadas = db.query(func.count(Entrega.id_entrega)).join(Solicitud, Entrega.solicitud_id == Solicitud.id_solicitud).join(
-            Carga, Solicitud.carga_id == Carga.id_carga).join(Vehiculo, Carga.vehiculo_id == Vehiculo.id_vehiculo).filter(
-            Vehiculo.conductor_id == conductor_id, Entrega.estado_entrega.in_(["pendiente", "en camino"])
+        asignadas = db.query(func.count(Entrega.id_entrega)).join(
+            Viaje, Entrega.viaje_id == Viaje.id_viaje
+        ).filter(
+            Viaje.conductor_id == conductor_id,
+            Viaje.estado_viaje.in_(["asignado", "en_cola", "en_camino"]),
+            Entrega.estado_entrega.in_(["pendiente", "en camino"]),
         ).scalar() or 0
         return {"rol": role, "actualizado_en": datetime.now(), "metricas": {"entregas_asignadas": asignadas}}
     entregas_hoy = db.query(func.count(Entrega.id_entrega)).filter(Entrega.fecha_hora_entrega >= inicio, Entrega.fecha_hora_entrega < fin).scalar() or 0

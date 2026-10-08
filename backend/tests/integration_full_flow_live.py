@@ -250,6 +250,8 @@ def main():
             driver_headers = headers(driver_token)
             assigned = expect(client.get("/viajes/mis-asignados", headers=driver_headers))
             assert any(item["id_viaje"] == ids["trip_id"] for item in assigned)
+            dashboard = expect(client.get("/dashboard/", headers=driver_headers))
+            assert dashboard["metricas"]["entregas_asignadas"] == 2
             started = expect(client.post(f"/viajes/{ids['trip_id']}/iniciar", headers=driver_headers))
             assert started["estado_viaje"] == "en_camino"
             canceled_in_transit = expect(client.patch(
