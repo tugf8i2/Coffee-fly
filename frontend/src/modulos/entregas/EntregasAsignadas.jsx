@@ -9,7 +9,10 @@ import { conductorModuleStyles } from '../conductor/Conductor.styles';
 import { apiErrorMessage } from '../../servicios/mensajesApi';
 
 export default function EntregasAsignadas({ go, token, user }) {
-  const styles = user?.rol === 'conductor' ? { ...defaultStyles, ...conductorModuleStyles, page: { ...conductorModuleStyles.page, padding: 0 } } : defaultStyles;
+  const isDriver = user?.rol === 'conductor';
+  const styles = isDriver ? { ...defaultStyles, ...conductorModuleStyles, page: { ...conductorModuleStyles.page, padding: 0 } } : defaultStyles;
+  const Container = isDriver ? View : ScrollView;
+  const containerProps = isDriver ? { style: styles.page } : { contentContainerStyle: styles.page };
   const [trips, setTrips] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -52,7 +55,7 @@ export default function EntregasAsignadas({ go, token, user }) {
     finally { startingRef.current = false; setStartingId(null); }
   };
 
-  return <ScrollView contentContainerStyle={styles.page}>
+  return <Container {...containerProps}>
     <Text style={styles.title}>Recolecciones asignadas</Text>
     <Text style={styles.muted}>Los viajes en espera se habilitan automáticamente cuando el vehículo termina su recorrido anterior.</Text>
     {error ? <FeedbackMessage type="error">{error}</FeedbackMessage> : null}
@@ -67,5 +70,5 @@ export default function EntregasAsignadas({ go, token, user }) {
     </View>)}</View>
     {!trips.length ? <Text style={styles.muted}>No tienes recolecciones pendientes de iniciar.</Text> : null}
     <TouchableOpacity style={styles.primary} onPress={load}><Text style={styles.primaryText}>Actualizar recolecciones</Text></TouchableOpacity>
-  </ScrollView>;
+  </Container>;
 }
