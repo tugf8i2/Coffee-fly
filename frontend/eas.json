@@ -13,6 +13,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api",
         "EXPO_PUBLIC_APP_URL": "https://coffee-fly.hostless.app"

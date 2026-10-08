@@ -52,6 +52,14 @@ STATIC_DIR = os.getenv("COFFEE_FLY_STATIC_DIR", "").strip()
 SERVE_WEB_APP = bool(STATIC_DIR and os.path.isdir(STATIC_DIR))
 
 
+class FreshHtmlStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.headers.get("content-type", "").startswith("text/html"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 async def cleanup_expired_events() -> None:
     while True:
         try:
@@ -180,4 +188,4 @@ for router in (
 if SERVE_WEB_APP:
     # Se registra al final para que las rutas HTTP y WebSocket de la API tengan
     # prioridad. html=True devuelve index.html para la navegación de la SPA.
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="web-app")
+    app.mount("/", FreshHtmlStaticFiles(directory=STATIC_DIR, html=True), name="web-app")
