@@ -42,7 +42,6 @@ import {
 import { styles } from '../estilos';
 import { establecerTemaOscuro } from '../estilos/temaGlobal';
 import { readDriverValue, writeDriverValue } from '../modulos/conductor/almacenConductor';
-import { accesoPermitidoEnPlataforma } from '../servicios/accesoPlataforma';
 
 let sessionToken = '';
 
@@ -64,10 +63,6 @@ async function closeRemoteSession(token) {
 }
 
 async function validateSavedSession(saved) {
-  if (!accesoPermitidoEnPlataforma(saved?.user?.rol, Platform.OS)) {
-    await closeRemoteSession(saved?.token);
-    return null;
-  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
@@ -78,10 +73,6 @@ async function validateSavedSession(saved) {
     if (response.status === 401 || response.status === 403) return null;
     if (!response.ok) return saved;
     const user = await response.json();
-    if (!accesoPermitidoEnPlataforma(user?.rol, Platform.OS)) {
-      await closeRemoteSession(saved.token);
-      return null;
-    }
     return { ...saved, user };
   } catch {
     // Offline First: una falla de red no invalida una sesión local todavía vigente.
