@@ -61,7 +61,6 @@ export default function MapaGpsConductor({
               kind: 'vehicle-location',
               coordinate: vehicle,
               heading,
-              title: 'Conductor',
               color: '#0878ff',
             }
           : null,
@@ -94,7 +93,7 @@ export default function MapaGpsConductor({
         <Text style={{ fontSize: 39, lineHeight: 47, color: '#0878ff', transform: [{ rotate: `${arrowRotation}deg` }] }}>▲</Text>
       </View>
       <Text style={{ color: '#153b62', backgroundColor: '#fffffff0', borderRadius: 8, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 2, fontWeight: '700', marginTop: 4 }}>
-        {vehicle ? 'Rumbo' : 'Esperando GPS'}
+        {vehicle ? (follow ? 'Mi posición y rumbo' : 'Rumbo · mapa desplazado') : 'Esperando GPS'}
       </Text>
     </View>
     </View>

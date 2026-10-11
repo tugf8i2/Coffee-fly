@@ -226,7 +226,10 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       }
       if (!record) {
         const element = document.createElement('div');
-        if (item.kind === 'vehicle') {
+        if (item.kind === 'vehicle-location') {
+          // Conserva la coordenada para el seguimiento de cámara sin dibujar un segundo cursor.
+          element.style.cssText = 'width:1px;height:1px;opacity:0;pointer-events:none';
+        } else if (item.kind === 'vehicle') {
           const size = item.size || 46;
           element.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:#fffffff5;box-shadow:0 2px 10px #0005;display:flex;align-items:center;justify-content:center`;
           const arrow = document.createElement('span');
