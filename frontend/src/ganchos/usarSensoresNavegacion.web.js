@@ -11,7 +11,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
   useEffect(() => {
     if (!active || typeof window === 'undefined') return undefined;
     window.ReactNativeWebView?.postMessage?.('navigation_sensors_start');
-    const applyHeading = (rotationRate) => {
+    const applyHeading = (gyroZDegPerSecond) => {
       const now = Date.now();
       const previous = inputs.current;
       const fused = fuseNavigationHeading({
@@ -20,7 +20,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
         compassHeading: previous.compass,
         compassAccuracy: previous.accuracy,
         previousHeading: previous.heading,
-        gyroZDegPerSecond: rotationRate?.alpha,
+        gyroZDegPerSecond,
         deltaSeconds: previous.at ? (now - previous.at) / 1000 : 0,
       });
       inputs.current.heading = fused.headingDeg;
@@ -31,7 +31,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
       const axes = event.accelerationIncludingGravity;
       if (axes && [axes.x, axes.y, axes.z].some((value) => value != null)) {
         setMotion({ x: axes.x, y: axes.y, z: axes.z, rotationRate: event.rotationRate });
-        applyHeading(event.rotationRate);
+        applyHeading(event.rotationRate?.alpha);
       }
     };
     const onOrientation = (event) => {
@@ -48,7 +48,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
       if (data?.type === 'motion') {
         const axes = data.gravity;
         if (axes) setMotion({ ...axes, rotationRate: data.rotationRate });
-        applyHeading(data.rotationRate);
+        applyHeading(data.rotationRate?.gamma);
       }
       if (data?.type === 'heading' && Number.isFinite(Number(data.heading))) {
         inputs.current.compass = Number(data.heading);
