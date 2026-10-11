@@ -1,5 +1,3 @@
-import * as Crypto from 'expo-crypto';
-
 export const MAX_GPS_ACCURACY_METERS = 100;
 export const MAX_GPS_SPEED_METERS_SECOND = 60;
 
@@ -23,7 +21,7 @@ const optionalNonNegative = (value) => (
 
 export function createGpsPoint(position) {
   return {
-    client_point_id: typeof Crypto.randomUUID === 'function' ? Crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (digit) => {
+    client_point_id: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (digit) => {
       const value = Math.floor(Math.random() * 16);
       return (digit === 'x' ? value : (value & 3) | 8).toString(16);
     }),
