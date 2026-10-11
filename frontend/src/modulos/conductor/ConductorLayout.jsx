@@ -743,6 +743,8 @@ export default function ConductorLayout({
                     >
                       Distancia de ruta
                     </Fact>
+                  </View>
+                  <View style={{ padding: 12, paddingTop: 0, backgroundColor: '#fffef9', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
                     <Button icon="play" onPress={() => setNavigationMode(true)}>
                       Iniciar navegación
                     </Button>
