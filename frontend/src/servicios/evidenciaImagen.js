@@ -13,6 +13,26 @@ function dataUri(asset) {
 }
 
 export async function seleccionarEvidenciaImagen({ camara = false, cuadrada = false } = {}) {
+  if (typeof window !== 'undefined' && window.ReactNativeWebView?.postMessage) {
+    const requestId = `${Date.now()}-${Math.random()}`;
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        window.removeEventListener('coffee-fly:image-picker-result', onResult);
+        reject(new Error('La selección de imagen tardó demasiado. Inténtalo de nuevo.'));
+      }, 120000);
+      const onResult = (event) => {
+        if (event.detail?.requestId !== requestId) return;
+        clearTimeout(timeout);
+        window.removeEventListener('coffee-fly:image-picker-result', onResult);
+        if (event.detail.error) reject(new Error(event.detail.error));
+        else if (event.detail.asset) {
+          try { resolve(dataUri(event.detail.asset)); } catch (error) { reject(error); }
+        } else resolve(null);
+      };
+      window.addEventListener('coffee-fly:image-picker-result', onResult);
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'image_picker', requestId, camara, cuadrada }));
+    });
+  }
   if (camara) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) throw new Error('Autoriza la cámara para tomar la evidencia.');

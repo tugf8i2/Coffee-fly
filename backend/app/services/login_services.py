@@ -57,7 +57,13 @@ def login_user(db, data):
         user.bloqueado_hasta = None
         user.intentos_fallidos = 0
 
-    if not verify_password(data.password, user.contrasena):
+    matched_password = data.password
+    password_valid = verify_password(matched_password, user.contrasena)
+    if not password_valid and matched_password != matched_password.strip():
+        matched_password = matched_password.strip()
+        password_valid = verify_password(matched_password, user.contrasena)
+
+    if not password_valid:
         user.intentos_fallidos = int(user.intentos_fallidos or 0) + 1
         remaining_attempts = MAX_FAILED_ATTEMPTS - user.intentos_fallidos
         if remaining_attempts <= 0:
@@ -76,7 +82,7 @@ def login_user(db, data):
     user.intentos_fallidos = 0
     user.bloqueado_hasta = None
     if password_hash_needs_upgrade(user.contrasena):
-        user.contrasena = hash_password(data.password)
+        user.contrasena = hash_password(matched_password)
     access_token = create_session(user, db)
     return {
         "access_token": access_token,

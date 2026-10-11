@@ -44,6 +44,7 @@ function Copy({ bold, style, children, ...props }) {
 }
 function Action({ icon, title, subtitle, onPress, red, disabled }) {
   return (
+    <View style={red ? { backgroundColor: '#bb2d32', borderRadius: 17, overflow: 'hidden', marginTop: 7 } : undefined}>
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
@@ -52,6 +53,7 @@ function Action({ icon, title, subtitle, onPress, red, disabled }) {
       style={[
         styles.action,
         red && styles.finish,
+        red && { backgroundColor: 'transparent', marginTop: 0 },
         disabled && { opacity: 0.55 },
       ]}
     >
@@ -68,6 +70,7 @@ function Action({ icon, title, subtitle, onPress, red, disabled }) {
       </View>
       <Icon name="right" size={19} color={red ? '#fff' : '#101c30'} />
     </TouchableOpacity>
+    </View>
   );
 }
 export default function VistaGpsConductor({
@@ -371,6 +374,7 @@ export default function VistaGpsConductor({
             </View>
           )}
         </View>
+        <View style={[styles.mapOnlyButton, landscapePhone && { top: 72 }, { backgroundColor: '#063f2f', overflow: 'hidden' }]}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={mapOnly ? 'Salir del modo solo mapa' : 'Abrir solo mapa en pantalla completa'}
@@ -378,13 +382,14 @@ export default function VistaGpsConductor({
             if (!mapOnly) controlsRef.current?.explore?.();
             setMapOnly((current) => !current);
           }}
-          style={[styles.mapOnlyButton, landscapePhone && { top: 72 }]}
+          style={{ minHeight: 45, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 7 }}
         >
           <Icon name={mapOnly ? 'back' : 'map'} size={22} color="#fff" />
           <Copy bold style={{ color: '#fff', fontSize: 13 }}>
             {mapOnly ? 'Volver a la ruta' : 'Solo mapa'}
           </Copy>
         </TouchableOpacity>
+        </View>
         <View
           style={[
             styles.mapButtons,

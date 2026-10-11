@@ -1,6 +1,6 @@
 export const normalizeDegrees = (value) => ((Number(value) % 360) + 360) % 360;
 
-const validHeading = (value) => Number.isFinite(Number(value)) && Number(value) >= 0;
+const validHeading = (value) => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
 const shortestTurn = (from, to) => ((normalizeDegrees(to) - normalizeDegrees(from) + 540) % 360) - 180;
 
 export function fuseNavigationHeading({

@@ -675,9 +675,7 @@ export default function ConductorLayout({
                   </View>
                   <View style={{ flex: 1 }}>
                     <Label bold>
-                      {summary.tracking?.destino ||
-                        trip?.cooperativa_nombre ||
-                        'Sin viaje activo'}
+                      {trip ? 'Tu viaje está en marcha' : 'Sin viaje activo'}
                     </Label>
                     <Label style={s.muted}>
                       {trip
@@ -745,9 +743,12 @@ export default function ConductorLayout({
                     </Fact>
                   </View>
                   <View style={{ padding: 12, paddingTop: 0, backgroundColor: '#fffef9', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
-                    <Button icon="play" onPress={() => setNavigationMode(true)}>
-                      Iniciar navegación
-                    </Button>
+                    <View style={{ backgroundColor: '#064c3b', borderRadius: 8, overflow: 'hidden' }}>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => setNavigationMode(true)} style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <Icon name="play" size={20} color="#fff" />
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Iniciar navegación</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               ) : (
@@ -966,7 +967,7 @@ export default function ConductorLayout({
                   <Label>No hay entregas en esta categoría.</Label>
                 </View>
               )}
-              <Label bold>Aceptar e iniciar un viaje</Label>
+                  <Label bold>Ya estás listo para iniciar tu viaje</Label>
               {assignedScreen}
             </>
           )}

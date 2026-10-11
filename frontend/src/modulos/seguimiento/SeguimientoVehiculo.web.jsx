@@ -10,6 +10,7 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import usePolling from '../../ganchos/usarSondeo';
 import useTrackingPosition from '../../ganchos/usarPosicionSeguimiento';
 import useKeepNavigationAwake from '../../ganchos/usarPantallaActiva';
+import useNavigationSensors from '../../ganchos/usarSensoresNavegacion';
 import {
   applyTrackingMessage,
   connectTrackingSocket,
@@ -85,6 +86,7 @@ export default function SeguimientoVehiculo({
   const [realtimeState, setRealtimeState] = useState('disconnected');
   const [gpsStatus, setGpsStatus] = useState('');
   const lastWebGpsRef = useRef(null);
+  const lastNativePositionRef = useRef(null);
   const gpsUploadInProgressRef = useRef(false);
   const role = String(user?.rol || '').toLowerCase();
   useKeepNavigationAwake(role === 'conductor' && navigationVisible && Boolean(tracking));
@@ -263,7 +265,8 @@ export default function SeguimientoVehiculo({
       setGpsStatus('');
       return undefined;
     }
-    if (!globalThis.isSecureContext || !navigator.geolocation) {
+    const nativeBridge = Boolean(window.ReactNativeWebView?.postMessage);
+    if (!nativeBridge && (!globalThis.isSecureContext || !navigator.geolocation)) {
       setGpsStatus(
         'El GPS web requiere HTTPS o localhost. En el celular usa la aplicación Coffee Fly.',
       );
@@ -272,8 +275,7 @@ export default function SeguimientoVehiculo({
 
     let disposed = false;
     setGpsStatus('Solicitando permiso y buscando una ubicación precisa…');
-    const watchId = navigator.geolocation.watchPosition(
-      async (position) => {
+    const onPosition = async (position) => {
         if (disposed || gpsUploadInProgressRef.current) return;
         const point = createGpsPoint(position);
         const quality = evaluateGpsPoint(point, lastWebGpsRef.current);
@@ -325,7 +327,17 @@ export default function SeguimientoVehiculo({
         } finally {
           gpsUploadInProgressRef.current = false;
         }
-      },
+      };
+    const onNativePosition = (event) => {
+      const data = event.detail;
+      if (data?.type === 'position' && data.coords) {
+        lastNativePositionRef.current = { coords: data.coords, timestamp: data.timestamp };
+        onPosition(lastNativePositionRef.current).catch((error) => setGpsStatus(error?.message || 'Error al procesar el GPS del dispositivo.'));
+      }
+    };
+    if (nativeBridge) window.addEventListener('coffee-fly:navigation-sensors', onNativePosition);
+    const watchId = !nativeBridge ? navigator.geolocation.watchPosition(
+      onPosition,
       (error) => {
         if (disposed) return;
         if (error.code === 1)
@@ -339,11 +351,12 @@ export default function SeguimientoVehiculo({
         else setGpsStatus('No fue posible obtener la ubicación del navegador.');
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 },
-    );
+    ) : null;
 
     return () => {
       disposed = true;
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      window.removeEventListener('coffee-fly:navigation-sensors', onNativePosition);
       lastWebGpsRef.current = null;
       gpsUploadInProgressRef.current = false;
     };
@@ -360,6 +373,11 @@ export default function SeguimientoVehiculo({
     point: last,
     visible: navigationVisible,
     enabled: role === 'conductor',
+  });
+  const navigationSensors = useNavigationSensors({
+    active: role === 'conductor' && navigationVisible && Boolean(tracking),
+    gpsHeading: guidance.heading,
+    speedMps: last?.velocidad_m_s,
   });
   const destination = useMemo(() => {
     if (tracking?.destino_latitud == null || tracking?.destino_longitud == null)
@@ -460,6 +478,10 @@ export default function SeguimientoVehiculo({
 
   const currentWebPosition = () =>
     new Promise((resolve, reject) => {
+      if (window.ReactNativeWebView && lastNativePositionRef.current && Date.now() - lastNativePositionRef.current.timestamp < 10000) {
+        resolve(lastNativePositionRef.current);
+        return;
+      }
       if (!navigator.geolocation) {
         reject(Error('Este navegador no permite consultar la ubicación.'));
         return;
@@ -608,7 +630,7 @@ export default function SeguimientoVehiculo({
             route={navigationRoute}
             destination={destination}
             vehicle={guidance.vehicle}
-            heading={guidance.heading}
+            heading={navigationSensors.headingDeg ?? guidance.heading}
             deliveryId={`${delivery}:${tracking.etapa_viaje}`}
             mapTheme={mapTheme}
           />

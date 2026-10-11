@@ -23,7 +23,10 @@ const optionalNonNegative = (value) => (
 
 export function createGpsPoint(position) {
   return {
-    client_point_id: Crypto.randomUUID(),
+    client_point_id: typeof Crypto.randomUUID === 'function' ? Crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (digit) => {
+      const value = Math.floor(Math.random() * 16);
+      return (digit === 'x' ? value : (value & 3) | 8).toString(16);
+    }),
     latitud: Number(position.coords.latitude),
     longitud: Number(position.coords.longitude),
     precision_m: optionalNonNegative(position.coords.accuracy),

@@ -21,7 +21,7 @@ export default function IniciarSesion({ onLogin }) {
   const submit = async () => {
     if (loading) return;
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !password) {
+    if (!normalizedEmail || !password.trim()) {
       setError('Escribe tu correo y contraseña.');
       return;
     }
