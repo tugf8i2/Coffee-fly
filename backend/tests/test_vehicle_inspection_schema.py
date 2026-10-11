@@ -31,6 +31,15 @@ class VehicleInspectionSchemaTests(unittest.TestCase):
                 capturada_en=datetime.now(), items=values,
             )
 
+    def test_accepts_multiple_photos_for_issue(self):
+        values = items()
+        values[1].update(estado="novedad", fotos_evidencia=["data:image/jpeg;base64,YQ==", "data:image/png;base64,Yg=="])
+        inspection = InspeccionVehiculoCreate(
+            client_inspection_id=uuid4(), vehiculo_id=3, viaje_id=uuid4(),
+            capturada_en=datetime.now(), items=values,
+        )
+        self.assertEqual(len(inspection.items[1].fotos_evidencia), 2)
+
     def test_rejects_missing_check(self):
         with self.assertRaises(ValidationError):
             InspeccionVehiculoCreate(

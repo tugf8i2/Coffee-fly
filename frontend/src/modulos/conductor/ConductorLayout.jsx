@@ -12,8 +12,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useFonts } from 'expo-font';
-import * as Crypto from 'expo-crypto';
 import { seleccionarEvidenciaImagen } from '../../servicios/evidenciaImagen';
+import { createClientUuid } from '../../servicios/idCliente';
 import Icon from './IconoConductor';
 import MarcoOperativo from '../panel/MarcoOperativo';
 import useDriverSummary from './usarResumenConductor';
@@ -42,8 +42,10 @@ const checks = [
   ['Equipo de seguridad', 'Botiquín, extintor, triángulos, chaleco', 'seguridad'],
 ];
 const emptyChecklist = () => checks.map(([, , codigo]) => ({
-  codigo, estado: 'pendiente', observacion: '', foto_evidencia: null,
+  codigo, estado: 'pendiente', observacion: '', foto_evidencia: null, fotos_evidencia: [],
 }));
+const evidencePhotos = (item) => Array.isArray(item?.fotos_evidencia) && item.fotos_evidencia.length
+  ? item.fotos_evidencia : item?.foto_evidencia ? [item.foto_evidencia] : [];
 const reportTypes = [
   ['Vía cerrada', 'Cierre total o restricción', 'road', 'inconveniente'],
   ['Derrumbe', 'Material o caída sobre la vía', 'warning', 'inconveniente'],
@@ -423,8 +425,13 @@ export default function ConductorLayout({
   };
   const attachCheckPhoto = async (index, camera) => {
     try {
+      const current = evidencePhotos(checklist[index]);
+      if (current.length >= 4) {
+        setStorageMessage('Puedes adjuntar hasta cuatro fotos por punto.');
+        return;
+      }
       const photo = await seleccionarEvidenciaImagen({ camara: camera });
-      if (photo) await updateCheck(index, { foto_evidencia: photo, estado: 'novedad' });
+      if (photo) await updateCheck(index, { foto_evidencia: current[0] || photo, fotos_evidencia: [...current, photo], estado: 'novedad' });
     } catch (error) {
       setStorageMessage(error.message);
     }
@@ -439,7 +446,7 @@ export default function ConductorLayout({
       setStorageMessage('Revisa los seis puntos antes de enviar la inspección.');
       return;
     }
-    const incompleteIssue = checklist.find((item) => item.estado === 'novedad' && !item.observacion.trim() && !item.foto_evidencia);
+    const incompleteIssue = checklist.find((item) => item.estado === 'novedad' && !item.observacion.trim() && !evidencePhotos(item).length);
     if (incompleteIssue) {
       setStorageMessage('Cada novedad necesita una descripción o una fotografía.');
       return;
@@ -447,12 +454,13 @@ export default function ConductorLayout({
     setInspectionSaving(true);
     try {
       const result = await enviarOSolicitarEnCola('inspeccion_vehiculo', {
-        client_inspection_id: Crypto.randomUUID(),
+        client_inspection_id: createClientUuid(),
         vehiculo_id: inspectionTrip.vehiculo_id,
         viaje_id: inspectionTrip.id_viaje,
         capturada_en: new Date().toISOString(),
-        items: checklist.map(({ codigo, estado, observacion, foto_evidencia }) => ({
-          codigo, estado, observacion: observacion.trim(), foto_evidencia,
+        items: checklist.map((item) => ({
+          codigo: item.codigo, estado: item.estado, observacion: item.observacion.trim(),
+          foto_evidencia: evidencePhotos(item)[0] || null, fotos_evidencia: evidencePhotos(item),
         })),
       }, token);
       setStorageMessage(result.offline
@@ -509,7 +517,7 @@ export default function ConductorLayout({
         detalle: (reportType[0].localeCompare(reportType[3], 'es', { sensitivity: 'base' }) === 0
           ? comment.trim()
           : `${reportType[0]}${comment.trim() ? `: ${comment.trim()}` : ''}`).slice(0, 250),
-        client_event_id: Crypto.randomUUID(),
+        client_event_id: createClientUuid(),
         capturada_en: new Date().toISOString(),
       }, token);
       setReportMessage(result.offline
@@ -1091,7 +1099,7 @@ export default function ConductorLayout({
                           accessibilityRole="radio"
                           accessibilityState={{ selected: item.estado === 'bien', disabled: !checkReady }}
                           disabled={!checkReady}
-                          onPress={() => updateCheck(index, { estado: 'bien', observacion: '', foto_evidencia: null })}
+                          onPress={() => updateCheck(index, { estado: 'bien', observacion: '', foto_evidencia: null, fotos_evidencia: [] })}
                           style={[s.inspectionChoice, item.estado === 'bien' && s.inspectionGood]}
                         ><Label bold style={item.estado === 'bien' && { color: '#fff' }}>Bien</Label></TouchableOpacity>
                         <TouchableOpacity
@@ -1116,9 +1124,14 @@ export default function ConductorLayout({
                           <Button secondary icon="camera" onPress={() => attachCheckPhoto(index, true)}>Tomar foto</Button>
                           <Button secondary icon="image" onPress={() => attachCheckPhoto(index, false)}>Galería</Button>
                         </View>
-                        {item.foto_evidencia ? <View style={s.evidenceWrap}>
-                          <Image source={{ uri: item.foto_evidencia }} style={s.evidenceImage} accessibilityLabel={`Evidencia de ${title}`} />
-                          <TouchableOpacity onPress={() => updateCheck(index, { foto_evidencia: null })}><Label bold style={{ color: '#b42318' }}>Quitar foto</Label></TouchableOpacity>
+                        {evidencePhotos(item).length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                          {evidencePhotos(item).map((photo, photoIndex) => <View key={`${item.codigo}:${photoIndex}`} style={{ width: 120, gap: 5 }}>
+                            <Image source={{ uri: photo }} style={[s.evidenceImage, { width: 120, height: 96 }]} accessibilityLabel={`Evidencia ${photoIndex + 1} de ${title}`} />
+                            <TouchableOpacity accessibilityRole="button" onPress={() => {
+                              const remaining = evidencePhotos(item).filter((_, indexToRemove) => indexToRemove !== photoIndex);
+                              updateCheck(index, { foto_evidencia: remaining[0] || null, fotos_evidencia: remaining });
+                            }}><Label bold style={{ color: '#b42318' }}>Quitar foto {photoIndex + 1}</Label></TouchableOpacity>
+                          </View>)}
                         </View> : null}
                       </>}
                     </View>;

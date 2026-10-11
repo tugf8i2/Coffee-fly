@@ -1,4 +1,4 @@
-import * as Crypto from 'expo-crypto';
+import { createClientUuid } from './idCliente';
 
 import { API_BASE_URL, fetchApi } from '../configuracion';
 import {
@@ -97,7 +97,7 @@ export async function encolar(tipo, payload) {
     return { inserted: false };
   }
   const item = {
-    id: key || Crypto.randomUUID(),
+    id: key || createClientUuid(),
     tipo,
     payload,
     creado_en: new Date().toISOString(),
@@ -221,12 +221,12 @@ function migrateQueue(ownerId) {
   const migrated = assignLegacyOwner(getQueue(), ownerId).map((item) => {
     let payload = item.payload;
     if (item.tipo === 'solicitud' && !payload.client_request_id) {
-      payload = { ...payload, client_request_id: Crypto.randomUUID() };
+      payload = { ...payload, client_request_id: createClientUuid() };
     }
     const key = idempotencyKey(item.tipo, payload);
     return {
       ...item,
-      id: item.id || key || Crypto.randomUUID(),
+      id: item.id || key || createClientUuid(),
       payload,
       intentos: Number(item.intentos || 0),
       proximo_intento: item.proximo_intento || null,

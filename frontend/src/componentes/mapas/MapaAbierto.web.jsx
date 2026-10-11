@@ -19,7 +19,7 @@ const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.
 const markerSignature = (marker) => [marker.kind, marker.size, marker.color, marker.draggable, Boolean(marker.title || marker.description)].join('|');
 const MAX_LOAD_RETRIES = 2;
 
-export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day', showNavigationControls = true, fallback, markers = [], onError, onManualMove, onMapPress, onMarkerDragEnd, route = [], routeColor = '#3214d6', routeWidth = 7, style }) {
+export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day', showNavigationControls = true, fallback, markers = [], onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd, route = [], routeColor = '#3214d6', routeWidth = 7, style }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const loadedMapRef = useRef(null);
@@ -29,12 +29,12 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
   const animationRef = useRef(null);
   const startAnimationRef = useRef(() => {});
   const reportedFatalRef = useRef('');
-  const callbackRef = useRef({ onError, onManualMove, onMapPress, onMarkerDragEnd });
+  const callbackRef = useRef({ onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [fatalError, setFatalError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
-  callbackRef.current = { onError, onManualMove, onMapPress, onMarkerDragEnd };
+  callbackRef.current = { onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd };
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
@@ -116,6 +116,7 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
     map.on('dragstart', () => callbackRef.current.onManualMove?.('drag'));
     map.on('zoomstart', (event) => { if (event.originalEvent) callbackRef.current.onManualMove?.('zoom'); });
     map.on('rotatestart', (event) => { if (event.originalEvent) callbackRef.current.onManualMove?.('rotate'); });
+    map.on('rotate', () => callbackRef.current.onBearingChange?.(map.getBearing()));
     map.on('error', (event) => {
       const message = event.error?.message || 'No fue posible actualizar el mapa.';
       if (!loaded) return;

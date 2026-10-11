@@ -15,7 +15,11 @@ export default function MapaGpsConductor({
 }) {
   const [follow, setFollow] = useState(true);
   const [fitRevision, setFitRevision] = useState(0);
+  const [mapBearing, setMapBearing] = useState(0);
   const commands = useRef(null);
+  const lastHeading = useRef(0);
+  if (Number.isFinite(Number(heading))) lastHeading.current = Number(heading);
+  const arrowRotation = ((lastHeading.current - mapBearing) % 360 + 360) % 360;
   useEffect(() => setFollow(true), [deliveryId]);
   useEffect(() => {
     controlsRef.current = {
@@ -42,6 +46,7 @@ export default function MapaGpsConductor({
     </View>
   );
   return (
+    <View style={{ flex: 1 }}>
     <MapaAbierto
       style={{ flex: 1 }}
       controlsRef={commands}
@@ -53,8 +58,7 @@ export default function MapaGpsConductor({
         vehicle
           ? {
               id: 'vehicle',
-              kind: 'vehicle',
-              size: 68,
+              kind: 'vehicle-location',
               coordinate: vehicle,
               heading,
               title: 'Conductor',
@@ -82,7 +86,17 @@ export default function MapaGpsConductor({
         padding: { top: 190, right: 85, bottom: 160, left: 40 },
       }}
       onManualMove={() => setFollow(false)}
+      onBearingChange={(bearing) => setMapBearing(bearing)}
       mapTheme={mapTheme}
     />
+    <View pointerEvents="none" accessibilityLabel={vehicle ? 'Indicador fijo del rumbo del conductor' : 'Indicador de rumbo, esperando GPS'} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffffed', borderWidth: 3, borderColor: '#0878ff', alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 7 }}>
+        <Text style={{ fontSize: 39, lineHeight: 47, color: '#0878ff', transform: [{ rotate: `${arrowRotation}deg` }] }}>▲</Text>
+      </View>
+      <Text style={{ color: '#153b62', backgroundColor: '#fffffff0', borderRadius: 8, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 2, fontWeight: '700', marginTop: 4 }}>
+        {vehicle ? 'Rumbo' : 'Esperando GPS'}
+      </Text>
+    </View>
+    </View>
   );
 }

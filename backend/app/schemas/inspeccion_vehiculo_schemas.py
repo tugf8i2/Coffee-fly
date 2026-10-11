@@ -13,6 +13,7 @@ class InspeccionItem(BaseModel):
     estado: Literal["bien", "novedad"]
     observacion: str = Field(default="", max_length=300)
     foto_evidencia: str | None = Field(default=None, max_length=3_000_000)
+    fotos_evidencia: list[str] = Field(default_factory=list, max_length=4)
 
     @field_validator("observacion")
     @classmethod
@@ -25,6 +26,14 @@ class InspeccionItem(BaseModel):
         if value is not None and not value.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
             raise ValueError("La evidencia debe ser una imagen válida")
         return value
+
+    @field_validator("fotos_evidencia")
+    @classmethod
+    def validar_fotos(cls, values):
+        for value in values:
+            if len(value) > 3_000_000 or not value.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+                raise ValueError("Cada evidencia debe ser una imagen válida de hasta 3 MB")
+        return values
 
 
 class InspeccionVehiculoCreate(BaseModel):
@@ -41,7 +50,7 @@ class InspeccionVehiculoCreate(BaseModel):
         if len(set(codes)) != len(CODIGOS_INSPECCION) or set(codes) != set(CODIGOS_INSPECCION):
             raise ValueError("La inspección debe incluir los seis puntos de seguridad sin repetir")
         for item in items:
-            if item.estado == "novedad" and not item.observacion and not item.foto_evidencia:
+            if item.estado == "novedad" and not item.observacion and not item.foto_evidencia and not item.fotos_evidencia:
                 raise ValueError(f"Describe o fotografía la novedad de {item.codigo}")
         return items
 
