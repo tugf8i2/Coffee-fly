@@ -3,29 +3,44 @@ export const normalizeDegrees = (value) => ((Number(value) % 360) + 360) % 360;
 const validHeading = (value) => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
 const shortestTurn = (from, to) => ((normalizeDegrees(to) - normalizeDegrees(from) + 540) % 360) - 180;
 
+// Expo 57 asigna alpha/beta/gamma a X/Y/Z en Android y Z/Y/X en iOS.
+// accelerationIncludingGravity apunta hacia abajo; su proyección convierte
+// el giro antihorario del sensor en rumbo horario de la brújula.
+export function verticalTurnRate(rotationRate = {}, gravity = {}, platform = 'android') {
+  const x = Number(gravity.x);
+  const y = Number(gravity.y);
+  const z = Number(gravity.z);
+  const magnitude = Math.hypot(x, y, z);
+  const rateX = Number(platform === 'ios' ? rotationRate.gamma : rotationRate.alpha) || 0;
+  const rateY = Number(rotationRate.beta) || 0;
+  const rateZ = Number(platform === 'ios' ? rotationRate.alpha : rotationRate.gamma) || 0;
+  if (!Number.isFinite(magnitude) || magnitude < 3) return -rateZ;
+  return (rateX * x + rateY * y + rateZ * z) / magnitude;
+}
+
 export function fuseNavigationHeading({
   gpsHeading,
   speedMps,
   compassHeading,
   compassAccuracy = 0,
   previousHeading,
+  gyroYawDegPerSecond,
   gyroZDegPerSecond,
   deltaSeconds = 0,
+  compassUpdated = true,
 } = {}) {
-  if (validHeading(gpsHeading) && Number(speedMps) >= 1.5) {
-    return { headingDeg: normalizeDegrees(gpsHeading), source: 'gps' };
-  }
-
   let inertial = validHeading(previousHeading) ? normalizeDegrees(previousHeading) : null;
-  if (inertial != null && Number.isFinite(Number(gyroZDegPerSecond))) {
+  const gyroRate = gyroYawDegPerSecond ?? gyroZDegPerSecond;
+  if (inertial != null && Number.isFinite(Number(gyroRate))) {
     const elapsed = Math.min(0.5, Math.max(0, Number(deltaSeconds) || 0));
-    inertial = normalizeDegrees(inertial + Number(gyroZDegPerSecond) * elapsed);
+    inertial = normalizeDegrees(inertial + Number(gyroRate) * elapsed);
   }
 
   if (validHeading(compassHeading) && Number(compassAccuracy) > 0) {
     const magnetic = normalizeDegrees(compassHeading);
     if (inertial == null) return { headingDeg: magnetic, source: 'compass' };
-    const compassWeight = Number(compassAccuracy) >= 3 ? 0.65 : Number(compassAccuracy) >= 2 ? 0.5 : 0.35;
+    if (!compassUpdated) return { headingDeg: inertial, source: 'gyroscope' };
+    const compassWeight = Number(compassAccuracy) >= 3 ? 0.45 : Number(compassAccuracy) >= 2 ? 0.35 : 0.2;
     return {
       headingDeg: normalizeDegrees(inertial + shortestTurn(inertial, magnetic) * compassWeight),
       source: 'fused',
@@ -54,7 +69,7 @@ export const navigationSensorLabel = (sensor) => {
   const source = {
     gps: 'rumbo GPS',
     compass: 'brújula',
-    fused: 'GPS + brújula + giroscopio',
+    fused: 'brújula + giroscopio',
     gyroscope: 'giroscopio',
   }[sensor.headingSource] || 'rumbo pendiente';
   return `${source} · ${sensor.posture || 'orientación pendiente'}`;

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { DeviceMotion } from 'expo-sensors';
 
-import { devicePosture, fuseNavigationHeading } from '../servicios/sensoresNavegacion';
+import { devicePosture, fuseNavigationHeading, verticalTurnRate } from '../servicios/sensoresNavegacion';
 
 const INITIAL_STATE = Object.freeze({
   active: false,
@@ -22,13 +23,15 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
   const compassRef = useRef({ heading: null, accuracy: 0 });
   const headingRef = useRef(null);
   const lastMotionAtRef = useRef(null);
+  const gravityRef = useRef(null);
   inputsRef.current = { gpsHeading, speedMps };
 
   useEffect(() => {
-    if (Number(speedMps) >= 1.5 && Number.isFinite(Number(gpsHeading))) {
+    if (Number(speedMps) >= 1.5 && gpsHeading != null && gpsHeading !== '' && Number.isFinite(Number(gpsHeading))
+      && (headingRef.current == null || state.motionAvailable === false)) {
       headingRef.current = Number(gpsHeading);
     }
-  }, [gpsHeading, speedMps]);
+  }, [gpsHeading, speedMps, state.motionAvailable]);
 
   useEffect(() => {
     if (!active) {
@@ -39,17 +42,26 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
     let disposed = false;
     let motionSubscription;
     let headingSubscription;
-    const applyHeading = (rotationRate = {}, now = Date.now()) => {
+    const compassUsable = () => {
+      const gravity = gravityRef.current;
+      if (!gravity) return true;
+      const magnitude = Math.hypot(gravity.x, gravity.y, gravity.z);
+      return magnitude < 3 || Math.abs(gravity.z) / magnitude >= 0.3;
+    };
+    const applyHeading = ({ gyroYawDegPerSecond = null, compassUpdated = false } = {}) => {
+      const now = Date.now();
       const previousAt = lastMotionAtRef.current;
-      lastMotionAtRef.current = now;
+      const useCompass = compassUsable();
+      if (gyroYawDegPerSecond != null) lastMotionAtRef.current = now;
       const fused = fuseNavigationHeading({
         gpsHeading: inputsRef.current.gpsHeading,
         speedMps: inputsRef.current.speedMps,
-        compassHeading: compassRef.current.heading,
-        compassAccuracy: compassRef.current.accuracy,
+        compassHeading: useCompass ? compassRef.current.heading : null,
+        compassAccuracy: useCompass ? compassRef.current.accuracy : 0,
         previousHeading: headingRef.current,
-        gyroZDegPerSecond: rotationRate.alpha,
-        deltaSeconds: previousAt ? (now - previousAt) / 1000 : 0,
+        gyroYawDegPerSecond,
+        deltaSeconds: gyroYawDegPerSecond != null && previousAt ? (now - previousAt) / 1000 : 0,
+        compassUpdated,
       });
       headingRef.current = fused.headingDeg;
       return fused;
@@ -67,9 +79,15 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
             DeviceMotion.setUpdateInterval(200);
             motionSubscription = DeviceMotion.addListener((measurement) => {
               if (disposed) return;
-              const gravity = measurement.accelerationIncludingGravity || INITIAL_STATE.gravity;
+              const measuredGravity = measurement.accelerationIncludingGravity || INITIAL_STATE.gravity;
+              const gravity = gravityRef.current
+                ? Object.fromEntries(['x', 'y', 'z'].map((axis) => [
+                    axis, gravityRef.current[axis] * 0.8 + measuredGravity[axis] * 0.2,
+                  ]))
+                : measuredGravity;
+              gravityRef.current = gravity;
               const rotationRate = measurement.rotationRate || INITIAL_STATE.rotationRate;
-              const fused = applyHeading(rotationRate);
+              const fused = applyHeading({ gyroYawDegPerSecond: verticalTurnRate(rotationRate, gravity, Platform.OS) });
               setState((current) => ({
                 ...current,
                 active: true,
@@ -95,7 +113,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
           if (disposed) return;
           const compassHeading = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
           compassRef.current = { heading: compassHeading, accuracy: heading.accuracy };
-          const fused = applyHeading();
+          const fused = applyHeading({ compassUpdated: true });
           setState((current) => ({
             ...current,
             active: true,
@@ -115,6 +133,7 @@ export default function useNavigationSensors({ active, gpsHeading, speedMps }) {
       motionSubscription?.remove();
       headingSubscription?.remove();
       lastMotionAtRef.current = null;
+      gravityRef.current = null;
     };
   }, [active]);
 
