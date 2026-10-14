@@ -9,6 +9,7 @@ import { styles } from './IniciarSesion.styles';
 import background from '../../assets/brand/coffee-landscape.jpg';
 import panelBackground from '../../assets/brand/coffee-panel.jpg';
 import logo from '../../assets/brand/login-logo.png';
+import { deviceLoginInfo } from '../../servicios/identidadDispositivo';
 
 export default function IniciarSesion({ onLogin }) {
   const [mottoFontLoaded] = useFonts({ DancingScript_600SemiBold });
@@ -28,10 +29,11 @@ export default function IniciarSesion({ onLogin }) {
     setLoading(true);
     setError('');
     try {
+      const device = await deviceLoginInfo();
       const response = await fetchApi(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, password }),
+        body: JSON.stringify({ email: normalizedEmail, password, ...device }),
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo iniciar sesión');

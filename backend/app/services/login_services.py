@@ -83,7 +83,12 @@ def login_user(db, data):
     user.bloqueado_hasta = None
     if password_hash_needs_upgrade(user.contrasena):
         user.contrasena = hash_password(matched_password)
-    access_token = create_session(user, db)
+    access_token = create_session(
+        user, db,
+        device_id=(getattr(data, "device_id", None) or "")[:80] or None,
+        device_name=(getattr(data, "device_name", None) or "")[:120] or None,
+        platform=(getattr(data, "platform", None) or "")[:30] or None,
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",

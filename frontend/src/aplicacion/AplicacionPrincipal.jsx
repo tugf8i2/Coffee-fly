@@ -26,6 +26,7 @@ import ServicioCliente from '../modulos/soporte/ServicioCliente';
 import SolicitarRecoleccion from '../modulos/caficultor/SolicitarRecoleccion';
 import UbicacionFinca from '../modulos/caficultor/UbicacionFinca';
 import UserManagement from '../modulos/usuarios/GestionUsuarios';
+import SeguridadDispositivos from '../modulos/seguridad/SeguridadDispositivos';
 import VehicleAssignment from '../modulos/vehiculos/AsignacionVehiculos';
 import CoordinadorLayout from '../modulos/coordinador/CoordinadorLayout';
 import VehicleManagement from '../modulos/vehiculos/GestionVehiculos';
@@ -172,6 +173,20 @@ export default function AplicacionPrincipal() {
     setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
   useEffect(() => {
+    if (!user || !sessionToken) return undefined;
+    const heartbeat = () => {
+      if (!sessionToken) return;
+      fetchApi(`${API_BASE_URL}/security/heartbeat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        timeoutMs: 5000,
+      }).catch(() => {});
+    };
+    heartbeat();
+    const timer = setInterval(heartbeat, 30000);
+    return () => clearInterval(timer);
+  }, [user]);
+  useEffect(() => {
     if (!user) { setDarkMode(false); return; }
     const key = `coffee-fly:theme:${user.id || user.id_usuario}`;
     readDriverValue(key).then((value) => setDarkMode(value === 'dark')).catch(() => {});
@@ -194,6 +209,7 @@ export default function AplicacionPrincipal() {
     farmerDashboard: <MiActividad {...common} />,
     tracking: <SeguimientoVehiculo {...common} />,
     users: <UserManagement {...common} />,
+    deviceSecurity: <SeguridadDispositivos {...common} />,
     cooperatives: <CooperativeManagement {...common} />,
     vehicles: <VehicleManagement {...common} />,
     vehicleStatus: <VehicleStatus {...common} />,

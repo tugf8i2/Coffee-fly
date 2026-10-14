@@ -28,6 +28,7 @@ const ACCESS_DETAILS = {
   reports: ['▥', 'Genera informes operativos por rango de fechas.'],
   assignedDeliveries: ['▣', 'Revisa los viajes de recolección pendientes de iniciar.'],
   support: ['✉', 'Conversa sobre una carga con la persona responsable.'],
+  deviceSecurity: ['▣', 'Consulta sesiones y revoca el acceso de un dispositivo.'],
 };
 
 export default function PanelPorRol({ user, token, go, darkMode = false, onToggleDarkMode }) {
@@ -67,7 +68,7 @@ export default function PanelPorRol({ user, token, go, darkMode = false, onToggl
   usePolling(load, 30000);
   const metrics = data?.metricas || {};
   const primaryScreens = {
-    registrador: ['users', 'cooperatives', 'vehicles'],
+    registrador: ['users', 'deviceSecurity', 'cooperatives', 'vehicles'],
     coordinador: ['deliveries', 'vehicleAssignment', 'reports'],
     caficultor: ['request', 'farmerDashboard', 'farmLocation'],
     conductor: ['assignedDeliveries', 'tracking'],

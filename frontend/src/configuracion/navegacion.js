@@ -17,6 +17,7 @@ export const APP_SCREEN_KEYS = Object.freeze([
   'reports',
   'monitoring',
   'support',
+  'deviceSecurity',
 ]);
 
 export const SCREEN_LABELS = Object.freeze({
@@ -38,6 +39,7 @@ export const SCREEN_LABELS = Object.freeze({
   reports: 'Reportes',
   monitoring: 'Monitoreo operativo',
   support: 'Servicio al cliente',
+  deviceSecurity: 'Seguridad de dispositivos',
 });
 
 export const ROLE_CARDS = Object.freeze({
@@ -51,6 +53,7 @@ export const ROLE_CARDS = Object.freeze({
   ]),
   registrador: Object.freeze([
     ['Usuarios', 'users'],
+    ['Seguridad de dispositivos', 'deviceSecurity'],
     ['Cooperativas y ubicación', 'cooperatives'],
     ['Vehículos y estados', 'vehicles'],
   ]),
@@ -79,7 +82,7 @@ const MODULE_GROUPS = [
   { title: 'Recolección y viajes', screens: ['farmLocation', 'request', 'deliveries', 'vehicleAssignment', 'assignedDeliveries'] },
   { title: 'Seguimiento', screens: ['farmerDashboard', 'tracking', 'vehicleStatus', 'monitoring'] },
   { title: 'Historial e informes', screens: ['deliveryHistory', 'assignmentHistory', 'reports'] },
-  { title: 'Administración', screens: ['users', 'cooperatives', 'vehicles'] },
+  { title: 'Administración', screens: ['users', 'cooperatives', 'vehicles', 'deviceSecurity'] },
   { title: 'Ayuda y comunicación', screens: ['support'] },
 ];
 

@@ -21,7 +21,7 @@ from app.models.usuario_models import Usuario
 _bearer = HTTPBearer(auto_error=False)
 
 
-def create_session(user: Usuario, db: Session) -> str:
+def create_session(user: Usuario, db: Session, *, device_id: str | None = None, device_name: str | None = None, platform: str | None = None) -> str:
     """Crea un JWT firmado y conserva solo su identificador revocable en PostgreSQL."""
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -36,7 +36,11 @@ def create_session(user: Usuario, db: Session) -> str:
         "iss": JWT_ISSUER,
         "aud": JWT_AUDIENCE,
     }
-    db.add(AuthSession(token=token_id, user_id=user.id_usuario, expires_at=expires_at))
+    db.add(AuthSession(
+        token=token_id, user_id=user.id_usuario, expires_at=expires_at,
+        device_id=device_id, device_name=device_name, platform=platform,
+        started_at=now, last_seen_at=now,
+    ))
     db.commit()
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -65,7 +69,7 @@ def _decode_access_token(token: str) -> dict:
 def get_user_from_token(token: str, db: Session) -> Usuario:
     payload = _decode_access_token(token)
     session = db.query(AuthSession).filter(AuthSession.token == payload["jti"]).first()
-    if session is None:
+    if session is None or session.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión revocada")
 
     now = datetime.now(timezone.utc)
@@ -113,7 +117,7 @@ def revoke_session(token: str, db: Session) -> None:
     payload = _decode_access_token(token)
     session = db.query(AuthSession).filter(AuthSession.token == payload["jti"]).first()
     if session is not None:
-        db.delete(session)
+        session.revoked_at = datetime.now(timezone.utc)
         db.commit()
 
 
