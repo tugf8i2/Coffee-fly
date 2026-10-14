@@ -231,7 +231,7 @@ export default function AplicacionPrincipal() {
     </AppErrorBoundary></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
-  if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
+  if (String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
     <AvisoConexion status={connectionStatus}><RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
       <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
         {screens[screen] || screens.dashboard}
