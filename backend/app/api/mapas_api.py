@@ -16,6 +16,17 @@ PUBLIC_URL = os.getenv("COFFEE_FLY_MAP_PUBLIC_URL", "https://coffee-fly.hostless
 FONT_NAME = "Noto Sans Regular"
 
 
+def _protobuf_string(field: int, value: str) -> bytes:
+    encoded = value.encode("utf-8")
+    size = len(encoded)
+    length = bytearray()
+    while size >= 128:
+        length.append((size & 0x7f) | 0x80)
+        size >>= 7
+    length.append(size)
+    return bytes([(field << 3) | 2]) + bytes(length) + encoded
+
+
 def ensure_map() -> None:
     if not MAP_DATABASE.is_file():
         raise HTTPException(status_code=503, detail="La cartografía aún no está instalada.")
@@ -70,9 +81,18 @@ def map_tile(z: int, x: int, y: int):
 
 @router.get("/fonts/{fontstack}/{glyph_range}.pbf", include_in_schema=False)
 def map_glyphs(fontstack: str, glyph_range: str):
-    if fontstack != FONT_NAME or glyph_range not in {
-        "0-255", "256-511", "512-767", "768-1023", "8192-8447"
-    }:
+    if fontstack != FONT_NAME:
         raise HTTPException(status_code=404, detail="Fuente no disponible.")
-    data = (ASSETS / "fonts" / FONT_NAME / f"{glyph_range}.pbf").read_bytes()
+    try:
+        first, last = (int(part) for part in glyph_range.split("-"))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Rango de fuente inválido.") from None
+    if first < 0 or first > 65280 or first % 256 or last != first + 255:
+        raise HTTPException(status_code=404, detail="Rango de fuente inválido.")
+    glyph_file = ASSETS / "fonts" / FONT_NAME / f"{glyph_range}.pbf"
+    # MapLibre descarga todos los rangos Unicode al guardar un estilo offline.
+    # Los rangos sin glifos deben ser PBF válidos y vacíos, no respuestas 404.
+    data = glyph_file.read_bytes() if glyph_file.is_file() else (
+        _protobuf_string(1, FONT_NAME) + _protobuf_string(2, glyph_range)
+    )
     return Response(data, media_type="application/x-protobuf", headers={"Cache-Control": "public, max-age=86400"})

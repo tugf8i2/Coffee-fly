@@ -33,5 +33,10 @@ def test_map_style_tiles_and_glyphs_work_without_public_tile_service(tmp_path, m
     assert tile.status_code == 200
     assert tile.content == b"vector tile"
     assert client.get("/maps/fonts/Noto%20Sans%20Regular/0-255.pbf").status_code == 200
+    empty_glyphs = client.get("/maps/fonts/Noto%20Sans%20Regular/1024-1279.pbf")
+    assert empty_glyphs.status_code == 200
+    assert b"Noto Sans Regular" in empty_glyphs.content
+    assert b"1024-1279" in empty_glyphs.content
+    assert client.get("/maps/fonts/Noto%20Sans%20Regular/1025-1280.pbf").status_code == 404
     assert client.get("/maps/data/coffee-fly-colombia/1/1/1.pbf").status_code == 404
     assert client.get("/maps/fonts/Other/0-255.pbf").status_code == 404
