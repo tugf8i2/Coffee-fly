@@ -20,6 +20,7 @@ import useDriverSummary from './usarResumenConductor';
 import { readDriverValue, writeDriverValue } from './almacenConductor';
 import { styles as s } from './Conductor.styles';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
+import { OFFLINE_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
 import { enviarOSolicitarEnCola, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
 import { attachOfflineMapPackage } from '../../servicios/paqueteNavegacionOffline';
 import {
@@ -701,6 +702,7 @@ export default function ConductorLayout({
                   <View style={s.map}>
                     <MapaAbierto
                       style={{ flex: 1 }}
+                      mapStyleUrl={connectionStatus !== 'online' && offlineMapState.listo ? OFFLINE_MAP_STYLE_URL : undefined}
                       markers={overviewMarkers}
                       route={savedRoute?.puntos || []}
                       routeColor="#159447"
