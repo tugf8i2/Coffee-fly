@@ -85,6 +85,7 @@ export default function MapaGpsConductor({
       routeColor="#0878ff"
       routeWidth={13}
       showNavigationControls={false}
+      rotateEnabled={false}
       mapTheme={mapTheme}
       mapStyleUrl={offline ? offlineMap.mapStyle : undefined}
       markers={[

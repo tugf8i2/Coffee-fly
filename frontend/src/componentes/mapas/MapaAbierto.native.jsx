@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { OPEN_MAP_DARK_STYLE_URL, OPEN_MAP_STYLE_URL } from '../../configuracion/mapaAbierto';
 import { RUNNING_IN_EXPO_GO } from '../../configuracion/mapasNativos';
+import { headingOnScreen } from '../../servicios/sensoresNavegacion';
 import MapaAbiertoWebView from './MapaAbiertoWebView.native';
 
 let MapLibre;
@@ -21,7 +22,7 @@ const valid = (coordinate) => Number.isFinite(Number(coordinate?.latitude))
   && Number(coordinate.longitude) >= -180 && Number(coordinate.longitude) <= 180;
 const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.latitude)];
 
-function MapaNativo({ camera = {}, completedRoute = [], mapStyleUrl, mapTheme = 'day', showNavigationControls = true, markers = [], onError, onManualMove, onMapPress, route = [], routeColor = '#3214d6', routeWidth = 6, style }) {
+function MapaNativo({ camera = {}, completedRoute = [], mapStyleUrl, mapTheme = 'day', showNavigationControls = true, markers = [], onError, onManualMove, onMapPress, rotateEnabled = true, route = [], routeColor = '#3214d6', routeWidth = 6, style }) {
   const cameraRef = useRef(null);
   const appliedFitKeyRef = useRef(null);
   const appliedZoomCommandRef = useRef(null);
@@ -87,7 +88,7 @@ function MapaNativo({ camera = {}, completedRoute = [], mapStyleUrl, mapTheme = 
     touchZoom
     doubleTapZoom
     doubleTapHoldZoom
-    touchRotate
+    touchRotate={rotateEnabled}
     touchPitch
     androidView="surface"
     onTouchStart={() => onManualMove?.('touch')}
@@ -115,7 +116,7 @@ function MapaNativo({ camera = {}, completedRoute = [], mapStyleUrl, mapTheme = 
     </GeoJSONSource> : null}
     {markers.filter((marker) => marker.id != null && valid(marker.coordinate)).map((marker) => <Marker key={String(marker.id)} id={String(marker.id)} lngLat={lngLat(marker.coordinate)}>
       {marker.kind === 'vehicle'
-        ? <View accessibilityLabel={marker.title || 'Vehículo'} style={{ width: marker.size || 42, height: marker.size || 42, borderRadius: (marker.size || 42) / 2, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', elevation: 6 }}><Text style={{ color: marker.color || '#155eef', fontSize: (marker.size || 42) * 0.67, transform: [{ rotate: `${Number(marker.heading || 0)}deg` }] }}>▲</Text></View>
+        ? <View accessibilityLabel={marker.title || 'Vehículo'} style={{ width: marker.size || 42, height: marker.size || 42, borderRadius: (marker.size || 42) / 2, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', elevation: 6 }}><Text style={{ color: marker.color || '#155eef', fontSize: (marker.size || 42) * 0.67, transform: [{ rotate: `${headingOnScreen(marker.heading, camera.bearing)}deg` }] }}>▲</Text></View>
         : marker.kind === 'destination' ? <Svg accessibilityLabel={marker.title || 'Destino'} width={44} height={58} viewBox="0 0 44 58"><Path d="M22 56S2 34 2 22a20 20 0 0 1 40 0c0 12-20 34-20 34Z" fill={marker.color || '#c7333b'} stroke="#fff" strokeWidth={3}/><Circle cx={22} cy={22} r={8} fill="#fff"/></Svg>
         : <View accessibilityLabel={marker.title || 'Destino'} style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: marker.color || '#b42318', borderWidth: 3, borderColor: '#fff' }} />}
     </Marker>)}

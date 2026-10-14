@@ -1,5 +1,10 @@
 export const normalizeDegrees = (value) => ((Number(value) % 360) + 360) % 360;
 
+// El marcador nativo se dibuja en coordenadas de pantalla. Al seguir el rumbo,
+// el mapa ya gira, por lo que la punta debe quedar hacia el borde superior.
+export const headingOnScreen = (deviceHeading, mapBearing) =>
+  normalizeDegrees((Number(deviceHeading) || 0) - (Number(mapBearing) || 0));
+
 const validHeading = (value) => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
 const shortestTurn = (from, to) => ((normalizeDegrees(to) - normalizeDegrees(from) + 540) % 360) - 180;
 

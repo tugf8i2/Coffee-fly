@@ -1,6 +1,7 @@
 import {
   devicePosture,
   fuseNavigationHeading,
+  headingOnScreen,
   navigationSensorLabel,
   normalizeDegrees,
   speedKmhLabel,
@@ -14,6 +15,13 @@ describe('sensores de navegación del conductor', () => {
       .toEqual({ headingDeg: 90, source: 'compass' });
     expect(fuseNavigationHeading({ gpsHeading: 90, speedMps: 8, previousHeading: 10, gyroYawDegPerSecond: 20, deltaSeconds: 0.5 }))
       .toEqual({ headingDeg: 20, source: 'gyroscope' });
+  });
+
+  test('el puntero apunta hacia la cámara cuando el mapa sigue el rumbo', () => {
+    expect(headingOnScreen(90, 90)).toBe(0);
+    expect(headingOnScreen(275, 275)).toBe(0);
+    expect(headingOnScreen(5, 355)).toBe(10);
+    expect(headingOnScreen(90, 0)).toBe(90);
   });
 
   test('fusiona brújula y giro por el camino angular corto al ir despacio', () => {
