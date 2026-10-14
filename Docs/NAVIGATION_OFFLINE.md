@@ -29,10 +29,10 @@ reintentos automáticos no creen incidentes duplicados.
    al compilar el APK. La app nativa es la que usa el gestor de paquetes offline.
 3. Crear una development build o APK. Expo Go no contiene el modulo nativo de
    MapLibre necesario para los paquetes offline.
-4. Con conexion, abrir la ruta del viaje para que Coffee Fly guarde geometria y
-   maniobras.
-5. Ir a **Perfil > Modo offline** y pulsar **Preparar mapa para offline**.
-6. Esperar hasta que la pantalla indique **Listo para usar sin Internet**.
+4. Con conexión, abrir la ruta del viaje para que Coffee Fly guarde geometría y
+   maniobras. La descarga regional comienza automáticamente.
+5. En **Inicio**, esperar el mensaje **Ruta, maniobras y mapa regional listos en
+   este dispositivo** antes de salir de cobertura.
 
 El perfil opcional `docker-compose.tiles.yml` y `infra/tiles/README.md` dejan
 preparado TileServer GL para servir un MBTiles propio a traves de `/maps/`.
@@ -44,7 +44,9 @@ Validación local del 26 de septiembre de 2026: se generó
 `coffee-fly-colombia.mbtiles` con 725.347 teselas (zoom 0–14, 443.109.376
 bytes, SHA-256 `05318375AABFAC11A3E3C69825C691100DBF7F94FB3DEABD1AF9F82372A46288`).
 El proxy `/maps/` respondió con estado 200 y tipo Protobuf para el estilo, una
-tesela de Bogotá y la fuente Noto Sans. Esta validación comprueba el servidor;
+tesela de Bogotá y la fuente Noto Sans. MapLibre también descarga rangos Unicode
+sin letras al preparar una región; la API les entrega un PBF vacío válido.
+Esta validación comprueba el servidor;
 no reemplaza la prueba obligatoria en un teléfono físico.
 
 La aplicacion divide rutas largas en tramos configurables, agrega un corredor
