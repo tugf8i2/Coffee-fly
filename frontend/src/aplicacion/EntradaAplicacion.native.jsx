@@ -95,8 +95,8 @@ export default function EntradaAplicacion() {
         ref={webViewRef}
         source={{ uri: APP_URL }}
         style={styles.webView}
-        cacheEnabled={false}
-        cacheMode="LOAD_NO_CACHE"
+        cacheEnabled
+        cacheMode="LOAD_DEFAULT"
         domStorageEnabled
         javaScriptEnabled
         geolocationEnabled

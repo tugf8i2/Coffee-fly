@@ -37,14 +37,6 @@ export default function MapaGpsConductor({
       controlsRef.current = null;
     };
   }, [controlsRef]);
-  if (offline) return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 12, backgroundColor: '#e8efe9' }}>
-      <RoutePreview route={route} vehicle={vehicle} destination={destination} />
-      <Text style={{ color: '#36523b', textAlign: 'center', marginTop: 12 }}>
-        Ruta esquematica sin conexion. La PWA conserva el viaje y el GPS; los mapas regionales descargables estan disponibles en la app movil.
-      </Text>
-    </View>
-  );
   return (
     <View style={{ flex: 1 }}>
     <MapaAbierto
@@ -87,7 +79,16 @@ export default function MapaGpsConductor({
       onManualMove={() => setFollow(false)}
       onBearingChange={(bearing) => setMapBearing(bearing)}
       mapTheme={mapTheme}
+      fallback={<View style={{ flex: 1, justifyContent: 'center', padding: 12 }}>
+        <RoutePreview route={route} vehicle={vehicle} destination={destination} />
+        <Text style={{ color: '#36523b', textAlign: 'center', marginTop: 12 }}>
+          No hay calles guardadas para esta zona. Conéctate y abre el mapa antes de iniciar el viaje.
+        </Text>
+      </View>}
     />
+    {offline ? <Text style={{ position: 'absolute', left: 12, right: 12, bottom: 12, color: '#153b62', backgroundColor: '#fffffff0', padding: 7, borderRadius: 8, textAlign: 'center' }}>
+      Sin Internet: solo se muestran calles cargadas previamente en este dispositivo.
+    </Text> : null}
     <View pointerEvents="none" accessibilityLabel={vehicle ? 'Indicador fijo del rumbo del conductor' : 'Indicador de rumbo, esperando GPS'} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffffed', borderWidth: 3, borderColor: '#0878ff', alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 7 }}>
         <Text style={{ fontSize: 39, lineHeight: 47, color: '#0878ff', transform: [{ rotate: `${arrowRotation}deg` }] }}>▲</Text>

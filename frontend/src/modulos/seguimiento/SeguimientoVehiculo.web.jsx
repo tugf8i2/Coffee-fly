@@ -40,6 +40,7 @@ import { createLatestRequestController } from '../../servicios/controlSolicitude
 import VistaGpsConductor from '../conductor/VistaGpsConductor';
 import MapaGpsConductor from '../conductor/MapaGpsConductor';
 import useGpsGuidance from '../conductor/usarGuiaGps.web';
+import { readDriverValue } from '../conductor/almacenConductor';
 import {
   canAdvanceGpsInstruction,
   canConfirmDriverPickup,
@@ -59,6 +60,7 @@ export default function SeguimientoVehiculo({
   onDriverRoute,
   onDriverAction,
   navigationVisible = true,
+  connectionStatus = 'checking',
 }) {
   const gpsControlsRef = useRef(null);
   const [localNavigationPoint, setLocalNavigationPoint] = useState(null);
@@ -89,6 +91,24 @@ export default function SeguimientoVehiculo({
   const lastNativePositionRef = useRef(null);
   const gpsUploadInProgressRef = useRef(false);
   const role = String(user?.rol || '').toLowerCase();
+  const selectDelivery = useCallback((id) => {
+    deliveryRef.current = id;
+    setDelivery(id);
+  }, []);
+  useEffect(() => {
+    if (role !== 'conductor') return undefined;
+    let disposed = false;
+    const key = `coffee-fly:driver-summary:${user?.id || user?.id_usuario || 'unknown'}`;
+    readDriverValue(key).then((raw) => {
+      if (disposed || !raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved?.active?.id_viaje || !saved?.tracking?.entrega_id) return;
+      setActiveTrip((current) => current || saved.active);
+      setTracking((current) => current || saved.tracking);
+      if (!deliveryRef.current) selectDelivery(saved.tracking.entrega_id);
+    }).catch(() => {});
+    return () => { disposed = true; };
+  }, [role, user?.id, user?.id_usuario, selectDelivery]);
   useKeepNavigationAwake(role === 'conductor' && navigationVisible && Boolean(tracking));
   const styles =
     role === 'conductor'
@@ -96,11 +116,6 @@ export default function SeguimientoVehiculo({
       : role === 'coordinador'
         ? { ...defaultStyles, ...coordinatorModuleStyles }
         : role === 'caficultor' ? { ...defaultStyles, ...estilosOperativos } : defaultStyles;
-
-  const selectDelivery = useCallback((id) => {
-    deliveryRef.current = id;
-    setDelivery(id);
-  }, []);
 
   const loadTracking = useCallback(
     async (id) => {
@@ -633,6 +648,7 @@ export default function SeguimientoVehiculo({
             heading={navigationSensors.headingDeg ?? guidance.heading}
             deliveryId={`${delivery}:${tracking.etapa_viaje}`}
             mapTheme={mapTheme}
+            offline={connectionStatus === 'offline' || connectionStatus === 'server_unreachable'}
           />
         }
         onAction={onDriverAction}

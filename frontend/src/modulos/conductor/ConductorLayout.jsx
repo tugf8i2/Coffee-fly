@@ -785,8 +785,10 @@ export default function ConductorLayout({
               {inspectionTrip && <View style={[s.offlineStatus, darkMode && s.darkCard]}>
                 <Icon name={offlineMapState.listo ? 'check' : offlineMapBusy ? 'layers' : 'wifi'} size={20} color={offlineMapState.listo ? '#16834c' : '#b26a11'} />
                 <View style={{ flex: 1 }}>
-                  <Label bold>Modo sin conexión automático</Label>
-                  <Label style={s.muted}>{offlineMapState.listo
+                  <Label bold>{Platform.OS === 'web' ? 'Ruta guardada en este dispositivo' : 'Modo sin conexión automático'}</Label>
+                  <Label style={s.muted}>{Platform.OS === 'web'
+                    ? 'La ruta y las maniobras se guardan. El mapa de calles solo conserva las zonas abiertas previamente con Internet; no hay descarga regional completa en esta versión.'
+                    : offlineMapState.listo
                     ? 'Ruta, maniobras y mapa regional listos en este dispositivo.'
                     : offlineMapBusy
                       ? `Preparando el mapa del viaje · ${offlineMapState.progreso || 0} %`
