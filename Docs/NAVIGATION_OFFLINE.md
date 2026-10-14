@@ -49,6 +49,14 @@ sin letras al preparar una región; la API les entrega un PBF vacío válido.
 Esta validación comprueba el servidor;
 no reemplaza la prueba obligatoria en un teléfono físico.
 
+Prueba física del 13 de octubre de 2026: en un teléfono Oppo con el APK v6 se
+inició sesión como conductor y se descargó el corredor del viaje activo. Con
+Wi-Fi y datos móviles desactivados se conservaron la vista general, las calles,
+las etiquetas, la ruta azul, la maniobra y el marcador GPS. Tras cerrar y abrir
+la app sin Internet, el viaje y el mapa seguían disponibles. Los puntos GPS
+capturados durante el corte se sincronizaron al recuperar la red, conservando
+sus horas de captura y sin identificadores duplicados.
+
 La aplicacion divide rutas largas en tramos configurables, agrega un corredor
 alrededor de cada tramo y estima la cantidad de teselas antes de descargar. Si
 la estimacion supera el limite configurado, no inicia la descarga.
