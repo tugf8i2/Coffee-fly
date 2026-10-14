@@ -16,9 +16,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     COFFEE_FLY_STATIC_DIR=/app/static
+ENV COFFEE_FLY_MAP_DB=/app/maps/coffee-fly-colombia.mbtiles
 COPY backend/requirements.txt backend/requirements.lock.txt ./
 RUN python -m pip install --no-cache-dir --requirement requirements.lock.txt
 COPY backend/ ./
+COPY scripts/download-map-asset.py /app/scripts/download-map-asset.py
+RUN python /app/scripts/download-map-asset.py
 COPY --from=web-build /web/dist /app/static
 EXPOSE 8000
 CMD ["sh", "-c", "PYTHONPATH=/app python scripts/bootstrap_empty_database.py && PYTHONPATH=/app alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

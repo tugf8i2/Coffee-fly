@@ -5,12 +5,13 @@ import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import AplicacionPrincipal from './AplicacionPrincipal';
 
 const APP_URL = String(process.env.EXPO_PUBLIC_APP_URL || 'https://coffee-fly.hostless.app')
   .trim()
   .replace(/\/+$/, '');
 
-export default function EntradaAplicacion() {
+function EntradaWebView() {
   const webViewRef = useRef(null);
   const sensorSubscriptions = useRef([]);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -149,3 +150,9 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#f4b942', borderRadius: 12, marginTop: 24, paddingHorizontal: 24, paddingVertical: 13 },
   buttonText: { color: '#001c17', fontSize: 16, fontWeight: '700' },
 });
+
+export default function EntradaAplicacion() {
+  return process.env.EXPO_PUBLIC_NATIVE_APP === 'true'
+    ? <AplicacionPrincipal />
+    : <EntradaWebView />;
+}

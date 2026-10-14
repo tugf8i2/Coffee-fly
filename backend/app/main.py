@@ -19,6 +19,7 @@ from app.api.dashboard_api import router as dashboard_router
 from app.api.entrega_api import router as entrega_router
 from app.api.historial_eventos_api import router as historial_eventos_router
 from app.api.login_api import router as login_router
+from app.api.mapas_api import router as mapas_router
 from app.api.monitoring_api import router as monitoring_router
 from app.api.navigation_api import router as navigation_router
 from app.api.inspeccion_vehiculo_api import router as inspeccion_vehiculo_router
@@ -130,6 +131,7 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts())
+app.include_router(mapas_router)
 
 
 if not SERVE_WEB_APP:

@@ -14,14 +14,14 @@ const envNumber = (value, fallback, minimum, maximum) => {
 // estilo publico de OpenFreeMap mantiene el APK funcional desde la primera
 // instalacion y MapLibre conserva localmente el corredor de cada ruta.
 export const OFFLINE_MAP_STYLE_URL = (
-  process.env.EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL || OPEN_MAP_STYLE_URL
+  process.env.EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL || ''
 ).trim();
 export const OFFLINE_MAP_CORRIDOR_KM = envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_CORRIDOR_KM, 5, 0.5, 25);
 export const OFFLINE_MAP_SEGMENT_KM = envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_SEGMENT_KM, 20, 2, 100);
 export const OFFLINE_MAP_MIN_ZOOM = envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_MIN_ZOOM, 9, 0, 20);
 export const OFFLINE_MAP_MAX_ZOOM = Math.max(
   OFFLINE_MAP_MIN_ZOOM,
-  envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_MAX_ZOOM, 16, 0, 20),
+  envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_MAX_ZOOM, 14, 0, 20),
 );
 export const OFFLINE_MAP_TILE_LIMIT = Math.round(envNumber(process.env.EXPO_PUBLIC_OFFLINE_MAP_TILE_LIMIT, 30000, 1000, 100000));
 // La estimacion es preventiva: el tamaño final depende del estilo y de la

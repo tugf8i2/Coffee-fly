@@ -20,10 +20,13 @@ reintentos automáticos no creen incidentes duplicados.
 
 ## Preparar un mapa regional
 
-1. Desplegar un estilo MapLibre y sus teselas desde infraestructura propia o
-   contratada que autorice descargas offline. No usar los servidores estandar
-   de OpenStreetMap ni el servicio publico de OpenFreeMap para esta tarea.
-2. Definir `EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL=https://TU_DOMINIO/maps/styles/coffee-fly/style.json` antes de compilar la app movil.
+1. Desplegar el backend de Coffee Fly con el archivo MBTiles de Colombia. El
+   `Dockerfile` descarga la version verificada del release de GitHub y el
+   backend sirve estilo, teselas y glifos bajo `/maps/` en el mismo dominio.
+   No usar los servidores publicos de OpenStreetMap u OpenFreeMap para descargas masivas.
+2. Definir `EXPO_PUBLIC_NATIVE_APP=true` y
+   `EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL=https://coffee-fly.hostless.app/maps/styles/coffee-fly/style.json`
+   al compilar el APK. La app nativa es la que usa el gestor de paquetes offline.
 3. Crear una development build o APK. Expo Go no contiene el modulo nativo de
    MapLibre necesario para los paquetes offline.
 4. Con conexion, abrir la ruta del viaje para que Coffee Fly guarde geometria y
@@ -61,7 +64,7 @@ mapa se agregan fecha, tamaño, recursos y número de paquetes descargados.
 | `EXPO_PUBLIC_OFFLINE_MAP_CORRIDOR_KM` | 5 | Margen a cada lado del tramo. |
 | `EXPO_PUBLIC_OFFLINE_MAP_SEGMENT_KM` | 20 | Longitud maxima aproximada de cada paquete. |
 | `EXPO_PUBLIC_OFFLINE_MAP_MIN_ZOOM` | 9 | Vista general incluida. |
-| `EXPO_PUBLIC_OFFLINE_MAP_MAX_ZOOM` | 16 | Detalle maximo descargado. |
+| `EXPO_PUBLIC_OFFLINE_MAP_MAX_ZOOM` | 14 | Detalle maximo presente en el MBTiles; MapLibre puede acercar mas usando esos vectores. |
 | `EXPO_PUBLIC_OFFLINE_MAP_TILE_LIMIT` | 30000 | Limite preventivo por preparacion. |
 | `EXPO_PUBLIC_OFFLINE_MAP_ESTIMATED_TILE_KB` | 25 | Promedio conservador usado para estimar espacio. |
 | `EXPO_PUBLIC_OFFLINE_MAP_MIN_FREE_MB` | 250 | Reserva que debe quedar libre en el dispositivo. |
@@ -69,6 +72,10 @@ mapa se agregan fecha, tamaño, recursos y número de paquetes descargados.
 El estilo configurado debe usar URLs absolutas alcanzables desde el telefono.
 Una URL `localhost` dentro del APK apunta al telefono, no al servidor de Coffee
 Fly. En produccion debe usarse HTTPS estable.
+
+El APK de pruebas local usa `adb reverse tcp:8081 tcp:8081` y el servidor
+cartografico de Docker. Esa conexion USB es solo para descargar el corredor
+durante la prueba; el APK de distribucion usa el dominio HTTPS de Coffee Fly.
 
 ## Comportamiento durante el viaje
 

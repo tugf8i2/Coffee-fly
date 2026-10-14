@@ -23,6 +23,7 @@ import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { enviarOSolicitarEnCola, guardarRutaEntrega, obtenerRutaEntrega } from '../../servicios/sinConexion';
 import { attachOfflineMapPackage } from '../../servicios/paqueteNavegacionOffline';
 import {
+  mapaSinConexionConfigurado,
   obtenerEstadoMapaSinConexion,
   prepararMapaSinConexion,
 } from '../../servicios/mapaSinConexion';
@@ -476,7 +477,7 @@ export default function ConductorLayout({
   };
   const automaticOfflineRef = useRef(null);
   useEffect(() => {
-    if (connectionStatus !== 'online' || !offlineRouteKey || !savedRoute?.puntos?.length) return;
+    if (connectionStatus !== 'online' || !mapaSinConexionConfigurado() || !offlineRouteKey || !savedRoute?.puntos?.length) return;
     const points = savedRoute.puntos;
     const first = points[0];
     const last = points.at(-1);
@@ -788,6 +789,10 @@ export default function ConductorLayout({
                   <Label bold>{Platform.OS === 'web' ? 'Ruta guardada en este dispositivo' : 'Modo sin conexión automático'}</Label>
                   <Label style={s.muted}>{Platform.OS === 'web'
                     ? 'La ruta y las maniobras se guardan. El mapa de calles solo conserva las zonas abiertas previamente con Internet; no hay descarga regional completa en esta versión.'
+                    : !mapaSinConexionConfigurado()
+                      ? 'Falta configurar el servidor de mapas para descargar el corredor antes del viaje.'
+                    : offlineMapState.motivo
+                      ? offlineMapState.motivo
                     : offlineMapState.listo
                     ? 'Ruta, maniobras y mapa regional listos en este dispositivo.'
                     : offlineMapBusy
