@@ -41,6 +41,8 @@ function isMapResource(request, url) {
 }
 
 async function cachedMapResource(request) {
+  const routeSaved = await caches.match(request);
+  if (routeSaved) return routeSaved;
   const cache = await caches.open(MAP_CACHE);
   const saved = await cache.match(request);
   if (saved) return saved;

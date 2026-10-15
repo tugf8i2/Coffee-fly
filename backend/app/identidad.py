@@ -11,4 +11,5 @@ LEGADO_COFFEE_FLY = {
         "él está ahí a la puerta llamando, solo es que tú le abras la puerta."
     ),
     "sello": "Jehová, Rey de reyes y Señor de señores. Jesús de Nazaret te ama.",
+    "referencia": "Dios es amor. Está pronta su venida. Jesús te ama. En Él todo es perfecto.",
 }

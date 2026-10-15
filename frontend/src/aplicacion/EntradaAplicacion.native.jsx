@@ -5,6 +5,7 @@ import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import AplicacionPrincipal from './AplicacionPrincipal';
 import { LEGADO_COFFEE_FLY } from '../identidad/legado';
 
@@ -14,6 +15,8 @@ void LEGADO_COFFEE_FLY;
 const APP_URL = String(process.env.EXPO_PUBLIC_APP_URL || 'https://coffee-fly.hostless.app')
   .trim()
   .replace(/\/+$/, '');
+const AUTH_SESSION_KEY = 'coffee_fly.auth_session';
+const secureOptions = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
 
 function EntradaWebView() {
   const webViewRef = useRef(null);
@@ -63,6 +66,28 @@ function EntradaWebView() {
     webViewRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('coffee-fly:image-picker-result', { detail: ${JSON.stringify(detail)} })); true;`);
   }, []);
 
+  const handleSecureSession = useCallback(async (request, pageUrl) => {
+    if (!request.requestId || !['get', 'set', 'delete'].includes(request.action)) return;
+    // Solo el origen propio puede leer o modificar la sesión del dispositivo.
+    if (pageUrl !== APP_URL && !pageUrl?.startsWith(`${APP_URL}/`)) return;
+    let detail = { requestId: request.requestId };
+    try {
+      if (request.action === 'get') {
+        const stored = await SecureStore.getItemAsync(AUTH_SESSION_KEY, secureOptions);
+        detail.value = stored ? JSON.parse(stored) : null;
+      } else if (request.action === 'set') {
+        const { user, token, savedAt } = request.value || {};
+        if (!user || typeof token !== 'string' || token.length > 8192) throw new Error('Sesión inválida.');
+        await SecureStore.setItemAsync(AUTH_SESSION_KEY, JSON.stringify({ user, token, savedAt }), secureOptions);
+      } else {
+        await SecureStore.deleteItemAsync(AUTH_SESSION_KEY, secureOptions);
+      }
+    } catch (error) {
+      detail = { requestId: request.requestId, error: error?.message || 'No se pudo guardar la sesión.' };
+    }
+    webViewRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('coffee-fly:secure-session-result', { detail: ${JSON.stringify(detail)} })); true;`);
+  }, []);
+
   const startSensors = useCallback(async () => {
     if (sensorSubscriptions.current.length) return;
     try {
@@ -99,6 +124,7 @@ function EntradaWebView() {
       <WebView
         ref={webViewRef}
         source={{ uri: APP_URL }}
+        injectedJavaScriptBeforeContentLoaded="window.__COFFEE_FLY_SECURE_SESSION_BRIDGE__ = true; true;"
         style={styles.webView}
         cacheEnabled
         cacheMode="LOAD_DEFAULT"
@@ -116,6 +142,7 @@ function EntradaWebView() {
             try {
               const request = JSON.parse(event.nativeEvent.data);
               if (request.type === 'image_picker' && request.requestId) pickImage(request);
+              if (request.type === 'secure_session') handleSecureSession(request, event.nativeEvent.url);
             } catch { /* Ignore unrelated WebView messages. */ }
           }
         }}

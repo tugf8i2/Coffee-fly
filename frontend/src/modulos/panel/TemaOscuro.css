@@ -36,3 +36,49 @@
   color: #647a70 !important;
   opacity: 1;
 }
+
+/* Controles compartidos por registrador, coordinador y conductor. */
+.reg-dark .reg-icon-button,
+.reg-dark .reg-popover button,
+.reg-dark .reg-modal-close {
+  color: #c4efd2 !important;
+}
+.reg-dark .reg-empty,
+.reg-dark .reg-system-state,
+.reg-dark .op-summary-status {
+  color: #d5e8dc !important;
+}
+.reg-dark .reg-modal input,
+.reg-dark .reg-modal select,
+.reg-dark .reg-modal textarea {
+  background: #20473a;
+  color: #f0f6ef;
+  border: 1px solid #70a38e;
+  color-scheme: dark;
+}
+.reg-dark .reg-modal input::placeholder,
+.reg-dark .reg-modal textarea::placeholder {
+  color: #c5d9cc;
+  opacity: 1;
+}
+.op-dark .op-tabs {
+  background: #17382f;
+  border-color: #34594f;
+}
+.op-dark .op-tabs button {
+  background: #20473a;
+  border-color: #70a38e;
+  color: #f0f6ef;
+}
+.op-dark .op-tabs button[aria-current='page'] {
+  background: #087858;
+  color: #fff;
+}
+.op-dark .op-hero {
+  background: linear-gradient(115deg, #20473a, #17382f);
+  border-color: #527568;
+  color: #f0f6ef;
+}
+.op-dark .op-hero p {
+  color: #d5e8dc;
+}

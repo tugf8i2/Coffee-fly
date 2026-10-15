@@ -87,7 +87,7 @@ export default function MapaGpsConductor({
       </View>}
     />
     {offline ? <Text style={{ position: 'absolute', left: 12, right: 12, bottom: 12, color: '#153b62', backgroundColor: '#fffffff0', padding: 7, borderRadius: 8, textAlign: 'center' }}>
-      Sin Internet: solo se muestran calles cargadas previamente en este dispositivo.
+      Sin Internet: se muestran las calles descargadas para la ruta o abiertas previamente.
     </Text> : null}
     <View pointerEvents="none" accessibilityLabel={vehicle ? 'Indicador fijo del rumbo del conductor' : 'Indicador de rumbo, esperando GPS'} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffffed', borderWidth: 3, borderColor: '#0878ff', alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 7 }}>
