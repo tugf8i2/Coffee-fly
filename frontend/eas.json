@@ -17,7 +17,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api",
         "EXPO_PUBLIC_APP_URL": "https://coffee-fly.hostless.app",
-        "EXPO_PUBLIC_NATIVE_APP": "true",
+        "EXPO_PUBLIC_NATIVE_APP": "false",
         "EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL": "https://coffee-fly.hostless.app/maps/styles/coffee-fly/style.json"
       },
       "android": {
@@ -29,7 +29,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://coffee-fly.hostless.app/api",
         "EXPO_PUBLIC_APP_URL": "https://coffee-fly.hostless.app",
-        "EXPO_PUBLIC_NATIVE_APP": "true",
+        "EXPO_PUBLIC_NATIVE_APP": "false",
         "EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL": "https://coffee-fly.hostless.app/maps/styles/coffee-fly/style.json"
       }
     }
