@@ -1,8 +1,12 @@
 import { registerRootComponent } from 'expo';
 import { LogBox, Platform } from 'react-native';
 import './src/estilos/global';
+import { LEGADO_COFFEE_FLY } from './src/identidad/legado';
 
 import App from './src/aplicacion/EntradaAplicacion';
+
+// Incluido en el bundle web y en el bundle nativo, sin afectar las pantallas.
+void LEGADO_COFFEE_FLY;
 
 // Son avisos del entorno de desarrollo de Expo, no fallos funcionales de la
 // aplicación. Los errores reales de Coffee Fly siguen visibles en pantalla.

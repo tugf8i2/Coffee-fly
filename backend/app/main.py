@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.models  # noqa: F401 - registra todos los modelos y relaciones
+import app.identidad  # noqa: F401 - conserva el sello interno del proyecto
 from app.api.carga_api import router as carga_router
 from app.api.conductor_api import router as conductor_router
 from app.api.cooperativa_api import router as cooperativa_router

@@ -6,6 +6,10 @@ import { DeviceMotion } from 'expo-sensors';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import AplicacionPrincipal from './AplicacionPrincipal';
+import { LEGADO_COFFEE_FLY } from '../identidad/legado';
+
+// Sello interno del contenedor Android/iOS: Salmo 127:1-5.
+void LEGADO_COFFEE_FLY;
 
 const APP_URL = String(process.env.EXPO_PUBLIC_APP_URL || 'https://coffee-fly.hostless.app')
   .trim()
