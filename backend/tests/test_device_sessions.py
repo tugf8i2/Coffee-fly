@@ -4,16 +4,22 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 - load model relationships
 from app.api.seguridad_dispositivos_api import list_active_devices, revoke_device_session
+from app.api.login_api import router as login_router
+from app.api.seguridad_dispositivos_api import router as devices_router
 from app.core.auth import _decode_access_token, create_session, get_user_from_token, touch_session
-from app.core.database import Base
+from app.core.database import Base, get_db
+from app.core.security import hash_password
 from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
 
@@ -54,6 +60,50 @@ def test_device_inventory_and_remote_revocation():
         with pytest.raises(HTTPException) as revoked:
             get_user_from_token(token, db)
         assert revoked.value.status_code == 401
+    engine.dispose()
+
+
+def test_http_remote_revocation_requires_admin_and_invalidates_driver_token():
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        admin_role = Rol(descripcion_rol="registrador")
+        driver_role = Rol(descripcion_rol="conductor")
+        db.add_all([
+            Usuario(nombre_usuario="Admin", apellido="Prueba", correo_usuario="admin@test.local",
+                    telefono_usuario="3000000000", contrasena=hash_password("Admin123"), rol=admin_role),
+            Usuario(nombre_usuario="Ana", apellido="Ruta", correo_usuario="driver@test.local",
+                    telefono_usuario="3000000001", contrasena=hash_password("Admin123"), rol=driver_role),
+        ])
+        db.commit()
+
+    application = FastAPI()
+    application.include_router(login_router)
+    application.include_router(devices_router)
+
+    def local_db():
+        with Session(engine) as db:
+            yield db
+
+    application.dependency_overrides[get_db] = local_db
+    with TestClient(application) as client:
+        admin = client.post("/login", json={"email": "admin@test.local", "password": "Admin123"})
+        driver = client.post("/login", json={
+            "email": "driver@test.local", "password": "Admin123",
+            "device_id": "android-preview", "device_name": "Teléfono de pruebas", "device_platform": "Android",
+        })
+        assert admin.status_code == driver.status_code == 200
+        admin_headers = {"Authorization": f"Bearer {admin.json()['access_token']}"}
+        driver_headers = {"Authorization": f"Bearer {driver.json()['access_token']}"}
+        assert client.get("/seguridad/dispositivos", headers=driver_headers).status_code == 403
+        sessions = client.get("/seguridad/dispositivos", headers=admin_headers)
+        assert sessions.status_code == 200
+        target = next(item for item in sessions.json() if item["device_id"] == "android-preview")
+        assert target["role"] == "conductor"
+        assert client.delete(f"/seguridad/sesiones/{target['session_id']}", headers=driver_headers).status_code == 403
+        assert client.delete(f"/seguridad/sesiones/{target['session_id']}", headers=admin_headers).status_code == 204
+        assert client.get("/me", headers=driver_headers).status_code == 401
+        assert client.post("/seguridad/sesion/latido", headers=driver_headers).status_code == 401
     engine.dispose()
 
 
