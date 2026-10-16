@@ -9,9 +9,10 @@ Estado al 15 de octubre de 2026 (hora de Colombia).
 - Mantener sesión y ruta completa al cerrar la APK y abrirla sin Internet; sincronizar los cambios al recuperar la conexión.
 - Revisar el modo oscuro en todos los perfiles y pantallas, con texto, iconos, botones y mapas legibles.
 - Incorporar llamadas dentro de la APK entre coordinador y conductor, con entrada de llamadas, micrófono, altavoz y opción visible para compartir cámara durante la llamada.
-- Añadir al panel administrador un inventario de dispositivos de la empresa con cuenta, perfil, hora de inicio, último contacto y ubicación autorizada; permitir revocar remotamente las sesiones.
-- Mantener el seguimiento de ubicación durante la ruta con los permisos del sistema y una indicación visible al conductor. Cámara y micrófono se usan con consentimiento dentro de llamadas visibles.
-- Evaluar la desinstalación remota mediante administración corporativa de Android (Device Owner/MDM); una APK ordinaria no tiene permisos para desinstalarse a distancia.
+- Añadir al panel administrador un inventario de dispositivos de la empresa que identifique cada instalación y modelo de teléfono, cuenta y perfil con sesión abierta, hora de inicio, último contacto y ubicación autorizada. Permitir cerrar remotamente una sesión específica y comprobar que el dispositivo pierde acceso cuando recibe la revocación.
+- Mantener el seguimiento de ubicación durante la ruta, incluso cuando la aplicación esté en segundo plano si el sistema y los permisos concedidos lo permiten, con autorización y una indicación visible al conductor. Mostrar al administrador la última posición, su hora y si está actualizada; sincronizar posiciones pendientes al recuperar Internet.
+- Permitir cámara y micrófono únicamente durante llamadas visibles entre coordinador y conductor, con permisos del sistema y controles para aceptar, activar o desactivar cada función. Registrar la autorización necesaria para el uso de dispositivos de la empresa.
+- Diseñar y comprobar la desinstalación remota mediante administración corporativa de Android (Device Owner/MDM), incluida la inscripción de los teléfonos. La APK ordinaria no puede desinstalarse a sí misma a distancia; hasta disponer de MDM, la medida inmediata es revocar la sesión y los datos accesibles desde el servidor.
 - Mantener las referencias internas solicitadas en los paquetes web y APK sin mostrarlas como contenido principal de la interfaz.
 - Mostrar la APK y la web localmente, obtener la aprobación del usuario y solo entonces publicar y desplegar.
 
