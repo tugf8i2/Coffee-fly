@@ -34,3 +34,14 @@ export async function readApiResponse(input) {
   if (!stored) return null;
   try { return JSON.parse(stored); } catch { return null; }
 }
+
+export async function clearApiResponseCache() {
+  const session = await getAuthenticatedSession();
+  const owner = session?.user?.id || session?.user?.id_usuario;
+  if (!owner || !globalThis.localStorage) return;
+  const prefix = `${PREFIX}:${owner}:`;
+  for (let index = globalThis.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = globalThis.localStorage.key(index);
+    if (key?.startsWith(prefix)) globalThis.localStorage.removeItem(key);
+  }
+}

@@ -31,6 +31,7 @@ import CoordinadorLayout from '../modulos/coordinador/CoordinadorLayout';
 import VehicleManagement from '../modulos/vehiculos/GestionVehiculos';
 import VehicleStatus from '../modulos/vehiculos/EstadoVehiculos';
 import { API_BASE_URL, fetchApi, subscribeSessionExpired } from '../configuracion';
+import { clearApiResponseCache } from '../servicios/cacheApi';
 import { detenerRastreoSegundoPlano } from '../servicios/ubicacionSegundoPlano';
 import { connectionLabel, syncFeedbackDuration, synchronizationLabel } from '../servicios/presentacionConexion';
 import { observarConexion, sincronizarPendientes } from '../servicios/sinConexion';
@@ -131,6 +132,7 @@ export default function AplicacionPrincipal() {
     const token = sessionToken;
     await detenerRastreoSegundoPlano();
     await closeRemoteSession(token);
+    await clearApiResponseCache().catch(() => {});
     await clearAuthenticatedSession();
     sessionToken = '';
     setUser(null);
@@ -181,6 +183,7 @@ export default function AplicacionPrincipal() {
   useEffect(() => subscribeSessionExpired(async () => {
     if (!sessionToken) return;
     await detenerRastreoSegundoPlano();
+    await clearApiResponseCache().catch(() => {});
     await clearAuthenticatedSession();
     sessionToken = '';
     setUser(null);

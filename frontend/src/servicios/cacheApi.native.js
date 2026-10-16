@@ -39,3 +39,12 @@ export async function readApiResponse(input) {
   if (!stored) return null;
   try { return JSON.parse(stored); } catch { return null; }
 }
+
+export async function clearApiResponseCache() {
+  const session = await getAuthenticatedSession();
+  const owner = session?.user?.id || session?.user?.id_usuario;
+  if (!owner) return;
+  const prefix = `${PREFIX}:${owner}:`;
+  const keys = await Storage.getAllKeys();
+  await Promise.all(keys.filter((key) => key.startsWith(prefix)).map((key) => Storage.removeItem(key)));
+}

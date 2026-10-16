@@ -57,6 +57,14 @@ function isTransientStatus(status) {
   return [408, 425, 429, 502, 503, 504].includes(status);
 }
 
+function isSensitiveSessionEndpoint(input) {
+  try {
+    return /\/seguridad\/(?:dispositivos|sesiones)(?:\/|$)/.test(new URL(String(input), 'https://coffee-fly.local').pathname);
+  } catch {
+    return false;
+  }
+}
+
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export async function fetchApi(input, options = {}) {
@@ -69,7 +77,9 @@ export async function fetchApi(input, options = {}) {
     ...fetchOptions
   } = options;
   const maximumAttempts = isSafeToRetry(fetchOptions.method) ? Math.max(1, Number(retries) + 1) : 1;
-  const canUseOfflineCache = isSafeToRetry(fetchOptions.method) && hasAuthorization(fetchOptions.headers);
+  const canUseOfflineCache = isSafeToRetry(fetchOptions.method)
+    && hasAuthorization(fetchOptions.headers)
+    && !isSensitiveSessionEndpoint(input);
   const cachedFallback = async () => {
     if (!canUseOfflineCache) return null;
     const cached = await readApiResponse(input).catch(() => null);
