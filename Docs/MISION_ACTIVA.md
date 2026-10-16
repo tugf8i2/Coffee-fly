@@ -1,6 +1,6 @@
 # Misión activa de Coffee Fly
 
-Estado al 15 de octubre de 2026 (hora de Colombia).
+Estado al 16 de octubre de 2026 (hora de Colombia).
 
 ## Resultado que debe aprobar el usuario antes de publicar
 
@@ -22,9 +22,11 @@ Estado al 15 de octubre de 2026 (hora de Colombia).
 - Las capturas del inicio, panel y menú de v13 coincidieron píxel por píxel con la compilación 3.
 - El puente de sesión segura y la descarga web del corredor tienen pruebas de módulo que pasan y compilan para web y Android. Aún requieren una prueba real en la APK con la web correspondiente.
 - No se encontró implementación de llamadas en el código actual.
-- En la rama de prueba, la API y el panel del registrador ya registran la instalación, cuenta, perfil y último contacto, y permiten revocar una sesión específica. La prueba local del servidor confirmó que un token revocado recibe 401. Falta la migración y prueba integrada en el teléfono antes de publicar.
-- Al cerrar o detectar una sesión revocada, web y APK eliminan las respuestas de API guardadas para esa cuenta; el inventario de seguridad no se guarda en el caché offline. Los paquetes web y Android compilan con este cambio. Falta comprobar el borrado y la revocación en el teléfono.
-- En una base de datos local de prueba se inició sesión como administrador y conductor mediante la web local. El administrador vio la instalación y el perfil del conductor, revocó la sesión y la solicitud posterior del conductor a `/me` recibió HTTP 401. La APK local separada (`com.coffeefly.mobile.dev`) compiló; su instalación está pendiente de la confirmación de Play Protect en el teléfono. La prueba física de persistencia y revocación aún no está acreditada.
+- En la rama de prueba, la API y el panel del registrador registran la instalación, cuenta, perfil y último contacto, y permiten revocar una sesión específica. La migración sigue pendiente para producción.
+- Al cerrar o detectar una sesión revocada, web y APK eliminan las respuestas de API guardadas para esa cuenta; el inventario de seguridad no se guarda en el caché offline.
+- La APK local separada (`com.coffeefly.mobile.dev`) se instaló en el teléfono. El conductor inició sesión con la cuenta de prueba y `Admin123`. El panel se restauró tras cerrar y abrir la APK con el servidor local disponible y también después de detener el servidor local. Esta prueba acredita el inicio de la aplicación sin acceso a su origen web, pero todavía no la ruta ni el mapa de una carga activa sin Internet.
+- El administrador consultó la instalación real del teléfono (Android CPH2577) y revocó la sesión del conductor. En menos de 35 segundos, la APK mostró la pantalla de inicio de sesión con aviso de sesión vencida. La revocación quedó comprobada físicamente.
+- El export web de prueba incluye un manifiesto de JS, CSS, fuentes e imágenes para precargar la interfaz en el service worker. Se observó el inicio sin el servidor local; aún falta probar el mapa de la ruta y la sincronización de acciones offline.
 - Una prueba HTTP automatizada confirmó la separación de permisos: el conductor recibe 403 al consultar o revocar sesiones, el administrador recibe 204 al revocarlas, y el token revocado recibe 401 tanto en `/me` como en el latido.
-- La base de datos consultada solo tenía la cuenta de administrador, sin conductor, vehículo ni cooperativa para la prueba completa.
+- La base de datos local de prueba tiene administrador y conductor, pero todavía no una carga, vehículo y cooperativa para la prueba completa.
 - No se ha publicado una nueva APK ni desplegado estos cambios en Hostless.

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'coffee-fly-shell-v1';
+const CACHE_VERSION = 'coffee-fly-shell-v2';
 const MAP_CACHE = 'coffee-fly-map-viewed-v1';
 const MAP_CACHE_LIMIT = 800;
 const APP_SHELL = [
@@ -12,11 +12,22 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then((cache) => Promise.allSettled(APP_SHELL.map((url) => cache.add(url))))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil((async () => {
+    const manifestResponse = await fetch('/offline-assets.json', { cache: 'no-store' });
+    if (!manifestResponse.ok) throw new Error('No se pudo preparar el inicio sin conexión.');
+    const assets = await manifestResponse.json();
+    if (!Array.isArray(assets) || !assets.some((url) => url.startsWith('/_expo/static/js/web/'))) {
+      throw new Error('Faltan archivos del inicio sin conexión.');
+    }
+    const cache = await caches.open(CACHE_VERSION);
+    const html = await fetch('/index.html', { cache: 'no-store' });
+    if (!html.ok) throw new Error('No se pudo guardar la página de inicio.');
+    await Promise.all([cache.put('/', html.clone()), cache.put('/index.html', html)]);
+    await cache.addAll(assets);
+    await Promise.allSettled(APP_SHELL.filter((url) => url !== '/' && url !== '/index.html')
+      .map((url) => cache.add(url)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
