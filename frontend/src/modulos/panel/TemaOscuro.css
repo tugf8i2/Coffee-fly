@@ -82,3 +82,29 @@
 .op-dark .op-hero p {
   color: #d5e8dc;
 }
+
+.reg-modal-devices {
+  width: min(760px, 100%);
+}
+.company-device-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.company-device {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #9ab6aa;
+  border-radius: 10px;
+  background: #f8fbf9;
+  color: #17382f;
+}
+.company-device small { overflow-wrap: anywhere; }
+.company-device-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.company-device-actions .reg-green-button { width: auto; }
+.reg-dark .company-device {
+  background: #20473a;
+  color: #f0f6ef;
+  border-color: #70a38e;
+}

@@ -21,7 +21,9 @@ from app.models.usuario_models import Usuario
 _bearer = HTTPBearer(auto_error=False)
 
 
-def create_session(user: Usuario, db: Session) -> str:
+def create_session(user: Usuario, db: Session, *, device_id: str | None = None,
+                   device_name: str | None = None, device_platform: str | None = None,
+                   user_agent: str | None = None) -> str:
     """Crea un JWT firmado y conserva solo su identificador revocable en PostgreSQL."""
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -36,7 +38,17 @@ def create_session(user: Usuario, db: Session) -> str:
         "iss": JWT_ISSUER,
         "aud": JWT_AUDIENCE,
     }
-    db.add(AuthSession(token=token_id, user_id=user.id_usuario, expires_at=expires_at))
+    db.add(AuthSession(
+        token=token_id,
+        user_id=user.id_usuario,
+        expires_at=expires_at,
+        device_id=(device_id or "")[:80] or None,
+        device_name=(device_name or "")[:120] or None,
+        device_platform=(device_platform or "")[:40] or None,
+        user_agent=(user_agent or "")[:300] or None,
+        signed_in_at=now,
+        last_seen_at=now,
+    ))
     db.commit()
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -115,6 +127,16 @@ def revoke_session(token: str, db: Session) -> None:
     if session is not None:
         db.delete(session)
         db.commit()
+
+
+def touch_session(token: str, db: Session) -> None:
+    """Update the last contact time; revoked JWTs cannot send a heartbeat."""
+    payload = _decode_access_token(token)
+    session = db.query(AuthSession).filter(AuthSession.token == payload["jti"]).first()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión revocada")
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 def require_registrador(user: Usuario = Depends(get_current_user)) -> Usuario:

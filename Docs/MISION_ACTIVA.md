@@ -1,6 +1,6 @@
 # Misión activa de Coffee Fly
 
-Estado al 14 de octubre de 2026 (hora de Colombia).
+Estado al 15 de octubre de 2026 (hora de Colombia).
 
 ## Resultado que debe aprobar el usuario antes de publicar
 
@@ -21,6 +21,6 @@ Estado al 14 de octubre de 2026 (hora de Colombia).
 - Las capturas del inicio, panel y menú de v13 coincidieron píxel por píxel con la compilación 3.
 - El puente de sesión segura y la descarga web del corredor tienen pruebas de módulo que pasan y compilan para web y Android. Aún requieren una prueba real en la APK con la web correspondiente.
 - No se encontró implementación de llamadas en el código actual.
-- La API ya guarda sesiones revocables, pero no registra información de dispositivos ni ofrece un panel para revocar una sesión específica.
+- En la rama de prueba, la API y el panel del registrador ya registran la instalación, cuenta, perfil y último contacto, y permiten revocar una sesión específica. La prueba local del servidor confirmó que un token revocado recibe 401. Falta la migración y prueba integrada en el teléfono antes de publicar.
 - La base de datos consultada solo tenía la cuenta de administrador, sin conductor, vehículo ni cooperativa para la prueba completa.
 - No se ha publicado una nueva APK ni desplegado estos cambios en Hostless.

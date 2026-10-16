@@ -37,7 +37,7 @@ def set_account_disabled(db, user, disabled: bool):
     return get_account_state(user)
 
 
-def login_user(db, data):
+def login_user(db, data, user_agent=None):
     user = login_get_user_by_email(db, data.email)
     # La respuesta deliberadamente no revela si el correo existe.
     if not user:
@@ -83,7 +83,13 @@ def login_user(db, data):
     user.bloqueado_hasta = None
     if password_hash_needs_upgrade(user.contrasena):
         user.contrasena = hash_password(matched_password)
-    access_token = create_session(user, db)
+    access_token = create_session(
+        user, db,
+        device_id=getattr(data, "device_id", None),
+        device_name=getattr(data, "device_name", None),
+        device_platform=getattr(data, "device_platform", None),
+        user_agent=user_agent,
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",

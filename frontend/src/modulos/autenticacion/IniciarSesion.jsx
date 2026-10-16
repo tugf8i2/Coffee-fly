@@ -5,6 +5,7 @@ import { Image, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, Tex
 
 import CampoFormulario from '../../componentes/comunes/CampoFormulario';
 import { API_BASE_URL, fetchApi } from '../../configuracion/ClienteApi';
+import { identificarDispositivo } from '../../servicios/identidadDispositivo';
 import { styles } from './IniciarSesion.styles';
 import background from '../../assets/brand/coffee-landscape.jpg';
 import panelBackground from '../../assets/brand/coffee-panel.jpg';
@@ -28,10 +29,11 @@ export default function IniciarSesion({ onLogin }) {
     setLoading(true);
     setError('');
     try {
+      const device = await identificarDispositivo().catch(() => ({}));
       const response = await fetchApi(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, password }),
+        body: JSON.stringify({ email: normalizedEmail, password, ...device }),
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || 'No se pudo iniciar sesión');

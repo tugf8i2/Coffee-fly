@@ -162,6 +162,22 @@ export default function AplicacionPrincipal() {
       if (status === 'online' && sessionToken) setSyncStatus('syncing');
     },
   ), [user]);
+  useEffect(() => {
+    if (!user || connectionStatus !== 'online') return undefined;
+    const sendHeartbeat = () => {
+      if (!sessionToken) return;
+      fetchApi(`${API_BASE_URL}/seguridad/sesion/latido`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        timeoutMs: 8000,
+      }).catch(() => {
+        // Un corte de red no invalida la sesión guardada para uso offline.
+      });
+    };
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [user, connectionStatus]);
   useEffect(() => subscribeSessionExpired(async () => {
     if (!sessionToken) return;
     await detenerRastreoSegundoPlano();
