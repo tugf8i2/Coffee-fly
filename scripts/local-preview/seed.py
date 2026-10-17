@@ -30,7 +30,7 @@ with SessionLocal() as db:
         roles[name] = role
     for name, surname, email, role_name in (
         ("Admin", "Pruebas", "admin@coffeefly.com", "registrador"),
-        ("Conductor", "Pruebas", "conductor.pruebas@coffeefly.com", "conductor"),
+        ("Conductor", "Pruebas", "conductor@coffeefly.com", "conductor"),
     ):
         user = db.query(Usuario).filter(Usuario.correo_usuario == email).first()
         if user is None:

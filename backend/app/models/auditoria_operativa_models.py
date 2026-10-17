@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, JSON, String
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Integer, JSON, String
 
 from app.core.database import Base
 
@@ -6,7 +6,7 @@ from app.core.database import Base
 class AuditoriaOperativa(Base):
     __tablename__ = "auditoria_operativa"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     entidad = Column(String(30), nullable=False)
     entidad_id = Column(String(50), nullable=False)
     accion = Column(String(30), nullable=False)
