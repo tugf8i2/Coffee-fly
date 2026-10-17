@@ -237,6 +237,7 @@ export default function ConductorLayout({
   const reportBusy = useRef(false);
   const [trackingStarted, setTrackingStarted] = useState(screen === 'tracking');
   const [navigationMode, setNavigationMode] = useState(false);
+  const [completionNotice, setCompletionNotice] = useState(false);
   const preferenceKey = `coffee-fly:conductor:prefs:${user.id || user.id_usuario}`;
   const [preferences, setPreferences] = useState({ dark: false, compact: false });
   const [preferenceMessage, setPreferenceMessage] = useState('');
@@ -405,6 +406,7 @@ export default function ConductorLayout({
   }, [offlineRouteKey, savedRoute?.puntos]);
   const navigate = (target) => {
     setNavigationMode(false);
+    setCompletionNotice(false);
     setSelected(null);
     if (
       ['events', 'profile', 'checklist', 'support', 'settings'].includes(target)
@@ -670,6 +672,11 @@ export default function ConductorLayout({
             onDriverRoute: receiveDriverRoute,
             navigationVisible: page === 'tracking' && navigationMode,
             onDriverAction: (target, deliveryId) => {
+              if (target === 'completed') {
+                setCompletionNotice(true);
+                Promise.resolve().then(() => summary.refresh?.()).catch(() => {});
+                return;
+              }
               if (target === 'overview') {
                 setNavigationMode(false);
                 return;
@@ -690,7 +697,7 @@ export default function ConductorLayout({
           })}
         </View>
       )}
-      {page === 'tracking' && navigationMode && !trip && (
+      {page === 'tracking' && navigationMode && (completionNotice || !trip) && (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Volver al inicio del conductor"

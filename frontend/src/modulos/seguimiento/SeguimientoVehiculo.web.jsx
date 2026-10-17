@@ -616,6 +616,7 @@ export default function SeguimientoVehiculo({
       trackingRequestsRef.current.invalidate();
       setTripCompleted(true);
       setMessage('Viaje completado. El vehículo quedó disponible.', 'success');
+      onDriverAction?.('completed');
     } catch (error) {
       setMessage(error.message, 'error');
     } finally {
