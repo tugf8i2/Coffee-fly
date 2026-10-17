@@ -697,7 +697,7 @@ export default function ConductorLayout({
           })}
         </View>
       )}
-      {page === 'tracking' && navigationMode && (completionNotice || !trip) && (
+      {page === 'tracking' && (completionNotice || (navigationMode && !trip)) && (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Volver al inicio del conductor"
