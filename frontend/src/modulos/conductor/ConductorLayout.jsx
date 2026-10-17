@@ -88,6 +88,7 @@ function Button({
   onPress,
   secondary = false,
   disabled = false,
+  style,
 }) {
   const dark = useContext(ConductorThemeContext);
   return (
@@ -99,13 +100,14 @@ function Button({
       style={[
         secondary ? s.whiteButton : s.greenButton,
         secondary && dark && s.darkButton,
-        disabled && { opacity: 0.5 },
+        style,
+        disabled && { backgroundColor: dark ? '#394c44' : '#dbe6dc', borderColor: dark ? '#71867a' : '#a8bba9', opacity: 1 },
       ]}
     >
       {icon && (
-          <Icon name={icon} size={20} color={secondary && !dark ? '#124f37' : '#fff'} />
+          <Icon name={icon} size={20} color={disabled ? (dark ? '#e6f2e8' : '#31563d') : secondary && !dark ? '#124f37' : '#fff'} />
       )}
-      <Label bold style={secondary && !dark ? { color: '#124f37' } : s.buttonText}>
+      <Label bold style={disabled ? { color: dark ? '#e6f2e8' : '#31563d' } : secondary && !dark ? { color: '#124f37' } : s.buttonText}>
         {children}
       </Label>
     </TouchableOpacity>
@@ -687,6 +689,17 @@ export default function ConductorLayout({
             },
           })}
         </View>
+      )}
+      {page === 'tracking' && navigationMode && !trip && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Volver al inicio del conductor"
+          onPress={() => navigate('dashboard')}
+          style={{ position: 'absolute', left: 16, right: 16, bottom: 24, zIndex: 20, minHeight: 54, borderRadius: 11, backgroundColor: '#064c3b', borderWidth: 1, borderColor: '#064c3b', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, elevation: 6 }}
+        >
+          <Icon name="back" size={21} color="#fff" />
+          <Label bold style={{ color: '#fff', fontSize: 17 }}>Volver al inicio</Label>
+        </TouchableOpacity>
       )}
       {(page !== 'tracking' || !navigationMode) && (
         <ScrollView style={s.module} contentContainerStyle={s.content}>
@@ -1286,6 +1299,7 @@ export default function ConductorLayout({
                 icon="arrow"
                 onPress={sendReport}
                 disabled={!delivery || !reportType || reportSaving}
+                style={{ backgroundColor: '#064c3b', borderColor: '#064c3b', borderWidth: 1, minHeight: 52, marginTop: 12 }}
               >
                 {reportSaving ? 'Enviando…' : 'Enviar novedad'}
               </Button>

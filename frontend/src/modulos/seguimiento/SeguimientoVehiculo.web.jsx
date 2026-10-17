@@ -674,7 +674,13 @@ export default function SeguimientoVehiculo({
     <Text style={styles.cardTitle}>{activeTrip ? 'Preparando navegación GPS…' : 'No tienes un viaje activo'}</Text>
     <Text style={styles.muted}>{activeTrip ? 'Consultando la entrega y su destino registrado.' : 'Acepta e inicia un viaje para activar el mapa y el seguimiento GPS.'}</Text>
     {message ? <FeedbackMessage type={messageType}>{message}</FeedbackMessage> : null}
-    {tripCompleted ? <><View style={styles.fullCard}><Text style={styles.cardTitle}>Viaje terminado correctamente</Text><Text style={styles.muted}>El vehículo ya está disponible para una nueva asignación.</Text><TouchableOpacity accessibilityRole="button" onPress={() => { setTripCompleted(false); go('dashboard'); }} style={styles.primary}><Text style={styles.primaryText}>Volver al menú principal</Text></TouchableOpacity></View></> : <TouchableOpacity accessibilityRole="button" onPress={() => go('assignedDeliveries')} style={styles.primary}><Text style={styles.primaryText}>Ver entregas asignadas</Text></TouchableOpacity>}
+    {tripCompleted ? <View style={styles.fullCard}>
+      <Text style={styles.cardTitle}>Viaje terminado correctamente</Text>
+      <Text style={styles.muted}>El vehículo ya está disponible para una nueva asignación.</Text>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Volver al inicio del conductor" onPress={() => { setTripCompleted(false); go('dashboard'); }} style={[styles.primary, { backgroundColor: '#064c3b', borderColor: '#064c3b', borderWidth: 1, minHeight: 54 }]}>
+        <Text style={[styles.primaryText, { color: '#fff', fontSize: 17 }]}>Volver al inicio</Text>
+      </TouchableOpacity>
+    </View> : <TouchableOpacity accessibilityRole="button" onPress={() => go('assignedDeliveries')} style={styles.primary}><Text style={styles.primaryText}>Ver entregas asignadas</Text></TouchableOpacity>}
   </View>;
 
   if (role === 'coordinador') {
