@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.login_schemas import LoginSchema
 from app.services.login_services import login_user
-from app.core.auth import get_current_token, get_current_user, revoke_session, touch_session
+from app.core.auth import get_current_token, get_current_user, renew_session, revoke_session, touch_session
 from app.core.database import get_db
 from app.models.usuario_models import Usuario
 
@@ -45,6 +45,15 @@ def session_heartbeat(
 ):
     touch_session(token, db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/seguridad/sesion/renovar")
+def session_renewal(
+    token: str = Depends(get_current_token),
+    _user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return {"access_token": renew_session(token, db)}
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

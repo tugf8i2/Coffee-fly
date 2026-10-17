@@ -139,6 +139,25 @@ def touch_session(token: str, db: Session) -> None:
     db.commit()
 
 
+def renew_session(token: str, db: Session) -> str | None:
+    """Renueva una sesión activa cerca del vencimiento sin cambiar su ID revocable."""
+    payload = _decode_access_token(token)
+    get_user_from_token(token, db)
+    now = datetime.now(timezone.utc)
+    if payload["exp"] - int(now.timestamp()) > 3600:
+        return None
+    session = db.query(AuthSession).filter(AuthSession.token == payload["jti"]).first()
+    expires_at = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    session.expires_at = expires_at
+    session.last_seen_at = now
+    db.commit()
+    return jwt.encode(
+        {**payload, "iat": now, "nbf": now, "exp": expires_at},
+        JWT_SECRET_KEY,
+        algorithm=JWT_ALGORITHM,
+    )
+
+
 def require_registrador(user: Usuario = Depends(get_current_user)) -> Usuario:
     if not user.rol or user.rol.descripcion_rol.lower() != "registrador":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo el Registrador puede administrar usuarios")

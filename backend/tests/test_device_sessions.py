@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import importlib.util
 from pathlib import Path
 
 import pytest
+import jwt
 import sqlalchemy as sa
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -17,10 +18,12 @@ import app.models  # noqa: F401 - load model relationships
 from app.api.seguridad_dispositivos_api import list_active_devices, revoke_device_session
 from app.api.login_api import router as login_router
 from app.api.seguridad_dispositivos_api import router as devices_router
-from app.core.auth import _decode_access_token, create_session, get_user_from_token, touch_session
+from app.core.auth import _decode_access_token, create_session, get_user_from_token, renew_session, revoke_session, touch_session
+from app.core.config import JWT_ALGORITHM, JWT_SECRET_KEY
 from app.core.database import Base, get_db
 from app.core.security import hash_password
 from app.models.rol_models import Rol
+from app.models.auth_session_models import AuthSession
 from app.models.usuario_models import Usuario
 
 
@@ -63,6 +66,38 @@ def test_device_inventory_and_remote_revocation():
     engine.dispose()
 
 
+def test_active_session_renews_before_expiry_and_remains_revocable():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        driver = Usuario(
+            nombre_usuario="Ana", apellido="Ruta", correo_usuario="renew@test.local",
+            telefono_usuario="3000000001", contrasena="hash",
+            rol=Rol(descripcion_rol="conductor"),
+        )
+        db.add(driver)
+        db.commit()
+        original = create_session(driver, db)
+        assert renew_session(original, db) is None
+        payload = _decode_access_token(original)
+        soon = datetime.now(timezone.utc) + timedelta(minutes=30)
+        payload["exp"] = soon
+        session = db.query(AuthSession).filter_by(token=payload["jti"]).one()
+        session.expires_at = soon
+        db.commit()
+        expiring = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        renewed = renew_session(expiring, db)
+        renewed_payload = _decode_access_token(renewed)
+        assert renewed_payload["jti"] == payload["jti"]
+        assert renewed_payload["exp"] > _decode_access_token(expiring)["exp"]
+        assert get_user_from_token(renewed, db).id_usuario == driver.id_usuario
+        revoke_session(renewed, db)
+        with pytest.raises(HTTPException) as revoked:
+            get_user_from_token(renewed, db)
+        assert revoked.value.status_code == 401
+    engine.dispose()
+
+
 def test_http_remote_revocation_requires_admin_and_invalidates_driver_token():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
@@ -95,6 +130,7 @@ def test_http_remote_revocation_requires_admin_and_invalidates_driver_token():
         assert admin.status_code == driver.status_code == 200
         admin_headers = {"Authorization": f"Bearer {admin.json()['access_token']}"}
         driver_headers = {"Authorization": f"Bearer {driver.json()['access_token']}"}
+        assert client.post("/seguridad/sesion/renovar", headers=driver_headers).json() == {"access_token": None}
         assert client.get("/seguridad/dispositivos", headers=driver_headers).status_code == 403
         sessions = client.get("/seguridad/dispositivos", headers=admin_headers)
         assert sessions.status_code == 200
@@ -104,6 +140,7 @@ def test_http_remote_revocation_requires_admin_and_invalidates_driver_token():
         assert client.delete(f"/seguridad/sesiones/{target['session_id']}", headers=admin_headers).status_code == 204
         assert client.get("/me", headers=driver_headers).status_code == 401
         assert client.post("/seguridad/sesion/latido", headers=driver_headers).status_code == 401
+        assert client.post("/seguridad/sesion/renovar", headers=driver_headers).status_code == 401
     engine.dispose()
 
 

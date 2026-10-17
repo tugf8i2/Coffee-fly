@@ -180,6 +180,33 @@ export default function AplicacionPrincipal() {
     const interval = setInterval(sendHeartbeat, 30000);
     return () => clearInterval(interval);
   }, [user, connectionStatus]);
+  useEffect(() => {
+    if (!user || connectionStatus !== 'online') return undefined;
+    let stopped = false;
+    const renew = async () => {
+      const currentToken = sessionToken;
+      if (!currentToken) return;
+      try {
+        const response = await fetchApi(`${API_BASE_URL}/seguridad/sesion/renovar`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${currentToken}` },
+          timeoutMs: 8000,
+        });
+        if (!response.ok) return;
+        const { access_token: nextToken } = await response.json();
+        if (!stopped && nextToken && sessionToken === currentToken) {
+          await saveAuthenticatedSession(user, nextToken);
+          sessionToken = nextToken;
+          setUser((previous) => previous ? { ...previous } : previous);
+        }
+      } catch {
+        // El viaje y la sesión local siguen disponibles durante un corte de red.
+      }
+    };
+    renew();
+    const interval = setInterval(renew, 5 * 60 * 1000);
+    return () => { stopped = true; clearInterval(interval); };
+  }, [user?.id, connectionStatus]);
   useEffect(() => subscribeSessionExpired(async () => {
     if (!sessionToken) return;
     await detenerRastreoSegundoPlano();
