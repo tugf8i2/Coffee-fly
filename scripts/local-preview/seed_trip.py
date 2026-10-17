@@ -72,7 +72,7 @@ with SessionLocal() as db:
     driver.conductor.estado_conductor = "disponible"
     db.flush()
     load = Carga(peso_kg=100, descripcion="Café de prueba local", caficultor_id=farmer.id_usuario,
-                 cooperativa_id=cooperative.id_cooperativa)
+                 vehiculo_id=vehicle.id_vehiculo, cooperativa_id=cooperative.id_cooperativa)
     db.add(load)
     db.flush()
     request = Solicitud(estado_solicitud="pendiente", fecha_hora_solicitud=now,
