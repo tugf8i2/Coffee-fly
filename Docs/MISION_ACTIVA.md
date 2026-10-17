@@ -1,6 +1,6 @@
 # Misión activa de Coffee Fly
 
-Estado al 16 de octubre de 2026 (hora de Colombia).
+Estado al 17 de octubre de 2026 (hora de Colombia).
 
 ## Resultado que debe aprobar el usuario antes de publicar
 
@@ -44,3 +44,4 @@ Estado al 16 de octubre de 2026 (hora de Colombia).
 - El cierre correcto del viaje ahora avisa al panel del conductor inmediatamente. «Volver al inicio» aparece aunque el resumen todavía conserve el viaje anterior mientras se actualiza. La exportación web local compiló; la prueba física del cierre sigue pendiente porque el viaje de prueba requiere confirmación GPS de recogida y llegada.
 - En una copia aislada de la base local se ejecutó la integración real de API: registro, asignación de dos cargas, cancelación justificada, aceptación del viaje, GPS, confirmación de recogida, cierre, historiales y liberación del vehículo. Resultado: LIVE_FULL_FLOW_OK. Se mantiene pendiente tocar el cierre completo desde la APK para verificar visualmente el regreso al inicio.
 - En la APK conectada a una copia aislada de la API se completó físicamente el viaje de prueba: GPS, recogida, confirmación, entrega, mensaje de éxito y botón «Volver al inicio». El botón llevó al panel del conductor. La primera prueba reveló un botón duplicado y el cuadro nativo «La página http... dice»; se reemplazó por una confirmación propia y se dejó un solo botón de regreso. La segunda prueba mostró ambos cambios y el viaje completado en SQLite. Se restauró el teléfono a la base local original; su carga sigue en_camino.
+- En la APK local, con la API detenida, el conductor envió una novedad y vio «Novedad guardada. Se enviará automáticamente cuando vuelva la conexión». La cola quedó pendiente en el teléfono. Al reiniciar la APK apareció el inicio de sesión; se corrigió la carrera de inicialización del puente de SecureStore y pasó la prueba de restauración sin el marcador inyectado. Falta verificar físicamente la restauración y que esa novedad llegue a SQLite; el teléfono conectado se encontraba con la pantalla apagada al continuar la prueba.
