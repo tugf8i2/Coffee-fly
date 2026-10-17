@@ -20,7 +20,9 @@ if (typeof window !== 'undefined') {
 }
 
 function nativeSession(action, value) {
-  if (typeof window === 'undefined' || !window.__COFFEE_FLY_SECURE_SESSION_BRIDGE__ || !window.ReactNativeWebView?.postMessage) return Promise.resolve(null);
+  // Android puede inyectar ReactNativeWebView antes que el marcador de
+  // injectedJavaScriptBeforeContentLoaded. El marcador no debe decidir si hay sesión.
+  if (typeof window === 'undefined' || !window.ReactNativeWebView?.postMessage) return Promise.resolve(null);
   const requestId = `session-${++nextRequestId}`;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {

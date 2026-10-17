@@ -35,4 +35,13 @@ describe('sesión web dentro de la APK', () => {
     await afterRestart.clearAuthenticatedSession();
     expect(saved).toBeNull();
   });
+
+  test('restaura la sesión aunque el marcador se inyecte tarde en Android', async () => {
+    const firstRun = require('../src/servicios/sesionSeguimiento.web');
+    await firstRun.saveAuthenticatedSession({ id: 7, nombre: 'Ana' }, 'token-123');
+    delete window.__COFFEE_FLY_SECURE_SESSION_BRIDGE__;
+    jest.resetModules();
+    const afterRestart = require('../src/servicios/sesionSeguimiento.web');
+    expect(await afterRestart.getAuthenticatedSession()).toEqual(expect.objectContaining({ token: 'token-123' }));
+  });
 });
