@@ -2,7 +2,7 @@ import { estilosOperativos } from '../panel/estilosOperativos';
 import FeedbackMessage from '../../componentes/comunes/MensajeRetroalimentacion';
 import FotoConductor from '../../componentes/comunes/FotoConductor';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import TrackingMap from '../../componentes/mapas/MapaSeguimiento';
 import DriverEventReporter from '../../componentes/entregas/ReportadorNovedadConductor';
@@ -78,6 +78,7 @@ export default function SeguimientoVehiculo({
   const [confirmingPickup, setConfirmingPickup] = useState(false);
   const [completingTrip, setCompletingTrip] = useState(false);
   const [tripCompleted, setTripCompleted] = useState(false);
+  const [confirmCompletion, setConfirmCompletion] = useState(false);
   const [navigationRoute, setNavigationRoute] = useState([]);
   const [routeSummary, setRouteSummary] = useState(null);
   const actionRef = useRef(null);
@@ -587,14 +588,7 @@ export default function SeguimientoVehiculo({
 
   const completeTrip = async () => {
     if (!activeTrip || !allLoadsPicked || actionRef.current) return;
-    if (
-      !(
-        globalThis.confirm?.(
-          '¿Confirmas que entregaste todas las cargas y deseas completar el viaje?',
-        ) ?? false
-      )
-    )
-      return;
+    setConfirmCompletion(false);
     actionRef.current = 'complete';
     setCompletingTrip(true);
     try {
@@ -627,6 +621,7 @@ export default function SeguimientoVehiculo({
 
   if (role === 'conductor' && activeTrip && tracking)
     return (
+      <>
       <VistaGpsConductor
         trip={activeTrip}
         deliveryId={delivery}
@@ -661,7 +656,7 @@ export default function SeguimientoVehiculo({
         onExit={() => go('dashboard')}
         onFinish={
           tracking.etapa_viaje === 'hacia_cooperativa'
-            ? completeTrip
+            ? () => setConfirmCompletion(true)
             : confirmPickup
         }
         finishDisabled={tracking.etapa_viaje === 'hacia_cooperativa' ? !allLoadsPicked : !canConfirmDriverPickup(tracking,last)}
@@ -669,6 +664,21 @@ export default function SeguimientoVehiculo({
         gpsStatus={gpsStatus || remotePosition.status}
         message={message}
       />
+      <Modal visible={confirmCompletion} transparent animationType="fade" onRequestClose={() => setConfirmCompletion(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(8, 30, 24, 0.62)', justifyContent: 'center', padding: 22 }}>
+          <View style={{ backgroundColor: '#fffef9', borderRadius: 18, padding: 24, gap: 18, maxWidth: 460, width: '100%', alignSelf: 'center' }}>
+            <Text style={{ color: '#073d30', fontSize: 23, fontWeight: '800' }}>Tu viaje está a punto de finalizar</Text>
+            <Text style={{ color: '#31443d', fontSize: 17, lineHeight: 25 }}>¿Confirmas que entregaste todas las cargas en la cooperativa?</Text>
+            <TouchableOpacity accessibilityRole="button" onPress={completeTrip} style={{ backgroundColor: '#064c3b', minHeight: 54, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Sí, completar viaje</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" onPress={() => setConfirmCompletion(false)} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#064c3b', fontSize: 16, fontWeight: '700' }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      </>
     );
   if (role === 'conductor') return <View style={driverStyles.card}>
     <Icon name="route" size={40}/>
