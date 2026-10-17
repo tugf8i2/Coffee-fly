@@ -1,10 +1,11 @@
-"""Recorrido E2E real de Coffee Fly contra FastAPI y PostgreSQL locales.
+"""Recorrido E2E real de Coffee Fly contra una API y base locales.
 
 El registrador se crea directamente solo para arrancar la prueba. El resto del
 flujo de negocio se ejecuta exclusivamente mediante la API pública.
 """
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
+import os
 
 import httpx
 
@@ -28,7 +29,7 @@ from app.models.viaje_models import Viaje
 from app.models.auditoria_operativa_models import AuditoriaOperativa
 
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("COFFEE_FLY_TEST_API_URL", "http://127.0.0.1:8000")
 PASSWORD = "Admin123"
 FARM = {"latitud": 4.5331, "longitud": -75.6819}
 COOPERATIVE = {"latitud": 4.5402, "longitud": -75.6722}
@@ -49,6 +50,9 @@ def headers(token):
 def cleanup(ids):
     db = SessionLocal()
     try:
+        def uuid_value(value):
+            return UUID(str(value)) if value else None
+
         user_ids = ids.get("user_ids", [])
         audit_entities = [str(value) for value in (ids.get("vehicle_id"), ids.get("trip_id"), ids.get("driver_id")) if value]
         if audit_entities:
@@ -59,6 +63,7 @@ def cleanup(ids):
             db.query(AuthSession).filter(AuthSession.user_id.in_(user_ids)).delete(synchronize_session=False)
         for delivery_id in (ids.get("delivery_id"), ids.get("second_delivery_id")):
             if delivery_id:
+                delivery_id = uuid_value(delivery_id)
                 db.query(SeguimientoUbicacion).filter(SeguimientoUbicacion.entrega_id == delivery_id).delete(synchronize_session=False)
                 db.query(HistorialEvento).filter(HistorialEvento.entrega_id == delivery_id).delete(synchronize_session=False)
                 db.query(HistorialEstadoEntrega).filter(HistorialEstadoEntrega.entrega_id == delivery_id).delete(synchronize_session=False)
@@ -66,12 +71,15 @@ def cleanup(ids):
                 db.query(Entrega).filter(Entrega.id_entrega == delivery_id).delete(synchronize_session=False)
         trip_id = ids.get("trip_id")
         if trip_id:
+            trip_id = uuid_value(trip_id)
             db.query(Viaje).filter(Viaje.id_viaje == trip_id).delete(synchronize_session=False)
         for request_id in (ids.get("request_id"), ids.get("second_request_id")):
             if request_id:
+                request_id = uuid_value(request_id)
                 db.query(Solicitud).filter(Solicitud.id_solicitud == request_id).delete(synchronize_session=False)
         for load_id in (ids.get("load_id"), ids.get("second_load_id")):
             if load_id:
+                load_id = uuid_value(load_id)
                 db.query(Carga).filter(Carga.id_carga == load_id).delete(synchronize_session=False)
         vehicle_id = ids.get("vehicle_id")
         if vehicle_id:
@@ -84,7 +92,7 @@ def cleanup(ids):
             db.query(Cooperativa).filter(Cooperativa.id_cooperativa == cooperative_id).delete(synchronize_session=False)
         location_id = ids.get("location_id")
         if location_id:
-            db.query(Ubicacion).filter(Ubicacion.id_ubicacion == location_id).delete(synchronize_session=False)
+            db.query(Ubicacion).filter(Ubicacion.id_ubicacion == uuid_value(location_id)).delete(synchronize_session=False)
         if user_ids:
             db.query(Usuario).filter(Usuario.id_usuario.in_(user_ids)).delete(synchronize_session=False)
         db.commit()
