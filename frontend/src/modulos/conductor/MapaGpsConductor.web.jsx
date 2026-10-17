@@ -14,11 +14,8 @@ export default function MapaGpsConductor({
   offline = false,
 }) {
   const [follow, setFollow] = useState(true);
-  const [multiTouchActive, setMultiTouchActive] = useState(false);
   const [fitRevision, setFitRevision] = useState(0);
   const commands = useRef(null);
-  const followRef = useRef(follow);
-  followRef.current = follow;
   const anchorRef = useRef(null);
   const headingRef = useRef(heading);
   headingRef.current = heading;
@@ -75,7 +72,7 @@ export default function MapaGpsConductor({
       camera={{
         fitMode: 'route',
         fitKey: `${deliveryId}:${fitRevision}`,
-        follow: follow && !multiTouchActive,
+        follow,
         followMarkerId: 'navigation-anchor',
         bearing: heading,
         zoom: 17,
@@ -83,11 +80,7 @@ export default function MapaGpsConductor({
         padding: { top: 190, right: 85, bottom: 160, left: 40 },
       }}
       onManualMove={() => setFollow(false)}
-      onMultiTouchStart={() => setMultiTouchActive(true)}
-      onMultiTouchEnd={() => {
-        setMultiTouchActive(false);
-        if (followRef.current) commands.current?.centerAt?.(anchorRef.current, headingRef.current, true);
-      }}
+      onMultiTouchStart={() => setFollow(true)}
       mapTheme={mapTheme}
       fallback={<View style={{ flex: 1, justifyContent: 'center', padding: 12 }}>
         <RoutePreview route={route} vehicle={vehicle} destination={destination} />

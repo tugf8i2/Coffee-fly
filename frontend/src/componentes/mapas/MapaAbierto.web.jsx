@@ -30,6 +30,8 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
   const startAnimationRef = useRef(() => {});
   const reportedFatalRef = useRef('');
   const callbackRef = useRef({ onError, onManualMove, onMultiTouchStart, onMultiTouchEnd, onBearingChange, onMapPress, onMarkerDragEnd });
+  const navigationAnchorRef = useRef(null);
+  navigationAnchorRef.current = markers.find((item) => String(item.id) === String(camera.followMarkerId))?.coordinate;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [fatalError, setFatalError] = useState('');
@@ -77,6 +79,8 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
         style: mapTheme === 'dark' ? OPEN_MAP_DARK_STYLE_URL : OPEN_MAP_STYLE_URL,
         center: initialCoordinate ? lngLat(initialCoordinate) : DEFAULT_MAP_CENTER,
         zoom: initialCoordinate ? 15 : DEFAULT_MAP_ZOOM,
+        touchZoomRotate: camera.followMarkerId === 'navigation-anchor' ? false : true,
+        touchPitch: camera.followMarkerId === 'navigation-anchor' ? false : true,
         attributionControl: false,
       });
     } catch (mapError) {
@@ -114,24 +118,63 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
     });
     map.on('click', (event) => callbackRef.current.onMapPress?.({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }));
     let multiTouch = false;
-    let multiTouchTimer;
+    let restoreDragPan = false;
+    let gesture = null;
     const canvas = map.getCanvas();
-    canvas.addEventListener('touchstart', (event) => {
-      if (event.touches.length < 2 || multiTouch) return;
-      multiTouch = true;
-      clearTimeout(multiTouchTimer);
-      callbackRef.current.onMultiTouchStart?.();
-    }, { passive: true });
-    const finishMultiTouch = (event) => {
-      if (!multiTouch || event.touches.length) return;
-      clearTimeout(multiTouchTimer);
-      multiTouchTimer = setTimeout(() => {
-        if (!disposed) callbackRef.current.onMultiTouchEnd?.();
-        multiTouch = false;
-      }, 220);
+    const blockNativeGesture = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
     };
-    canvas.addEventListener('touchend', finishMultiTouch, { passive: true });
-    canvas.addEventListener('touchcancel', finishMultiTouch, { passive: true });
+    const startMultiTouch = (event) => {
+      if (camera.followMarkerId !== 'navigation-anchor' || event.touches.length < 2 || multiTouch) return;
+      multiTouch = true;
+      map.stop();
+      restoreDragPan = map.dragPan.isEnabled();
+      if (restoreDragPan) map.dragPan.disable();
+      const [first, second] = event.touches;
+      gesture = {
+        distance: Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY),
+        middleY: (first.clientY + second.clientY) / 2,
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      };
+      if (validCoordinate(navigationAnchorRef.current)) map.jumpTo({ center: lngLat(navigationAnchorRef.current) });
+      callbackRef.current.onMultiTouchStart?.();
+      blockNativeGesture(event);
+    };
+    const moveMultiTouch = (event) => {
+      if (!multiTouch) return;
+      if (!gesture || event.touches.length < 2) {
+        blockNativeGesture(event);
+        return;
+      }
+      const [first, second] = event.touches;
+      const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+      const middleY = (first.clientY + second.clientY) / 2;
+      const anchor = navigationAnchorRef.current;
+      map.jumpTo({
+        center: validCoordinate(anchor) ? lngLat(anchor) : map.getCenter(),
+        zoom: Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), gesture.zoom + Math.log2(Math.max(distance, 1) / Math.max(gesture.distance, 1)))),
+        pitch: Math.max(map.getMinPitch(), Math.min(map.getMaxPitch(), gesture.pitch + (gesture.middleY - middleY) * 0.12)),
+        bearing: gesture.bearing,
+      });
+      blockNativeGesture(event);
+    };
+    const finishMultiTouch = (event) => {
+      if (!multiTouch) return;
+      blockNativeGesture(event);
+      if (event.touches.length) return;
+      multiTouch = false;
+      gesture = null;
+      if (restoreDragPan) map.dragPan.enable();
+      restoreDragPan = false;
+      callbackRef.current.onMultiTouchEnd?.();
+    };
+    containerRef.current.addEventListener('touchstart', startMultiTouch, { capture: true, passive: false });
+    containerRef.current.addEventListener('touchmove', moveMultiTouch, { capture: true, passive: false });
+    containerRef.current.addEventListener('touchend', finishMultiTouch, { capture: true, passive: false });
+    containerRef.current.addEventListener('touchcancel', finishMultiTouch, { capture: true, passive: false });
     map.on('dragstart', () => { if (!multiTouch) callbackRef.current.onManualMove?.('drag'); });
     map.on('zoomstart', (event) => { if (event.originalEvent && !multiTouch) callbackRef.current.onManualMove?.('zoom'); });
     map.on('rotatestart', (event) => { if (event.originalEvent && !multiTouch) callbackRef.current.onManualMove?.('rotate'); });
@@ -146,7 +189,7 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       callbackRef.current.onError?.(message);
       setError('Algunos datos del mapa no se pudieron cargar. Se seguirá intentando.');
       clearTimeout(transientErrorTimer);
-      clearTimeout(multiTouchTimer);
+      if (restoreDragPan) map.dragPan.enable();
       transientErrorTimer = setTimeout(() => { if (!disposed) setError(''); }, 5000);
     });
     mapRef.current = map;
@@ -181,6 +224,10 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
     };
     return () => {
       disposed = true;
+      containerRef.current?.removeEventListener('touchstart', startMultiTouch, true);
+      containerRef.current?.removeEventListener('touchmove', moveMultiTouch, true);
+      containerRef.current?.removeEventListener('touchend', finishMultiTouch, true);
+      containerRef.current?.removeEventListener('touchcancel', finishMultiTouch, true);
       resizeObserver?.disconnect();
       clearTimeout(loadTimer);
       clearTimeout(retryTimer);
@@ -321,7 +368,7 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       center: followed.target,
       zoom: Math.max(camera.zoom || 17, map.getZoom()),
       bearing: Number(camera.bearing || 0),
-      pitch: Number(camera.pitch || 0),
+      pitch: map.getPitch() || Number(camera.pitch || 0),
       duration: 250,
       essential: true,
     });
