@@ -747,6 +747,7 @@ class EntregaService:
         conductor_id: int,
         client_event_id: UUID | None = None,
         capturada_en: datetime | None = None,
+        fotos_evidencia: list[str] | None = None,
     ):
         entrega, carga_id = self._obtener_carga_asignada(entrega_id, conductor_id)
         if client_event_id:
@@ -794,6 +795,7 @@ class EntregaService:
             entrega_id=entrega_id,
             tipo_evento=tipo_evento,
             descripcion_evento=descripcion,
+            fotos_evidencia=fotos_evidencia or [],
             fecha_hora_evento=fecha_evento,
             fecha_hora_sincronizacion=ahora,
             conductor_id=conductor_id,
@@ -821,6 +823,7 @@ class EntregaService:
             "vehiculo_placa": vehiculo.placa if vehiculo else None,
             "conductor_nombre": f"{conductor.nombre_usuario} {conductor.apellido}".strip(),
             "conductor_foto_perfil": conductor.foto_perfil,
+            "fotos_evidencia": evento.fotos_evidencia or [],
         } for evento, carga, entrega, vehiculo, conductor, caficultor in self.repository.get_notificaciones_eventos(
             utc_now_naive(),
             usuario.id_usuario if es_caficultor else None,

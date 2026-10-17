@@ -19,7 +19,7 @@ const lngLat = (coordinate) => [Number(coordinate.longitude), Number(coordinate.
 const markerSignature = (marker) => [marker.kind, marker.size, marker.color, marker.draggable, Boolean(marker.title || marker.description)].join('|');
 const MAX_LOAD_RETRIES = 2;
 
-export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day', showNavigationControls = true, fallback, markers = [], onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd, route = [], routeColor = '#3214d6', routeWidth = 7, style }) {
+export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day', showNavigationControls = true, fallback, markers = [], onError, onManualMove, onMultiTouchStart, onMultiTouchEnd, onBearingChange, onMapPress, onMarkerDragEnd, route = [], routeColor = '#3214d6', routeWidth = 7, style }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const loadedMapRef = useRef(null);
@@ -29,12 +29,12 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
   const animationRef = useRef(null);
   const startAnimationRef = useRef(() => {});
   const reportedFatalRef = useRef('');
-  const callbackRef = useRef({ onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd });
+  const callbackRef = useRef({ onError, onManualMove, onMultiTouchStart, onMultiTouchEnd, onBearingChange, onMapPress, onMarkerDragEnd });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [fatalError, setFatalError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
-  callbackRef.current = { onError, onManualMove, onBearingChange, onMapPress, onMarkerDragEnd };
+  callbackRef.current = { onError, onManualMove, onMultiTouchStart, onMultiTouchEnd, onBearingChange, onMapPress, onMarkerDragEnd };
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
@@ -113,9 +113,28 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       reportedFatalRef.current = '';
     });
     map.on('click', (event) => callbackRef.current.onMapPress?.({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }));
-    map.on('dragstart', () => callbackRef.current.onManualMove?.('drag'));
-    map.on('zoomstart', (event) => { if (event.originalEvent) callbackRef.current.onManualMove?.('zoom'); });
-    map.on('rotatestart', (event) => { if (event.originalEvent) callbackRef.current.onManualMove?.('rotate'); });
+    let multiTouch = false;
+    let multiTouchTimer;
+    const canvas = map.getCanvas();
+    canvas.addEventListener('touchstart', (event) => {
+      if (event.touches.length < 2 || multiTouch) return;
+      multiTouch = true;
+      clearTimeout(multiTouchTimer);
+      callbackRef.current.onMultiTouchStart?.();
+    }, { passive: true });
+    const finishMultiTouch = (event) => {
+      if (!multiTouch || event.touches.length) return;
+      clearTimeout(multiTouchTimer);
+      multiTouchTimer = setTimeout(() => {
+        if (!disposed) callbackRef.current.onMultiTouchEnd?.();
+        multiTouch = false;
+      }, 220);
+    };
+    canvas.addEventListener('touchend', finishMultiTouch, { passive: true });
+    canvas.addEventListener('touchcancel', finishMultiTouch, { passive: true });
+    map.on('dragstart', () => { if (!multiTouch) callbackRef.current.onManualMove?.('drag'); });
+    map.on('zoomstart', (event) => { if (event.originalEvent && !multiTouch) callbackRef.current.onManualMove?.('zoom'); });
+    map.on('rotatestart', (event) => { if (event.originalEvent && !multiTouch) callbackRef.current.onManualMove?.('rotate'); });
     map.on('rotate', () => callbackRef.current.onBearingChange?.(map.getBearing()));
     map.on('error', (event) => {
       const message = event.error?.message || 'No fue posible actualizar el mapa.';
@@ -127,6 +146,7 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       callbackRef.current.onError?.(message);
       setError('Algunos datos del mapa no se pudieron cargar. Se seguirá intentando.');
       clearTimeout(transientErrorTimer);
+      clearTimeout(multiTouchTimer);
       transientErrorTimer = setTimeout(() => { if (!disposed) setError(''); }, 5000);
     });
     mapRef.current = map;
@@ -182,6 +202,10 @@ export default function MapaAbierto({ camera = {}, controlsRef, mapTheme = 'day'
       zoomIn:()=>{callbackRef.current.onManualMove?.('zoom');map.zoomIn();},
       zoomOut:()=>{callbackRef.current.onManualMove?.('zoom');map.zoomOut();},
       north:()=>{callbackRef.current.onManualMove?.('rotate');map.resetNorth();},
+      centerAt:(coordinate, bearing, preserveZoom=false)=>{
+        if (!validCoordinate(coordinate)) return;
+        map.easeTo({ center: lngLat(coordinate), zoom: preserveZoom ? map.getZoom() : Math.max(map.getZoom(), 17), bearing: Number(bearing || 0), duration: 450, essential: true });
+      },
     };
     return () => {controlsRef.current=null;};
   },[ready,controlsRef]);

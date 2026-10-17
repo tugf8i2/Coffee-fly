@@ -196,6 +196,7 @@ async function enviar(tipo, payload, token) {
         detalle: payload.detalle,
         client_event_id: payload.client_event_id,
         capturada_en: payload.capturada_en,
+        fotos_evidencia: payload.fotos_evidencia || [],
       }),
     });
     fallback = 'No fue posible sincronizar la novedad';

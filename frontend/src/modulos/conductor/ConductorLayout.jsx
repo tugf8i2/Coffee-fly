@@ -229,6 +229,7 @@ export default function ConductorLayout({
   const [offlineMapBusy, setOfflineMapBusy] = useState(false);
   const [reportType, setReportType] = useState(null);
   const [comment, setComment] = useState('');
+  const [reportPhotos, setReportPhotos] = useState([]);
   const [reportMessage, setReportMessage] = useState('');
   const [reportSaving, setReportSaving] = useState(false);
   const reportBusy = useRef(false);
@@ -521,17 +522,31 @@ export default function ConductorLayout({
           : `${reportType[0]}${comment.trim() ? `: ${comment.trim()}` : ''}`).slice(0, 250),
         client_event_id: createClientUuid(),
         capturada_en: new Date().toISOString(),
+        fotos_evidencia: reportPhotos,
       }, token);
       setReportMessage(result.offline
         ? 'Novedad guardada. Se enviará automáticamente cuando vuelva la conexión.'
         : 'Novedad enviada al coordinador.');
       setComment('');
+      setReportPhotos([]);
       setReportType(null);
     } catch (error) {
       setReportMessage(error.message);
     } finally {
       reportBusy.current = false;
       setReportSaving(false);
+    }
+  };
+  const attachReportPhoto = async (camera) => {
+    if (reportPhotos.length >= 4) {
+      setReportMessage('Puedes adjuntar hasta cuatro fotos por novedad.');
+      return;
+    }
+    try {
+      const photo = await seleccionarEvidenciaImagen({ camara: camera });
+      if (photo) setReportPhotos((current) => current.length < 4 ? [...current, photo] : current);
+    } catch (error) {
+      setReportMessage(error.message);
     }
   };
   const currentTitle =
@@ -1221,21 +1236,19 @@ export default function ConductorLayout({
               <View style={s.detailColumns}>
                 <View style={s.detailColumn}>
                   <Label bold>Evidencia fotográfica (opcional)</Label>
-                  <View
-                    style={[
-                      s.card,
-                      {
-                        borderStyle: 'dashed',
-                        minHeight: 110,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      },
-                    ]}
-                  >
-                    <Icon name="document" size={30} />
-                    <Label style={s.muted}>
-                      Los adjuntos fotográficos aún no están disponibles.
-                    </Label>
+                  <View style={[s.card, darkMode && s.darkCard, { borderStyle: 'dashed', gap: 10 }]}>
+                    <Label style={s.muted}>Hasta cuatro fotos de la novedad.</Label>
+                    <View style={[s.row, { flexWrap: 'wrap', gap: 8 }]}>
+                      <Button secondary icon="camera" onPress={() => attachReportPhoto(true)} disabled={reportPhotos.length >= 4}>Tomar foto</Button>
+                      <Button secondary icon="document" onPress={() => attachReportPhoto(false)} disabled={reportPhotos.length >= 4}>Elegir foto</Button>
+                    </View>
+                    <View style={[s.row, { flexWrap: 'wrap', gap: 8 }]}>
+                      {reportPhotos.map((photo, index) => (
+                        <TouchableOpacity key={`${index}-${photo.length}`} accessibilityRole="button" accessibilityLabel={`Quitar foto ${index + 1}`} onPress={() => setReportPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))}>
+                          <Image source={{ uri: photo }} style={{ width: 72, height: 72, borderRadius: 8 }} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 </View>
                 <View style={s.detailColumn}>

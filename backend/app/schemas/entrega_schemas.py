@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class EntregaCreate(BaseModel):
@@ -59,6 +59,15 @@ class ReportarEventoConductorRequest(BaseModel):
     detalle: Optional[str] = Field(default=None, max_length=250)
     client_event_id: Optional[UUID] = None
     capturada_en: Optional[datetime] = None
+    fotos_evidencia: list[str] = Field(default_factory=list, max_length=4)
+
+    @field_validator("fotos_evidencia")
+    @classmethod
+    def validar_fotos(cls, values):
+        for value in values:
+            if len(value) > 3_000_000 or not value.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+                raise ValueError("Cada evidencia debe ser una imagen válida de hasta 3 MB")
+        return values
 
 
 class EventoConductorResponse(BaseModel):
@@ -68,6 +77,7 @@ class EventoConductorResponse(BaseModel):
     descripcion_evento: str
     fecha_hora_evento: datetime
     expira_en: datetime
+    fotos_evidencia: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,7 +1,7 @@
 import FeedbackMessage from '../comunes/MensajeRetroalimentacion';
 import SelectorFormulario from '../comunes/SelectorFormulario';
 import { useEffect, useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
@@ -74,6 +74,9 @@ export default function ReportadorNovedadConductor({ deliveryId, token, styles }
     {events.map((event) => <View key={event.id_evento} style={{ borderLeftWidth: 3, borderLeftColor: '#6A994E', paddingLeft: 9, marginBottom: 6 }}>
       <Text style={styles.label}>{event.tipo_evento}</Text>
       <Text>{event.descripcion_evento}</Text>
+      {event.fotos_evidencia?.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {event.fotos_evidencia.map((photo, index) => <Image key={index} source={{ uri: photo }} accessibilityLabel={`Evidencia ${index + 1} de la novedad`} style={{ width: 100, height: 100, borderRadius: 8 }} />)}
+      </View> : null}
       <Text style={styles.muted}>{new Date(event.fecha_hora_evento).toLocaleString()}</Text>
     </View>)}
     {!events.length ? <Text style={styles.muted}>No has notificado eventos en esta entrega.</Text> : null}

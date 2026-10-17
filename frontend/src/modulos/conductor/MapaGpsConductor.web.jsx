@@ -14,19 +14,25 @@ export default function MapaGpsConductor({
   offline = false,
 }) {
   const [follow, setFollow] = useState(true);
+  const [multiTouchActive, setMultiTouchActive] = useState(false);
   const [fitRevision, setFitRevision] = useState(0);
-  const [mapBearing, setMapBearing] = useState(0);
   const commands = useRef(null);
-  const lastHeading = useRef(0);
-  if (Number.isFinite(Number(heading))) lastHeading.current = Number(heading);
-  const arrowRotation = ((lastHeading.current - mapBearing) % 360 + 360) % 360;
+  const followRef = useRef(follow);
+  followRef.current = follow;
+  const anchorRef = useRef(null);
+  const headingRef = useRef(heading);
+  headingRef.current = heading;
+  anchorRef.current = vehicle || route.find((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)));
   useEffect(() => setFollow(true), [deliveryId]);
   useEffect(() => {
     controlsRef.current = {
       zoomIn: () => commands.current?.zoomIn?.(),
       zoomOut: () => commands.current?.zoomOut?.(),
       north: () => commands.current?.north?.(),
-      center: () => setFollow(true),
+      center: () => {
+        setFollow(true);
+        commands.current?.centerAt?.(anchorRef.current, headingRef.current);
+      },
       explore: () => setFollow(false),
       fit: () => {
         setFollow(false);
@@ -47,11 +53,11 @@ export default function MapaGpsConductor({
       routeColor="#0878ff"
       routeWidth={13}
       markers={[
-        vehicle
+        anchorRef.current
           ? {
-              id: 'vehicle',
+              id: 'navigation-anchor',
               kind: 'vehicle-location',
-              coordinate: vehicle,
+              coordinate: anchorRef.current,
               heading,
               color: '#0878ff',
             }
@@ -69,15 +75,19 @@ export default function MapaGpsConductor({
       camera={{
         fitMode: 'route',
         fitKey: `${deliveryId}:${fitRevision}`,
-        follow,
-        followMarkerId: 'vehicle',
+        follow: follow && !multiTouchActive,
+        followMarkerId: 'navigation-anchor',
         bearing: heading,
         zoom: 17,
         pitch: 15,
         padding: { top: 190, right: 85, bottom: 160, left: 40 },
       }}
       onManualMove={() => setFollow(false)}
-      onBearingChange={(bearing) => setMapBearing(bearing)}
+      onMultiTouchStart={() => setMultiTouchActive(true)}
+      onMultiTouchEnd={() => {
+        setMultiTouchActive(false);
+        if (followRef.current) commands.current?.centerAt?.(anchorRef.current, headingRef.current, true);
+      }}
       mapTheme={mapTheme}
       fallback={<View style={{ flex: 1, justifyContent: 'center', padding: 12 }}>
         <RoutePreview route={route} vehicle={vehicle} destination={destination} />
@@ -91,7 +101,7 @@ export default function MapaGpsConductor({
     </Text> : null}
     <View pointerEvents="none" accessibilityLabel={vehicle ? 'Indicador fijo del rumbo del conductor' : 'Indicador de rumbo, esperando GPS'} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffffed', borderWidth: 3, borderColor: '#0878ff', alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 7 }}>
-        <Text style={{ fontSize: 39, lineHeight: 47, color: '#0878ff', transform: [{ rotate: `${arrowRotation}deg` }] }}>▲</Text>
+        <Text style={{ fontSize: 39, lineHeight: 47, color: '#0878ff' }}>▲</Text>
       </View>
       <Text style={{ color: '#153b62', backgroundColor: '#fffffff0', borderRadius: 8, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 2, fontWeight: '700', marginTop: 4 }}>
         {vehicle ? (follow ? 'Mi posición y rumbo' : 'Rumbo · mapa desplazado') : 'Esperando GPS'}

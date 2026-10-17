@@ -130,6 +130,7 @@ function EntradaWebView() {
         cacheMode="LOAD_DEFAULT"
         domStorageEnabled
         javaScriptEnabled
+        setBuiltInZoomControls={false}
         geolocationEnabled
         allowsInlineMediaPlayback
         setSupportMultipleWindows={false}

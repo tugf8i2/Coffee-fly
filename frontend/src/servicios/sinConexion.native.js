@@ -269,6 +269,7 @@ async function enviarOperacion(tipo, payload, token) {
         detalle: payload.detalle,
         client_event_id: payload.client_event_id,
         capturada_en: payload.capturada_en,
+        fotos_evidencia: payload.fotos_evidencia || [],
       }),
     });
     const data = await readJson(response);

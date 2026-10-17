@@ -7,9 +7,21 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from app.services.entrega_services import EntregaService
+from app.schemas.entrega_schemas import ReportarEventoConductorRequest
 
 
 class OfflineDriverEventTests(unittest.TestCase):
+    def test_event_keeps_multiple_photos_for_delayed_sync(self):
+        now = datetime.now()
+        delivery = SimpleNamespace(estado_entrega="en camino", viaje=SimpleNamespace(iniciado_en=now - timedelta(minutes=5)))
+        service, _ = self.service_for(delivery)
+        photos = ["data:image/jpeg;base64,YQ==", "data:image/png;base64,Yg=="]
+        payload = ReportarEventoConductorRequest(tipo_evento="inconveniente", fotos_evidencia=photos)
+
+        event = service.reportar_evento_conductor(uuid4(), payload.tipo_evento, None, 8, 3, uuid4(), now, payload.fotos_evidencia)
+
+        self.assertEqual(event.fotos_evidencia, photos)
+
     def service_for(self, delivery, existing=None):
         repository = SimpleNamespace(
             get_evento_conductor_por_client_id=Mock(return_value=existing),

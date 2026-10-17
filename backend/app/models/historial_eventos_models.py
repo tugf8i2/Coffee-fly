@@ -1,4 +1,4 @@
-from sqlalchemy import UUID, Column, DateTime, String, Integer, ForeignKey, Index
+from sqlalchemy import UUID, Column, DateTime, String, Integer, ForeignKey, Index, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.core.config import EVENT_RETENTION_DAYS
@@ -21,6 +21,7 @@ class HistorialEvento(Base):
     entrega_id = Column(UUID(as_uuid=True), ForeignKey("entrega.id_entrega"))
     tipo_evento = Column(String(30), nullable=False, default="inconveniente")
     descripcion_evento = Column(String(300), nullable=False)
+    fotos_evidencia = Column(JSON, nullable=False, default=list)
 
     fecha_hora_evento = Column(DateTime, nullable=False)
     fecha_hora_sincronizacion = Column(DateTime, nullable=False)

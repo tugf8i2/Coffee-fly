@@ -1,6 +1,6 @@
 import FeedbackMessage from '../comunes/MensajeRetroalimentacion';
 import { useCallback, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { API_BASE_URL, fetchApi } from '../../configuracion';
 import { weight } from '../../servicios/presentacionCarga';
@@ -72,6 +72,9 @@ export default function BandejaMensajesEventos({ token, styles, role }) {
         {visibleMessages.map((message) => <View key={message.id_evento} style={{ backgroundColor: '#dce8b4', borderRadius: 14, padding: 12, gap: 3 }}>
           <Text style={styles.label}>{message.tipo_evento.toUpperCase()}</Text>
           <Text>{message.descripcion_evento}</Text>
+          {message.fotos_evidencia?.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {message.fotos_evidencia.map((photo, index) => <Image key={index} source={{ uri: photo }} accessibilityLabel={`Evidencia ${index + 1} de la novedad`} style={{ width: 100, height: 100, borderRadius: 8 }} />)}
+          </View> : null}
           <Text style={{ fontWeight: '700' }}>Carga de: {message.caficultor_nombre}</Text>
           <Text>Peso de carga: {weight(message.carga_peso_kg)}</Text>
           <Text style={styles.muted}>Carga: {message.carga_id.slice(0, 8)}</Text>

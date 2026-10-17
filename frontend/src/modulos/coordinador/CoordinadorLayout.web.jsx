@@ -1153,6 +1153,9 @@ export default function CoordinadorLayout({
                     <div>
                       <h2>{item.tipo_evento}</h2>
                       <p>{item.descripcion_evento}</p>
+                      {item.fotos_evidencia?.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {item.fotos_evidencia.map((photo, index) => <img key={index} src={photo} alt={`Evidencia ${index + 1} de la novedad`} style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 8 }} />)}
+                      </div> : null}
                       <small>
                         {item.conductor_nombre} ·{' '}
                         {item.vehiculo_placa || 'Sin vehículo'} ·{' '}
