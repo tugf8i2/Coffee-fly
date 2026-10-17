@@ -51,6 +51,7 @@ class FakeTripRepository:
             id_entrega=uuid4(), estado_entrega="en camino", actualizado_en=None,
             carga_recogida_en=utc_now_naive(), solicitud=request,
         )
+        self.deliveries = [self.delivery]
         self.location = SimpleNamespace(
             latitud=4.711, longitud=-74.0721, precision_m=10,
             registrada_en=utc_now_naive(),
@@ -65,7 +66,7 @@ class FakeTripRepository:
         return self.trip
 
     def get_cargas_viaje(self, _trip_id):
-        return [(self.delivery, SimpleNamespace())]
+        return [(delivery, SimpleNamespace()) for delivery in self.deliveries]
 
     def get_ultimo_punto_viaje(self, _trip_id):
         return self.location
@@ -98,6 +99,26 @@ class TripCompletionTests(unittest.TestCase):
 
         self.assertEqual(result["estado_viaje"], "completado")
         self.assertTrue(repository.db.committed)
+
+    def test_completes_all_deliveries_only_after_every_pickup(self):
+        service, repository = self.service()
+        second = SimpleNamespace(
+            id_entrega=uuid4(), estado_entrega="en camino", actualizado_en=None,
+            carga_recogida_en=None,
+            solicitud=SimpleNamespace(estado_solicitud="en camino"),
+        )
+        repository.deliveries.append(second)
+
+        with self.assertRaises(HTTPException) as context:
+            service.completar(repository.trip.id_viaje, 8, 20)
+        self.assertEqual(context.exception.status_code, 409)
+        self.assertFalse(repository.db.committed)
+
+        second.carga_recogida_en = utc_now_naive()
+        service.completar(repository.trip.id_viaje, 8, 20)
+        self.assertTrue(repository.db.committed)
+        self.assertEqual(repository.trip.estado_viaje, "completado")
+        self.assertTrue(all(delivery.estado_entrega == "entregado" for delivery in repository.deliveries))
 
     def test_completion_renumbers_all_waiting_turns(self):
         service, repository = self.service()
