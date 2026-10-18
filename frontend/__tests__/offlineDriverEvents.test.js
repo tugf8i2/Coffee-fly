@@ -69,6 +69,7 @@ describe('novedades del conductor offline', () => {
           detalle: incident.detalle,
           client_event_id: incident.client_event_id,
           capturada_en: incident.capturada_en,
+          fotos_evidencia: [],
         }),
       }),
     );
