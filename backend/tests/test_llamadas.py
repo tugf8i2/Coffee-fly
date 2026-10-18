@@ -65,6 +65,14 @@ class CallAuthorizationTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as denied:
                 authorized_call_peer(db, outsider, trip_id)
             self.assertEqual(denied.exception.status_code, 403)
+            trip = db.query(Viaje).filter(Viaje.id_viaje == trip_id).one()
+            outsider.rol.descripcion_rol = "registrador"
+            trip.coordinador_id = outsider.id_usuario
+            db.flush()
+            self.assertEqual(call_contacts(db, driver), [])
+            with self.assertRaises(HTTPException) as invalid_peer:
+                authorized_call_peer(db, driver, trip_id)
+            self.assertEqual(invalid_peer.exception.status_code, 404)
         engine.dispose()
 
 

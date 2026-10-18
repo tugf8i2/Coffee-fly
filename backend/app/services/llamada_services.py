@@ -29,7 +29,8 @@ def call_contacts(db: Session, user: Usuario) -> list[dict]:
     contacts = []
     for trip in query.order_by(Viaje.creado_en.desc()).all():
         other = call_peer(db, trip, role)
-        if other is None or not other.habilitado or other.eliminado_en is not None:
+        expected_role = "coordinador" if role == "conductor" else "conductor"
+        if other is None or call_role(other) != expected_role or not other.habilitado or other.eliminado_en is not None:
             continue
         contacts.append({
             "viaje_id": str(trip.id_viaje),
@@ -64,6 +65,7 @@ def authorized_call_peer(db: Session, user: Usuario, trip_id: UUID) -> int:
     if role not in {"coordinador", "conductor"}:
         raise HTTPException(status_code=403, detail="No tienes acceso a llamadas de ruta")
     other = call_peer(db, trip, role)
-    if other is None or not other.habilitado or other.eliminado_en is not None:
+    expected_role = "coordinador" if role == "conductor" else "conductor"
+    if other is None or call_role(other) != expected_role or not other.habilitado or other.eliminado_en is not None:
         raise HTTPException(status_code=404, detail="Participante no disponible")
     return other.id_usuario
