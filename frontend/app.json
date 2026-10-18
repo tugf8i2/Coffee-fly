@@ -76,8 +76,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Coffee Fly accede a tus fotos para adjuntar evidencias y registrar el vehículo.",
-          "cameraPermission": "Coffee Fly usa la cámara para fotografiar novedades del vehículo.",
-          "microphonePermission": false
+          "cameraPermission": "Coffee Fly usa la cámara para fotografiar novedades del vehículo."
         }
       ],
       "expo-sharing",
