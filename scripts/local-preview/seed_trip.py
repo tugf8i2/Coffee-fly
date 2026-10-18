@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-os.environ["DATABASE_URL"] = f"sqlite:///{(root / 'outputs' / 'preview.sqlite3').as_posix()}"
+database = Path(os.environ.get("COFFEE_FLY_PREVIEW_DB", str(root / "outputs" / "preview.sqlite3"))).resolve()
+os.environ["DATABASE_URL"] = f"sqlite:///{database.as_posix()}"
 os.environ["ENV"] = "development"
 sys.path.insert(0, str(root / "backend"))
 
@@ -28,11 +29,16 @@ now = datetime.now(timezone.utc).replace(tzinfo=None)
 expires = (now + timedelta(days=365)).date()
 
 with SessionLocal() as db:
-    admin = db.query(Usuario).filter_by(correo_usuario="admin@coffeefly.com").one()
+    coordinator = db.query(Usuario).filter_by(correo_usuario="coordinador@coffeefly.com").one()
     driver = db.query(Usuario).filter_by(correo_usuario="conductor@coffeefly.com").one()
-    assigned = db.query(Viaje).filter_by(conductor_id=driver.conductor.id_conductor, estado_viaje="asignado").first()
-    if assigned:
-        print(f"Assigned local trip already exists: {assigned.id_viaje}")
+    active = db.query(Viaje).filter(
+        Viaje.conductor_id == driver.conductor.id_conductor,
+        Viaje.estado_viaje.in_(("asignado", "en_cola", "en_camino")),
+    ).first()
+    if active:
+        active.coordinador_id = coordinator.id_usuario
+        db.commit()
+        print(f"Active local trip already exists: {active.id_viaje}")
         sys.exit(0)
 
     role = db.query(Rol).filter_by(descripcion_rol="caficultor").first()
@@ -80,7 +86,7 @@ with SessionLocal() as db:
     db.add(request)
     db.flush()
     trip = Viaje(vehiculo_id=vehicle.id_vehiculo, conductor_id=driver.conductor.id_conductor,
-                 coordinador_id=admin.id_usuario, cooperativa_id=cooperative.id_cooperativa,
+                 coordinador_id=coordinator.id_usuario, cooperativa_id=cooperative.id_cooperativa,
                  cooperativa_latitud_snapshot=4.6670, cooperativa_longitud_snapshot=-74.0840,
                  cooperativa_direccion_snapshot="Destino de prueba, Bogotá", estado_viaje="asignado",
                  orden_cola=1, creado_en=now)
