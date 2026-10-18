@@ -108,3 +108,12 @@
   color: #f0f6ef;
   border-color: #70a38e;
 }
+.reg-dark .reg-alert {
+  background: #49381d;
+  color: #ffebc5;
+  border: 1px solid #af8646;
+}
+.reg-dark .reg-alert button { color: #ffebc5; }
+.reg-dark .reg-popover p,
+.reg-dark .reg-popover small,
+.reg-dark .reg-footer strong { color: #edf6ef; }

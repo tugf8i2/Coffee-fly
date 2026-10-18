@@ -1231,6 +1231,18 @@
   --soft: #22493e;
   background: #102b25;
 }
+.coord-dark .coord-notification-toast {
+  background: #20473a;
+  color: #f0f6ef;
+  border-color: #70a38e;
+}
+.coord-dark .coord-notification-toast small { color: #d5e8dc; }
+.coord-dark .coord-metric.amber { background: #4a3a22; }
+.coord-dark .coord-metric.blue { background: #203e54; }
+.coord-dark .coord-badge { background: #204c37; color: #b9f1c9; }
+.coord-dark .coord-badge.amber { background: #514020; color: #ffe0a6; }
+.coord-dark .coord-badge.blue { background: #203e54; color: #b9dcff; }
+.coord-dark .coord-badge.red { background: #542d2a; color: #ffc1bb; }
 @media (max-width: 500px) {
   .coord-content dl {
     grid-template-columns: 100px minmax(0, 1fr);
