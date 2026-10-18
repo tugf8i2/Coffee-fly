@@ -1,5 +1,6 @@
 import FeedbackMessage from '../componentes/comunes/MensajeRetroalimentacion';
 import AvisoConexion from '../componentes/comunes/AvisoConexion';
+import LlamadasRuta from '../componentes/llamadas/LlamadasRuta';
 import { useEffect, useState } from 'react';
 import { Platform, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -280,6 +281,7 @@ export default function AplicacionPrincipal() {
         <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
           <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
         </AppErrorBoundary>
+        {Platform.OS === 'web' && <LlamadasRuta token={sessionToken} user={user} screen={screen} />}
       </AvisoConexion>
       <StatusBar style={darkMode ? 'light' : 'dark'} />
     </SafeAreaView>
@@ -287,7 +289,7 @@ export default function AplicacionPrincipal() {
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'coordinador') return <SafeAreaProvider>
     <AvisoConexion status={connectionStatus}><AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
       <CoordinadorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} operationsScreens={screens} />
-    </AppErrorBoundary></AvisoConexion>
+    </AppErrorBoundary><LlamadasRuta token={sessionToken} user={user} screen={screen} /></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>

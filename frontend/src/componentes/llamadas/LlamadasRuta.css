@@ -1,0 +1,20 @@
+.cf-call-layer { position: fixed; inset: 0; z-index: 1200; pointer-events: none; font-family: system-ui, sans-serif; }
+.cf-call-layer button { cursor: pointer; font: inherit; }
+.cf-call-launch, .cf-call-menu, .cf-call-dialog, .cf-call-error, .cf-call-audio { pointer-events: auto; }
+.cf-call-launch { position: absolute; right: 18px; bottom: 18px; border: 0; border-radius: 26px; padding: 12px 18px; background: #064c3b; color: #fff; font-weight: 700; box-shadow: 0 4px 16px #001b1480; }
+.cf-call-menu { position: absolute; right: 18px; bottom: 72px; width: min(340px, calc(100vw - 36px)); max-height: 55vh; overflow: auto; border: 1px solid #6f9c86; border-radius: 14px; padding: 16px; display: grid; gap: 10px; background: #17382f; color: #f0f7f2; box-shadow: 0 8px 30px #001b1480; }
+.cf-call-menu p { color: #d5e8dc; margin: 0; }
+.cf-call-menu button { text-align: left; border: 1px solid #6f9c86; border-radius: 9px; padding: 10px; background: #20473a; color: #fff; }
+.cf-call-dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 30px)); max-height: 90vh; overflow: auto; border: 2px solid #70a38e; border-radius: 18px; padding: 20px; background: #102c27; color: #fff; box-shadow: 0 0 0 100vmax #001711b3; text-align: center; }
+.cf-call-dialog h2 { margin: 0 0 6px; }
+.cf-call-dialog p { color: #d5e8dc; margin: 0 0 16px; }
+.cf-call-videos { display: flex; gap: 8px; justify-content: center; }
+.cf-call-videos video { width: min(45%, 175px); max-height: 175px; border-radius: 10px; background: #071c16; object-fit: cover; }
+.cf-call-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
+.cf-call-actions button { padding: 10px 12px; border: 1px solid #91b8a2; border-radius: 9px; background: #245044; color: #fff; }
+.cf-call-actions .accept { background: #087858; }
+.cf-call-actions .hangup { background: #b32d32; border-color: #b32d32; }
+.cf-call-error { position: absolute; left: 14px; right: 14px; bottom: 75px; max-width: 440px; margin: auto; border-radius: 9px; padding: 12px; background: #fff3e6; color: #641f10; box-shadow: 0 3px 12px #0004; }
+.cf-call-error button { float: right; border: 0; background: transparent; font-size: 22px; color: inherit; }
+.cf-call-hidden { display: none; }
+.cf-call-audio { position: absolute; left: 12px; bottom: 12px; max-width: 140px; }

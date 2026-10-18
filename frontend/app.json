@@ -17,6 +17,8 @@
       "bundleIdentifier": "com.coffeefly.mobile",
       "infoPlist": {
         "NSLocationAlwaysUsageDescription": "Coffee Fly registra la ruta del vehículo durante una entrega activa.",
+        "NSMicrophoneUsageDescription": "Coffee Fly usa el micrófono solo durante una llamada visible que aceptas o inicias.",
+        "NSCameraUsageDescription": "Coffee Fly usa la cámara solo cuando la activas durante una llamada visible.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSAllowsLocalNetworking": true
@@ -38,7 +40,9 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
       ],
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",

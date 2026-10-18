@@ -20,6 +20,7 @@ from app.api.dashboard_api import router as dashboard_router
 from app.api.entrega_api import router as entrega_router
 from app.api.historial_eventos_api import router as historial_eventos_router
 from app.api.login_api import router as login_router
+from app.api.llamada_api import router as llamada_router
 from app.api.seguridad_dispositivos_api import router as seguridad_dispositivos_router
 from app.api.mapas_api import router as mapas_router
 from app.api.monitoring_api import router as monitoring_router
@@ -164,6 +165,7 @@ def health_ready():
 
 for router in (
     login_router,
+    llamada_router,
     seguridad_dispositivos_router,
     rol_router,
     usuario_router,

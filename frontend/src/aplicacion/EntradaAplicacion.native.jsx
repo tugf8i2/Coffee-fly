@@ -133,6 +133,8 @@ function EntradaWebView() {
         setBuiltInZoomControls={false}
         geolocationEnabled
         allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        mediaCapturePermissionGrantType="grantIfSameHostElseDeny"
         setSupportMultipleWindows={false}
         onLoadStart={() => setFailed(false)}
         onNavigationStateChange={(state) => setCanGoBack(state.canGoBack)}
