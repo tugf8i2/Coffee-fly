@@ -1,4 +1,5 @@
 const http = require('node:http');
+const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -7,7 +8,7 @@ const port = Number(process.env.COFFEE_FLY_PREVIEW_PORT || 8080);
 const apiUrl = process.env.COFFEE_FLY_PREVIEW_API_URL || 'http://127.0.0.1:8000';
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ttf': 'font/ttf', '.mjs': 'text/javascript' };
 
-http.createServer(async (request, response) => {
+const server = http.createServer(async (request, response) => {
   try {
     if (request.url.startsWith('/api/')) {
       const chunks = [];
@@ -31,4 +32,25 @@ http.createServer(async (request, response) => {
     response.writeHead(502);
     response.end(error.message);
   }
-}).listen(port, '127.0.0.1');
+});
+
+server.on('upgrade', (request, client, head) => {
+  if (!request.url.startsWith('/api/')) return client.destroy();
+  const target = new URL(apiUrl);
+  if (target.protocol !== 'http:') return client.destroy();
+  const upstream = net.connect(Number(target.port || 80), target.hostname);
+  upstream.once('connect', () => {
+    const headers = request.rawHeaders;
+    const lines = [`${request.method} ${request.url.slice(4)} HTTP/1.1`, `Host: ${target.host}`];
+    for (let index = 0; index < headers.length; index += 2) {
+      if (headers[index].toLowerCase() !== 'host') lines.push(`${headers[index]}: ${headers[index + 1]}`);
+    }
+    upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
+    if (head.length) upstream.write(head);
+    client.pipe(upstream).pipe(client);
+  });
+  upstream.on('error', () => client.destroy());
+  client.on('error', () => upstream.destroy());
+});
+
+server.listen(port, '127.0.0.1');
