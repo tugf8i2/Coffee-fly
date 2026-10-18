@@ -32,6 +32,7 @@ export default function LlamadasRuta({ token, user, screen }) {
   const cameraStreamRef = useRef(null);
   const pendingIceRef = useRef([]);
   const remoteAudioRef = useRef(null);
+  const ringtoneRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const receiveSignalRef = useRef(null);
@@ -120,7 +121,7 @@ export default function LlamadasRuta({ token, user, screen }) {
       }
       const contact = contacts.find((item) => item.viaje_id === message.viaje_id);
       setError('');
-      setCall({ viaje_id: message.viaje_id, llamada_id: message.llamada_id, nombre: contact?.nombre || 'Participante de la ruta', status: 'incoming' });
+      setCall({ viaje_id: message.viaje_id, llamada_id: message.llamada_id, nombre: message.de_nombre || contact?.nombre || 'Participante de la ruta', status: 'incoming' });
       return;
     }
     const active = callRef.current;
@@ -180,6 +181,28 @@ export default function LlamadasRuta({ token, user, screen }) {
     };
   }, [token, endCall, clearMedia]);
 
+  useEffect(() => {
+    const ringtone = ringtoneRef.current;
+    if (!ringtone) return;
+    if (call?.status === 'incoming' || call?.status === 'outgoing') {
+      ringtone.currentTime = 0;
+      ringtone.play().catch(() => {
+        if (call?.status === 'incoming') setError('Hay una llamada entrante. Activa el sonido del dispositivo para escuchar el tono.');
+      });
+    } else {
+      ringtone.pause();
+      ringtone.currentTime = 0;
+    }
+    return () => ringtone.pause();
+  }, [call?.status]);
+
+  const captureMedia = (constraints) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw Error('El micrófono requiere HTTPS o una conexión local segura.');
+    }
+    return navigator.mediaDevices.getUserMedia(constraints);
+  };
+
   const startCall = async (contact) => {
     if (callRef.current || !connected) return;
     const active = { viaje_id: contact.viaje_id, llamada_id: crypto.randomUUID(), nombre: contact.nombre, status: 'outgoing' };
@@ -187,7 +210,7 @@ export default function LlamadasRuta({ token, user, screen }) {
     setMenuOpen(false);
     setError('');
     try {
-      localStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStreamRef.current = await captureMedia({ audio: true, video: false });
       newPeer(active);
       if (!send('invitar', active, { medio: 'audio' })) throw Error('No hay conexión para llamar.');
     } catch (reason) { endCall(false); setError(reason.message || 'No se pudo activar el micrófono.'); }
@@ -197,7 +220,7 @@ export default function LlamadasRuta({ token, user, screen }) {
     const active = callRef.current;
     if (!active || active.status !== 'incoming') return;
     try {
-      localStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStreamRef.current = await captureMedia({ audio: true, video: false });
       newPeer(active);
       setCall({ ...active, status: 'connecting' });
       send('aceptar', active);
@@ -219,7 +242,7 @@ export default function LlamadasRuta({ token, user, screen }) {
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
         setCameraOn(false);
       } else {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        const stream = await captureMedia({ audio: false, video: true });
         cameraStreamRef.current = stream;
         stream.getTracks().forEach((track) => peer.addTrack(track, stream));
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -243,6 +266,7 @@ export default function LlamadasRuta({ token, user, screen }) {
   const role = String(user?.rol || '').toLowerCase();
   if (!['conductor', 'coordinador'].includes(role)) return null;
   return <div className="cf-call-layer">
+    <audio ref={ringtoneRef} src="/call-ringtone.wav" preload="auto" loop />
     <audio ref={remoteAudioRef} autoPlay controls={call?.status === 'active'} className={call?.status === 'active' ? 'cf-call-audio' : 'cf-call-hidden'} />
     {!call && <button type="button" className="cf-call-launch" onClick={() => { setMenuOpen((value) => !value); loadContacts(); }} aria-expanded={menuOpen}>☎ Llamar</button>}
     {menuOpen && !call && <section className="cf-call-menu" aria-label="Contactos para llamada">

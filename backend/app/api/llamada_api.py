@@ -24,6 +24,12 @@ def _authenticated_user(token: str) -> int:
         return user.id_usuario
 
 
+def _caller_name(token: str) -> str:
+    with SessionLocal() as db:
+        user = get_user_from_token(token, db)
+        return f"{user.nombre_usuario} {user.apellido}".strip()
+
+
 def _authorized_peer(token: str, trip_id: UUID, expected_user_id: int) -> int:
     with SessionLocal() as db:
         user = get_user_from_token(token, db)
@@ -48,6 +54,7 @@ async def call_signaling(socket: WebSocket):
         authentication = await asyncio.wait_for(socket.receive_json(), timeout=10)
         token = str(authentication.get("token") or "")
         user_id = await asyncio.to_thread(_authenticated_user, token)
+        caller_name = await asyncio.to_thread(_caller_name, token)
         await call_connections.connect(user_id, socket)
         await socket.send_json({"tipo": "listo"})
         while True:
@@ -81,6 +88,7 @@ async def call_signaling(socket: WebSocket):
                 "viaje_id": str(trip_id),
                 "llamada_id": str(call_id),
                 "de_usuario_id": user_id,
+                "de_nombre": caller_name,
                 "contenido": content,
             })
             if not delivered and message["tipo"] == "invitar":

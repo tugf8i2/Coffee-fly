@@ -1,4 +1,5 @@
 const http = require('node:http');
+const https = require('node:https');
 const net = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,9 +7,14 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '../../frontend/dist');
 const port = Number(process.env.COFFEE_FLY_PREVIEW_PORT || 8080);
 const apiUrl = process.env.COFFEE_FLY_PREVIEW_API_URL || 'http://127.0.0.1:8000';
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ttf': 'font/ttf', '.mjs': 'text/javascript' };
+const tlsCert = process.env.COFFEE_FLY_PREVIEW_TLS_CERT;
+const tlsKey = process.env.COFFEE_FLY_PREVIEW_TLS_KEY;
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ttf': 'font/ttf', '.mjs': 'text/javascript', '.wav': 'audio/wav' };
 
-const server = http.createServer(async (request, response) => {
+const createServer = tlsCert && tlsKey
+  ? (handler) => https.createServer({ cert: fs.readFileSync(tlsCert), key: fs.readFileSync(tlsKey) }, handler)
+  : http.createServer;
+const server = createServer(async (request, response) => {
   try {
     if (request.url.startsWith('/api/')) {
       const chunks = [];
@@ -53,4 +59,4 @@ server.on('upgrade', (request, client, head) => {
   client.on('error', () => upstream.destroy());
 });
 
-server.listen(port, '127.0.0.1');
+server.listen(port, process.env.COFFEE_FLY_PREVIEW_HOST || '127.0.0.1');

@@ -80,7 +80,7 @@ class CallSocketTests(unittest.TestCase):
     def test_relay_includes_authenticated_sender_not_client_claim(self):
         trip_id = uuid4()
         call_id = uuid4()
-        with patch("app.api.llamada_api._authenticated_user", return_value=2), patch("app.api.llamada_api._authorized_peer", return_value=1), patch("app.api.llamada_api.call_connections.send", new_callable=lambda: self._fake_send()) as delivered:
+        with patch("app.api.llamada_api._authenticated_user", return_value=2), patch("app.api.llamada_api._caller_name", return_value="Chofer Dos"), patch("app.api.llamada_api._authorized_peer", return_value=1), patch("app.api.llamada_api.call_connections.send", new_callable=lambda: self._fake_send()) as delivered:
             with TestClient(app).websocket_connect("/llamadas/ws") as socket:
                 socket.send_json({"token": "test-token"})
                 self.assertEqual(socket.receive_json()["tipo"], "listo")
@@ -90,6 +90,7 @@ class CallSocketTests(unittest.TestCase):
             recipient, message = delivered.messages[0]
             self.assertEqual(recipient, 1)
             self.assertEqual(message["de_usuario_id"], 2)
+            self.assertEqual(message["de_nombre"], "Chofer Dos")
 
     @staticmethod
     def _fake_send():
