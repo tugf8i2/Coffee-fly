@@ -25,12 +25,16 @@ export default function LlamadasRuta({ token, user, screen }) {
   const [error, setError] = useState('');
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [remoteCameraOn, setRemoteCameraOn] = useState(false);
   const socketRef = useRef(null);
   const callRef = useRef(null);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const cameraStreamRef = useRef(null);
+  const videoSenderRef = useRef(null);
   const pendingIceRef = useRef([]);
+  const recoveryTimerRef = useRef(null);
+  const recoveryAttemptsRef = useRef(0);
   const remoteAudioRef = useRef(null);
   const ringtoneRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -51,18 +55,23 @@ export default function LlamadasRuta({ token, user, screen }) {
   }, []);
 
   const clearMedia = useCallback(() => {
+    clearTimeout(recoveryTimerRef.current);
+    recoveryTimerRef.current = null;
+    recoveryAttemptsRef.current = 0;
     peerRef.current?.close();
     peerRef.current = null;
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     cameraStreamRef.current = null;
+    videoSenderRef.current = null;
     pendingIceRef.current = [];
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     setMuted(false);
     setCameraOn(false);
+    setRemoteCameraOn(false);
   }, []);
 
   const endCall = useCallback((notify = true) => {
@@ -89,19 +98,75 @@ export default function LlamadasRuta({ token, user, screen }) {
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) send('candidato', active, { candidate: candidate.toJSON() });
     };
-    peer.ontrack = ({ streams }) => {
-      const stream = streams?.[0];
-      if (!stream) return;
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = stream;
-        remoteAudioRef.current.play().catch(() => setError('Toca reproducir audio para escuchar la llamada.'));
+    peer.ontrack = ({ track, streams }) => {
+      const stream = streams?.[0] || new MediaStream([track]);
+      if (track.kind === 'audio' && remoteAudioRef.current) {
+        const audio = remoteAudioRef.current;
+        // A video track can join the same WebRTC stream later. Keep playback bound
+        // to the audio track alone so camera negotiation cannot reset the player.
+        if (audio.srcObject?.getAudioTracks?.()[0] !== track) {
+          audio.srcObject = new MediaStream([track]);
+        }
+        audio.play().catch(() => setError('Toca reproducir audio para escuchar la llamada.'));
       }
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+      if (track.kind === 'video') {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+        setRemoteCameraOn(!track.muted);
+        const clearVideo = () => {
+          if (remoteVideoRef.current?.srcObject === stream) remoteVideoRef.current.srcObject = null;
+          setRemoteCameraOn(false);
+        };
+        track.addEventListener('mute', clearVideo);
+        track.addEventListener('ended', clearVideo);
+        track.addEventListener('unmute', () => {
+          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+          setRemoteCameraOn(true);
+        });
+      }
       if (callRef.current?.llamada_id === active.llamada_id) setCall({ ...callRef.current, status: 'active' });
     };
-    peer.onconnectionstatechange = () => {
-      if (peer.connectionState === 'failed') setError('No se pudo conectar el audio. Revisa la red o el servidor TURN.');
+    const scheduleCheck = (delay) => {
+      recoveryTimerRef.current = setTimeout(() => {
+        recoveryTimerRef.current = null;
+        monitorConnection();
+      }, delay);
     };
+    const monitorConnection = () => {
+      if (peerRef.current !== peer) return;
+      const state = peer.connectionState;
+      if (state === 'connected') {
+        clearTimeout(recoveryTimerRef.current);
+        recoveryTimerRef.current = null;
+        recoveryAttemptsRef.current = 0;
+        setError((current) => current === 'Reconectando el audio…' ? '' : current);
+        return;
+      }
+      if (!active.initiator || !['disconnected', 'failed'].includes(state) || recoveryTimerRef.current) return;
+      setError('Reconectando el audio…');
+      recoveryTimerRef.current = setTimeout(async () => {
+        recoveryTimerRef.current = null;
+        if (peerRef.current !== peer || callRef.current?.llamada_id !== active.llamada_id || peer.connectionState === 'connected') return;
+        if (recoveryAttemptsRef.current >= 3) {
+          setError('No se pudo recuperar el audio. Revisa la conexión y vuelve a llamar.');
+          return;
+        }
+        if (peer.signalingState !== 'stable' || socketRef.current?.readyState !== WebSocket.OPEN) {
+          scheduleCheck(2500);
+          return;
+        }
+        recoveryAttemptsRef.current += 1;
+        try {
+          peer.restartIce();
+          const offer = await peer.createOffer({ iceRestart: true });
+          await peer.setLocalDescription(offer);
+          send('oferta', active, { sdp: offer.sdp, type: offer.type });
+          scheduleCheck(5000);
+        } catch {
+          scheduleCheck(2500);
+        }
+      }, state === 'failed' ? 1000 : 3000);
+    };
+    peer.onconnectionstatechange = monitorConnection;
     return peer;
   }, [send, setCall]);
 
@@ -121,12 +186,17 @@ export default function LlamadasRuta({ token, user, screen }) {
       }
       const contact = contacts.find((item) => item.viaje_id === message.viaje_id);
       setError('');
-      setCall({ viaje_id: message.viaje_id, llamada_id: message.llamada_id, nombre: message.de_nombre || contact?.nombre || 'Participante de la ruta', status: 'incoming' });
+      setCall({ viaje_id: message.viaje_id, llamada_id: message.llamada_id, nombre: message.de_nombre || contact?.nombre || 'Participante de la ruta', status: 'incoming', initiator: false });
       return;
     }
     const active = callRef.current;
     if (!active || active.llamada_id !== message.llamada_id || active.viaje_id !== message.viaje_id) return;
     if (message.tipo === 'finalizar' || message.tipo === 'rechazar') { endCall(false); return; }
+    if (message.tipo === 'video_apagado') {
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      setRemoteCameraOn(false);
+      return;
+    }
     const peer = peerRef.current;
     if (message.tipo === 'aceptar' && peer) {
       const offer = await peer.createOffer();
@@ -151,23 +221,25 @@ export default function LlamadasRuta({ token, user, screen }) {
   }, [addRemoteIce, contacts, endCall, loadContacts, send, setCall]);
   receiveSignalRef.current = receiveSignal;
 
+  const userId = user?.id ?? user?.id_usuario;
   useEffect(() => {
     let socket;
     let retry;
     let stopped = false;
     const connect = () => {
       if (stopped) return;
+      const authToken = tokenRef.current;
       socket = new WebSocket(socketUrl());
       socketRef.current = socket;
-      socket.onopen = () => socket.send(JSON.stringify({ token: tokenRef.current }));
+      socket.onopen = () => socket.send(JSON.stringify({ token: authToken }));
       socket.onmessage = ({ data }) => {
         try { receiveSignalRef.current(JSON.parse(data)).catch((reason) => setError(reason.message || 'Falló la llamada.')); }
         catch { setError('La llamada recibió una señal inválida.'); }
       };
       socket.onclose = ({ code }) => {
         setConnected(false);
-        if (callRef.current) endCall(false);
-        if (!stopped && ![4401, 4403].includes(code)) retry = setTimeout(connect, 3500);
+        // El audio WebRTC puede continuar mientras se restablece la señalización.
+        if (!stopped && code !== 4403 && (code !== 4401 || tokenRef.current !== authToken)) retry = setTimeout(connect, 3500);
       };
     };
     if (token) connect();
@@ -179,7 +251,12 @@ export default function LlamadasRuta({ token, user, screen }) {
       clearMedia();
       callRef.current = null;
     };
-  }, [token, endCall, clearMedia]);
+  }, [userId, endCall, clearMedia]);
+
+  useEffect(() => {
+    window.ReactNativeWebView?.postMessage?.(JSON.stringify({ type: 'call_visibility', active: Boolean(call) }));
+    return () => window.ReactNativeWebView?.postMessage?.(JSON.stringify({ type: 'call_visibility', active: false }));
+  }, [Boolean(call)]);
 
   useEffect(() => {
     const ringtone = ringtoneRef.current;
@@ -205,7 +282,7 @@ export default function LlamadasRuta({ token, user, screen }) {
 
   const startCall = async (contact) => {
     if (callRef.current || !connected) return;
-    const active = { viaje_id: contact.viaje_id, llamada_id: crypto.randomUUID(), nombre: contact.nombre, status: 'outgoing' };
+    const active = { viaje_id: contact.viaje_id, llamada_id: crypto.randomUUID(), nombre: contact.nombre, status: 'outgoing', initiator: true };
     setCall(active);
     setMenuOpen(false);
     setError('');
@@ -232,23 +309,28 @@ export default function LlamadasRuta({ token, user, screen }) {
     const peer = peerRef.current;
     if (!active || !peer) return;
     try {
+      let addedVideoSender = false;
       if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach((track) => {
-          const sender = peer.getSenders().find((item) => item.track === track);
-          if (sender) peer.removeTrack(sender);
-          track.stop();
-        });
+        await videoSenderRef.current?.replaceTrack(null);
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
         cameraStreamRef.current = null;
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
         setCameraOn(false);
+        send('video_apagado', active);
+        return;
       } else {
         const stream = await captureMedia({ audio: false, video: true });
         cameraStreamRef.current = stream;
-        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+        const track = stream.getVideoTracks()[0];
+        if (videoSenderRef.current) await videoSenderRef.current.replaceTrack(track);
+        else {
+          videoSenderRef.current = peer.addTrack(track, stream);
+          addedVideoSender = true;
+        }
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         setCameraOn(true);
       }
-      if (peer.remoteDescription) {
+      if (addedVideoSender && peer.remoteDescription && peer.signalingState === 'stable') {
         const offer = await peer.createOffer();
         await peer.setLocalDescription(offer);
         send('oferta', active, { sdp: offer.sdp, type: offer.type });
@@ -267,7 +349,7 @@ export default function LlamadasRuta({ token, user, screen }) {
   if (!['conductor', 'coordinador'].includes(role)) return null;
   return <div className="cf-call-layer">
     <audio ref={ringtoneRef} src="/call-ringtone.wav" preload="auto" loop />
-    <audio ref={remoteAudioRef} autoPlay controls={call?.status === 'active'} className={call?.status === 'active' ? 'cf-call-audio' : 'cf-call-hidden'} />
+    <audio ref={remoteAudioRef} autoPlay playsInline controls={call?.status === 'active'} className={call?.status === 'active' ? 'cf-call-audio' : 'cf-call-hidden'} />
     {!call && <button type="button" className="cf-call-launch" onClick={() => { setMenuOpen((value) => !value); loadContacts(); }} aria-expanded={menuOpen}>☎ Llamar</button>}
     {menuOpen && !call && <section className="cf-call-menu" aria-label="Contactos para llamada">
       <strong>Llamadas de ruta</strong>
@@ -278,7 +360,7 @@ export default function LlamadasRuta({ token, user, screen }) {
     {call && <section className="cf-call-dialog" role="dialog" aria-modal="true" aria-label="Llamada de Coffee Fly">
       <h2>{call.status === 'incoming' ? 'Llamada entrante' : call.status === 'outgoing' ? 'Llamando…' : 'Llamada en curso'}</h2>
       <p>{call.nombre}</p>
-      <div className="cf-call-videos"><video ref={remoteVideoRef} autoPlay playsInline muted /><video ref={localVideoRef} autoPlay playsInline muted /></div>
+      <div className="cf-call-videos"><div className="cf-call-video"><video ref={remoteVideoRef} autoPlay playsInline muted />{!remoteCameraOn && <span>Cámara apagada</span>}</div><div className="cf-call-video"><video ref={localVideoRef} autoPlay playsInline muted />{!cameraOn && <span>Tu cámara apagada</span>}</div></div>
       <div className="cf-call-actions">
         {call.status === 'incoming' && <button type="button" className="accept" onClick={acceptCall}>Contestar</button>}
         {call.status !== 'incoming' && <><button type="button" onClick={toggleMic}>{muted ? 'Activar micrófono' : 'Silenciar micrófono'}</button><button type="button" onClick={toggleCamera}>{cameraOn ? 'Apagar cámara' : 'Compartir cámara'}</button></>}

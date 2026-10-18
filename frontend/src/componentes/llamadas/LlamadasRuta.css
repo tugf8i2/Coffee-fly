@@ -9,7 +9,9 @@
 .cf-call-dialog h2 { margin: 0 0 6px; }
 .cf-call-dialog p { color: #d5e8dc; margin: 0 0 16px; }
 .cf-call-videos { display: flex; gap: 8px; justify-content: center; }
-.cf-call-videos video { width: min(45%, 175px); max-height: 175px; border-radius: 10px; background: #071c16; object-fit: cover; }
+.cf-call-video { position: relative; width: min(45%, 175px); height: 145px; border-radius: 10px; overflow: hidden; background: #071c16; }
+.cf-call-video video { width: 100%; height: 100%; object-fit: cover; }
+.cf-call-video span { position: absolute; inset: 0; display: grid; place-items: center; padding: 8px; color: #d5e8dc; font-size: 13px; background: #071c16; }
 .cf-call-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
 .cf-call-actions button { padding: 10px 12px; border: 1px solid #91b8a2; border-radius: 9px; background: #245044; color: #fff; }
 .cf-call-actions .accept { background: #087858; }

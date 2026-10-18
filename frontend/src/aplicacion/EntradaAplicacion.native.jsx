@@ -6,6 +6,7 @@ import { DeviceMotion } from 'expo-sensors';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
+import * as KeepAwake from 'expo-keep-awake';
 import AplicacionPrincipal from './AplicacionPrincipal';
 import { LEGADO_COFFEE_FLY } from '../identidad/legado';
 
@@ -17,6 +18,7 @@ const APP_URL = String(process.env.EXPO_PUBLIC_APP_URL || 'https://coffee-fly.ho
   .replace(/\/+$/, '');
 const AUTH_SESSION_KEY = 'coffee_fly.auth_session';
 const secureOptions = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
+const CALL_WAKE_TAG = 'coffee-fly-active-call';
 
 function EntradaWebView() {
   const webViewRef = useRef(null);
@@ -116,7 +118,10 @@ function EntradaWebView() {
     } catch { /* Location remains unavailable until the device grants permission. */ }
   }, [sendSensor]);
 
-  React.useEffect(() => stopSensors, [stopSensors]);
+  React.useEffect(() => () => {
+    stopSensors();
+    KeepAwake.deactivateKeepAwake(CALL_WAKE_TAG).catch(() => {});
+  }, [stopSensors]);
 
   return (
     <View style={styles.container}>
@@ -136,7 +141,10 @@ function EntradaWebView() {
         mediaPlaybackRequiresUserAction={false}
         mediaCapturePermissionGrantType="grantIfSameHostElseDeny"
         setSupportMultipleWindows={false}
-        onLoadStart={() => setFailed(false)}
+        onLoadStart={() => {
+          setFailed(false);
+          KeepAwake.deactivateKeepAwake(CALL_WAKE_TAG).catch(() => {});
+        }}
         onNavigationStateChange={(state) => setCanGoBack(state.canGoBack)}
         onMessage={(event) => {
           if (event.nativeEvent.data === 'navigation_sensors_start') startSensors();
@@ -146,6 +154,10 @@ function EntradaWebView() {
               const request = JSON.parse(event.nativeEvent.data);
               if (request.type === 'image_picker' && request.requestId) pickImage(request);
               if (request.type === 'secure_session') handleSecureSession(request, event.nativeEvent.url);
+              if (request.type === 'call_visibility' && (event.nativeEvent.url === APP_URL || event.nativeEvent.url?.startsWith(`${APP_URL}/`))) {
+                if (request.active) KeepAwake.activateKeepAwakeAsync(CALL_WAKE_TAG).catch(() => {});
+                else KeepAwake.deactivateKeepAwake(CALL_WAKE_TAG).catch(() => {});
+              }
             } catch { /* Ignore unrelated WebView messages. */ }
           }
         }}

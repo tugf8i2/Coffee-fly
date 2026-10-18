@@ -13,7 +13,7 @@ from app.services.llamada_services import authorized_call_peer, call_contacts, c
 
 
 router = APIRouter(prefix="/llamadas", tags=["Llamadas de ruta"])
-SIGNAL_TYPES = {"invitar", "aceptar", "rechazar", "oferta", "respuesta", "candidato", "finalizar"}
+SIGNAL_TYPES = {"invitar", "aceptar", "rechazar", "oferta", "respuesta", "candidato", "video_apagado", "finalizar"}
 
 
 def _authenticated_user(token: str) -> int:

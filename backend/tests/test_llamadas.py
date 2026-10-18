@@ -85,12 +85,14 @@ class CallSocketTests(unittest.TestCase):
                 socket.send_json({"token": "test-token"})
                 self.assertEqual(socket.receive_json()["tipo"], "listo")
                 socket.send_json({"tipo": "invitar", "viaje_id": str(trip_id), "llamada_id": str(call_id), "de_usuario_id": 999, "contenido": {"medio": "audio"}})
+                socket.send_json({"tipo": "video_apagado", "viaje_id": str(trip_id), "llamada_id": str(call_id)})
                 socket.send_json({"tipo": "ping"})
                 self.assertEqual(socket.receive_json()["tipo"], "pong")
             recipient, message = delivered.messages[0]
             self.assertEqual(recipient, 1)
             self.assertEqual(message["de_usuario_id"], 2)
             self.assertEqual(message["de_nombre"], "Chofer Dos")
+            self.assertEqual(delivered.messages[1][1]["tipo"], "video_apagado")
 
     @staticmethod
     def _fake_send():
