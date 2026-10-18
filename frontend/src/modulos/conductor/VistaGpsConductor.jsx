@@ -467,6 +467,7 @@ export default function VistaGpsConductor({
           <View style={styles.mapUtility}>
             <TouchableOpacity
               accessibilityRole="button"
+              accessibilityLabel="Centrar en mi ubicación"
               onPress={() => controlsRef.current?.center?.()}
               style={styles.center}
             >

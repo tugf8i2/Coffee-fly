@@ -117,3 +117,17 @@
 .reg-dark .reg-popover p,
 .reg-dark .reg-popover small,
 .reg-dark .reg-footer strong { color: #edf6ef; }
+
+/* Los controles del GPS deben quedar por encima del mapa oscuro. */
+.op-dark .op-content [aria-label='Orientar mapa al norte'],
+.op-dark .op-content [aria-label='Silenciar voz GPS'],
+.op-dark .op-content [aria-label='Activar voz GPS'],
+.op-dark .op-content [aria-label='Reportar novedad en ruta'],
+.op-dark .op-content [aria-label='Centrar en mi ubicación'] {
+  background: #fffdf7 !important;
+  color: #101b2f !important;
+  box-shadow: 0 2px 12px #001a1370;
+}
+.op-dark .op-content [aria-label='Centrar en mi ubicación'] * {
+  color: #101b2f !important;
+}
