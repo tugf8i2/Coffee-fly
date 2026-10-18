@@ -114,9 +114,10 @@ function Button({
   );
 }
 function Fact({ icon, title, children }) {
+  const dark = useContext(ConductorThemeContext);
   return (
     <View style={[s.row, { alignItems: 'flex-start' }]}>
-      <Icon name={icon} size={20} />
+      <Icon name={icon} size={20} color={dark ? '#b7eac8' : '#124f37'} />
       <View style={{ flex: 1 }}>
         <Label bold style={{ fontSize: 13 }}>
           {title}
@@ -737,6 +738,7 @@ export default function ConductorLayout({
                   <View style={s.map}>
                     <MapaAbierto
                       style={{ flex: 1 }}
+                      mapTheme={darkMode ? 'dark' : 'day'}
                       mapStyleUrl={connectionStatus !== 'online' && offlineMapState.listo ? OFFLINE_MAP_STYLE_URL : undefined}
                       markers={overviewMarkers}
                       route={savedRoute?.puntos || []}
@@ -754,7 +756,7 @@ export default function ConductorLayout({
                     style={[
                       s.spread,
                       {
-                        backgroundColor: '#fffef9',
+                        backgroundColor: darkMode ? '#17382f' : '#fffef9',
                         borderRadius: 8,
                         padding: 12,
                         flexWrap: 'wrap',
@@ -788,7 +790,7 @@ export default function ConductorLayout({
                       Distancia de ruta
                     </Fact>
                   </View>
-                  <View style={{ padding: 12, paddingTop: 0, backgroundColor: '#fffef9', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
+                  <View style={{ padding: 12, paddingTop: 0, backgroundColor: darkMode ? '#17382f' : '#fffef9', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
                     <View style={{ backgroundColor: '#064c3b', borderRadius: 8, overflow: 'hidden' }}>
                       <TouchableOpacity accessibilityRole="button" onPress={() => setNavigationMode(true)} style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                         <Icon name="play" size={20} color="#fff" />
@@ -922,11 +924,12 @@ export default function ConductorLayout({
                       s.quick,
                       width >= 650 && { flexBasis: '22%' },
                       index === 0 && { backgroundColor: '#124f37' },
+                      darkMode && index > 0 && { backgroundColor: '#20473a', borderColor: '#527568' },
                     ]}
                   >
                     <Icon
                       name={icon}
-                      color={index ? '#124f37' : '#fff'}
+                      color={index ? (darkMode ? '#c5e9d1' : '#124f37') : '#fff'}
                       size={27}
                     />
                     <View style={{ flex: 1 }}>
@@ -935,7 +938,7 @@ export default function ConductorLayout({
                       </Label>
                       <Label
                         style={{
-                          color: index ? '#78818a' : '#dcead7',
+                          color: index ? (darkMode ? '#c5ddd0' : '#78818a') : '#dcead7',
                           fontSize: 12,
                         }}
                       >
