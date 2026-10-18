@@ -61,10 +61,12 @@ export default function SeguimientoVehiculo({
   onDriverAction,
   navigationVisible = true,
   connectionStatus = 'checking',
+  darkMode = false,
 }) {
   const gpsControlsRef = useRef(null);
   const [localNavigationPoint, setLocalNavigationPoint] = useState(null);
-  const [mapTheme, setMapTheme] = useState('day');
+  const [mapTheme, setMapTheme] = useState(darkMode ? 'dark' : 'day');
+  useEffect(() => setMapTheme(darkMode ? 'dark' : 'day'), [darkMode]);
   const [delivery, setDelivery] = useState(null);
   const [activeDeliveries, setActiveDeliveries] = useState([]);
   const [activeTrip, setActiveTrip] = useState(null);

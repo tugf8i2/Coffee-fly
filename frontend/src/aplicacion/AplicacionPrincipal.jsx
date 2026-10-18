@@ -220,7 +220,20 @@ export default function AplicacionPrincipal() {
   useEffect(() => {
     if (!user) { setDarkMode(false); return; }
     const key = `coffee-fly:theme:${user.id || user.id_usuario}`;
-    readDriverValue(key).then((value) => setDarkMode(value === 'dark')).catch(() => {});
+    readDriverValue(key).then((value) => {
+      if (value === 'dark' || value === 'light') {
+        setDarkMode(value === 'dark');
+        return;
+      }
+      if (Platform.OS !== 'web') return;
+      const role = String(user.rol || '').toLowerCase();
+      const legacyRole = { registrador: 'registrador', coordinador: 'coord', caficultor: 'caficultor' }[role];
+      if (!legacyRole) return;
+      try {
+        const saved = JSON.parse(localStorage.getItem(`coffee-fly:${legacyRole}:prefs:${user.id || user.id_usuario}`) || '{}');
+        if (typeof saved.dark === 'boolean') setDarkMode(saved.dark);
+      } catch { /* Una preferencia antigua dañada no bloquea el inicio. */ }
+    }).catch(() => {});
   }, [user?.id, user?.id_usuario]);
   const toggleDarkMode = () => setDarkMode((current) => {
     const next = !current;

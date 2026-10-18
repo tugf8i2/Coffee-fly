@@ -8,7 +8,7 @@ const valid = (latitude, longitude) => Number.isFinite(Number(latitude)) && Numb
   && Number(latitude) >= -90 && Number(latitude) <= 90
   && Number(longitude) >= -180 && Number(longitude) <= 180;
 
-export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa' }) {
+export default function SelectorUbicacionCooperativa({ latitude, longitude, onSelect, entityLabel = 'cooperativa', mapTheme = 'day' }) {
   const [locating, setLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState('');
   const cancelLocation = useRef(null);
@@ -44,18 +44,19 @@ export default function SelectorUbicacionCooperativa({ latitude, longitude, onSe
     } });
   };
   return <View style={{ width: '100%', gap: 7 }}>
-    <Text style={{ color: '#386641', fontWeight: '700' }}>Haz clic sobre el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
+    <Text style={{ color: mapTheme === 'dark' ? '#c5e9d1' : '#386641', fontWeight: '700' }}>Haz clic sobre el mapa para ubicar la {entityLabel}. También puedes arrastrar el marcador.</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={`Usar mi ubicación actual para la ${entityLabel}`} disabled={locating} onPress={useCurrentLocation} style={{ alignSelf: 'flex-start', backgroundColor: locating ? '#87978a' : '#386641', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9 }}>
       <Text style={{ color: '#fff', fontWeight: '700' }}>{locating ? 'Obteniendo ubicación precisa...' : 'Usar mi ubicación actual'}</Text>
     </Pressable>
-    {locationStatus ? <Text accessibilityLiveRegion="polite" style={{ color: '#526451', fontSize: 12 }}>{locationStatus}</Text> : null}
+    {locationStatus ? <Text accessibilityLiveRegion="polite" style={{ color: mapTheme === 'dark' ? '#d5e8dc' : '#526451', fontSize: 12 }}>{locationStatus}</Text> : null}
     <MapaAbierto
       style={{ width: '100%', height: 380, borderRadius: 14 }}
+      mapTheme={mapTheme}
       markers={markers}
       camera={{ fitMode: selected ? 'markers' : 'none', fitKey: selected ? `${selected.latitude}:${selected.longitude}` : 'colombia', zoom: 16 }}
       onMapPress={selectManually}
       onMarkerDragEnd={(_id, coordinate) => selectManually(coordinate)}
     />
-    <Text style={{ color: '#526451', fontSize: 12 }}>Mapa © OpenStreetMap contributors · OpenFreeMap.</Text>
+    <Text style={{ color: mapTheme === 'dark' ? '#d5e8dc' : '#526451', fontSize: 12 }}>Mapa © OpenStreetMap contributors · OpenFreeMap.</Text>
   </View>;
 }

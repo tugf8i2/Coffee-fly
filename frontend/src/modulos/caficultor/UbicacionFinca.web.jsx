@@ -9,6 +9,6 @@ const obtenerUbicacionActual = () => new Promise((resolve, reject) => {
   );
 });
 
-export default function UbicacionFinca({ token }) {
-  return <FormularioUbicacionFinca token={token} obtenerUbicacionActual={obtenerUbicacionActual} />;
+export default function UbicacionFinca({ token, darkMode = false }) {
+  return <FormularioUbicacionFinca token={token} darkMode={darkMode} obtenerUbicacionActual={obtenerUbicacionActual} />;
 }

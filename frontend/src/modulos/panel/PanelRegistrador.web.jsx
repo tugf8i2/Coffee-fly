@@ -43,7 +43,7 @@ const quickActions = [
 const Header = ({ icon, title, action, onAction }) => <div className="reg-card-heading"><h2><Icon name={icon}/>{title}</h2>{action && <button onClick={onAction} className="reg-text-button">{action}</button>}</div>;
 const Badge = ({ children, tone = 'green' }) => <span className={`reg-badge ${tone}`}><span>✓</span>{children}</span>;
 
-export default function PanelRegistrador({ token, user, summary, loading, error, connectionStatus, screen = 'dashboard', go, onLogout, onRefresh, children, notice }) {
+export default function PanelRegistrador({ token, user, summary, loading, error, connectionStatus, screen = 'dashboard', go, onLogout, onRefresh, children, notice, darkMode = false, onToggleDarkMode }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 850);
   const [exporting, setExporting] = useState('');
   const [exportError, setExportError] = useState('');
@@ -56,7 +56,7 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
   });
   const [preferenceMessage, setPreferenceMessage] = useState('');
   const savePreferences = () => {
-    try { localStorage.setItem(preferenceKey, JSON.stringify(preferences)); setPreferenceMessage('Preferencias guardadas en este navegador.'); }
+    try { localStorage.setItem(preferenceKey, JSON.stringify({ ...preferences, dark: darkMode })); setPreferenceMessage('Preferencias guardadas en este navegador.'); }
     catch { setPreferenceMessage('No fue posible guardar las preferencias.'); }
   };
   useEffect(() => { setSection(null); setProfileOpen(false); }, [screen]);
@@ -97,7 +97,7 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
     } catch (reason) { setExportError(reason.message); }
     finally { setExporting(''); }
   };
-  return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''} ${preferences.dark ? 'reg-dark' : ''} ${preferences.compact ? 'reg-compact' : ''}`}>
+  return <div className={`registrar-app ${collapsed ? 'reg-collapsed' : ''} ${darkMode ? 'reg-dark' : ''} ${preferences.compact ? 'reg-compact' : ''}`}>
     <style>{`@font-face{font-family:Registrar;src:url('${fontUrl(regular)}');font-weight:400;font-display:swap}@font-face{font-family:Registrar;src:url('${fontUrl(bold)}');font-weight:600 900;font-display:swap}`}</style>
     <aside id="reg-navigation" className="reg-sidebar" aria-label="Navegación del registrador" inert={collapsed ? true : undefined}>
       <button className="reg-brand" onClick={() => navigate('dashboard')} aria-label="Coffee Fly, inicio"><MarcaCafe/></button>
@@ -127,7 +127,7 @@ export default function PanelRegistrador({ token, user, summary, loading, error,
     </div>
     {section && <div className="reg-modal-backdrop" onClick={() => setSection(null)}><section className={`reg-modal ${section === 'devices' ? 'reg-modal-devices' : ''}`} role="dialog" aria-modal="true" aria-labelledby="reg-modal-title" onClick={(event) => event.stopPropagation()}><button autoFocus className="reg-modal-close" onClick={() => setSection(null)} aria-label="Cerrar">×</button><h2 id="reg-modal-title">{section === 'devices' ? 'Seguridad de dispositivos' : menu.find(([, , key]) => key === section)?.[1] || 'Actividad reciente'}</h2>
       {section === 'registryReports' && <><p>Descarga el resumen de registros actualmente disponibles en tu panel.</p><p>Incluye cooperativas, vehículos y usuarios por rol. Los totales corresponden al momento de la descarga.</p>{exportError && <p role="alert">{exportError}</p>}<div className="reg-export-actions">{[["pdf", "Descargar PDF"], ["excel", "Descargar Excel (.xlsx)"]].map(([format, label]) => <button key={format} className="reg-green-button" disabled={Boolean(exporting)} onClick={() => exportRegistry(format)}>{exporting === format ? "Preparando…" : label}</button>)}</div></>}
-      {section === 'settings' && <><p><strong>{name}</strong><br/>{user?.correo_usuario}<br/>Rol: Registrador</p><h3>Preferencias</h3><label className="reg-setting">Idioma <select disabled value="es" aria-label="Idioma"><option value="es">Español</option></select></label><div className="reg-setting">Zona horaria <span>{Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div><label className="reg-setting">Modo oscuro <input type="checkbox" role="switch" checked={preferences.dark} onChange={event => setPreferences({...preferences, dark: event.target.checked})}/></label><label className="reg-setting">Vista compacta <input type="checkbox" role="switch" checked={preferences.compact} onChange={event => setPreferences({...preferences, compact: event.target.checked})}/></label><button className="reg-green-button" onClick={savePreferences}>Guardar cambios</button>{preferenceMessage && <p role="status">{preferenceMessage}</p>}<button className="reg-text-button" onClick={() => setSection('devices')}>Seguridad de dispositivos</button><button className="reg-text-button" onClick={() => navigate('users')}>Gestionar cuentas</button><button className="reg-text-button" onClick={onRefresh}>Actualizar datos del panel</button><button className="reg-text-button" onClick={onLogout}>Cerrar sesión</button></>}
+      {section === 'settings' && <><p><strong>{name}</strong><br/>{user?.correo_usuario}<br/>Rol: Registrador</p><h3>Preferencias</h3><label className="reg-setting">Idioma <select disabled value="es" aria-label="Idioma"><option value="es">Español</option></select></label><div className="reg-setting">Zona horaria <span>{Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div><label className="reg-setting">Modo oscuro <input type="checkbox" role="switch" checked={darkMode} onChange={onToggleDarkMode}/></label><label className="reg-setting">Vista compacta <input type="checkbox" role="switch" checked={preferences.compact} onChange={event => setPreferences({...preferences, compact: event.target.checked})}/></label><button className="reg-green-button" onClick={savePreferences}>Guardar cambios</button>{preferenceMessage && <p role="status">{preferenceMessage}</p>}<button className="reg-text-button" onClick={() => setSection('devices')}>Seguridad de dispositivos</button><button className="reg-text-button" onClick={() => navigate('users')}>Gestionar cuentas</button><button className="reg-text-button" onClick={onRefresh}>Actualizar datos del panel</button><button className="reg-text-button" onClick={onLogout}>Cerrar sesión</button></>}
       {section === 'devices' && <DispositivosEmpresa token={token}/>}
       {section === 'activity' && <><p>Últimos registros disponibles. No se muestran horas de creación porque el sistema no las registra para estas entidades.</p>{activity.map((item, index) => <p key={index}><strong>{item.title}</strong><br/>{item.detail}</p>)}</>}
     </section></div>}

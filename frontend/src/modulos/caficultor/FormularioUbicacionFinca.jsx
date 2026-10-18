@@ -7,7 +7,7 @@ import { buscarDirecciones, obtenerDireccion } from '../../servicios/busquedaDir
 import { enviarOSolicitarEnCola, guardarUbicacionFincaLocal, obtenerUbicacionFincaLocal } from '../../servicios/sinConexion';
 import { styles } from './UbicacionFinca.styles';
 
-export default function FormularioUbicacionFinca({ token, obtenerUbicacionActual }) {
+export default function FormularioUbicacionFinca({ token, obtenerUbicacionActual, darkMode = false }) {
   const [position, setPosition] = useState(null);
   const [address, setAddress] = useState('');
   const [addressConfirmed, setAddressConfirmed] = useState(false);
@@ -119,7 +119,7 @@ export default function FormularioUbicacionFinca({ token, obtenerUbicacionActual
     {searching ? <Text style={styles.pageMuted}>Buscando lugares cercanos...</Text> : null}
     {unknown ? <FeedbackMessage type="warning">Ubicación desconocida</FeedbackMessage> : null}
     {suggestions.length ? <View style={styles.suggestions}>{suggestions.map((suggestion) => <TouchableOpacity key={`${suggestion.latitude}-${suggestion.longitude}-${suggestion.direccion}`} style={styles.suggestion} onPress={() => selectPosition(suggestion, suggestion.direccion)}><Text style={styles.suggestionText}>{suggestion.direccion}</Text></TouchableOpacity>)}</View> : null}
-    <LocationPicker latitude={position?.latitud} longitude={position?.longitud} onSelect={selectMapPosition} entityLabel="finca" />
+    <LocationPicker latitude={position?.latitud} longitude={position?.longitud} onSelect={selectMapPosition} entityLabel="finca" mapTheme={darkMode ? 'dark' : 'day'} />
     {position ? <View style={styles.card}>
       <Text style={styles.cardTitle}>Punto seleccionado</Text>
       <Text>{address}</Text>

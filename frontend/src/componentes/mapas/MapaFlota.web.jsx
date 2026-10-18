@@ -8,7 +8,7 @@ const valid = (vehicle) => vehicle?.latitud != null && vehicle?.longitud != null
   && Number(vehicle.longitud) >= -180 && Number(vehicle.longitud) <= 180;
 const color = (state) => state === 'actualizado' ? '#2e7d32' : state === 'desactualizado' ? '#f57c00' : '#757575';
 
-export default function MapaFlota({ vehicles = [], height = 400 }) {
+export default function MapaFlota({ vehicles = [], height = 400, mapTheme = 'day' }) {
   const [fitRevision, setFitRevision] = useState(0);
   const visible = vehicles.filter(valid);
   const markers = visible.map((vehicle) => ({
@@ -22,7 +22,7 @@ export default function MapaFlota({ vehicles = [], height = 400 }) {
   }));
   const fitKey = `${visible.map((vehicle) => String(vehicle.entrega_id)).sort().join('|')}:${fitRevision}`;
   return <View style={{ width: '100%', height, marginTop: 8, marginBottom: 8, borderRadius: 9, overflow: 'hidden' }}>
-    <MapaAbierto style={{ flex: 1 }} markers={markers} camera={{ fitMode: 'markers', fitKey, zoom: 16, maxZoom: 16, padding: 38 }} />
+    <MapaAbierto style={{ flex: 1 }} markers={markers} mapTheme={mapTheme} camera={{ fitMode: 'markers', fitKey, zoom: 16, maxZoom: 16, padding: 38 }} />
     {visible.length ? <TouchableOpacity accessibilityRole="button" onPress={() => setFitRevision((value) => value + 1)} style={{ position: 'absolute', right: 12, top: 12, backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 8 }}><Text style={{ color: '#17351f', fontWeight: '800' }}>Encuadrar flota</Text></TouchableOpacity> : null}
     {!visible.length ? <Text style={{ position: 'absolute', left: 15, top: 15, color: '#526451', backgroundColor: '#fff', padding: 8 }}>Aún no hay posiciones GPS para mostrar.</Text> : null}
   </View>;

@@ -42,7 +42,7 @@ function addressFromNominatim(result = {}) {
   };
 }
 
-export default function GestionCooperativas({ go, token }) {
+export default function GestionCooperativas({ go, token, darkMode = false }) {
   const [cooperatives, setCooperatives] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
@@ -217,7 +217,7 @@ export default function GestionCooperativas({ go, token }) {
         <TouchableOpacity style={styles.primary} disabled={locating || geocoding} onPress={captureLocation}><Text style={styles.primaryText}>{locating ? 'Obteniendo GPS…' : geocoding ? 'Buscando barrio o zona…' : 'Usar mi ubicación actual'}</Text></TouchableOpacity>
         <TouchableOpacity style={styles.secondary} onPress={() => setShowMap((visible) => !visible)}><Text style={styles.secondaryText}>{showMap ? 'Ocultar mapa' : 'Elegir ubicación en el mapa'}</Text></TouchableOpacity>
       </View>
-      {showMap ? <CooperativeLocationPicker latitude={form.latitude} longitude={form.longitude} onSelect={selectMapLocation} /> : null}
+      {showMap ? <CooperativeLocationPicker latitude={form.latitude} longitude={form.longitude} onSelect={selectMapLocation} mapTheme={darkMode ? 'dark' : 'day'} /> : null}
       {geocoding ? <Text style={styles.muted}>Consultando departamento, municipio y barrio o zona…</Text> : null}
       <Text style={styles.label}>Departamento</Text>
       <TextInput style={styles.input} value={form.departamento} onChangeText={(value) => set('departamento', value)} maxLength={50} placeholder="Huila" />

@@ -126,6 +126,8 @@ export default function CoordinadorLayout({
   connectionStatus,
   notice,
   operationsScreens,
+  darkMode = false,
+  onToggleDarkMode,
 }) {
   const [section, setSection] = useState(null);
   const notificationStorageKey = `coffee-fly:coord:read-notifications:${user.id || user.id_usuario}`;
@@ -457,7 +459,7 @@ export default function CoordinadorLayout({
     try {
       localStorage.setItem(
         `coffee-fly:coord:prefs:${user.id || user.id_usuario}`,
-        JSON.stringify(preferences),
+        JSON.stringify({ ...preferences, dark: darkMode }),
       );
       setPreferenceMessage('Preferencias guardadas en este navegador.');
     } catch {
@@ -523,7 +525,7 @@ export default function CoordinadorLayout({
     : current;
   const contentClassName = [
     'coord-content',
-    preferences.dark && 'coord-dark',
+    darkMode && 'coord-dark',
     preferences.compact && 'coord-compact',
   ]
     .filter(Boolean)
@@ -540,7 +542,7 @@ export default function CoordinadorLayout({
       go={navigate}
       onLogout={onLogout}
       connectionStatus={connectionStatus}
-      dark={preferences.dark}
+      dark={darkMode}
       contentClassName={contentClassName}
       menuBadges={{ notifications: unreadNotifications }}
     >
@@ -598,6 +600,7 @@ export default function CoordinadorLayout({
                   <FleetMap
                     vehicles={data.fleet?.vehiculos || []}
                     height={235}
+                    mapTheme={darkMode ? 'dark' : 'day'}
                   />
                   <div className="coord-map-legend">
                     <Badge>
@@ -787,6 +790,7 @@ export default function CoordinadorLayout({
                       <div className="coord-route-map">
                         <MapaAbierto
                           style={{ flex: 1 }}
+                          mapTheme={darkMode ? 'dark' : 'day'}
                           route={route?.puntos || []}
                           routeColor="#168e58"
                           markers={[
@@ -1105,13 +1109,8 @@ export default function CoordinadorLayout({
                     <input
                       type="checkbox"
                       role="switch"
-                      checked={preferences.dark}
-                      onChange={(event) =>
-                        setPreferences({
-                          ...preferences,
-                          dark: event.target.checked,
-                        })
-                      }
+                      checked={darkMode}
+                      onChange={onToggleDarkMode}
                     />
                   </label>
                   <label className="coord-setting">
