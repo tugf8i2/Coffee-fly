@@ -163,7 +163,7 @@ async def request_observability_middleware(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), payment=()"
+    response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), payment=()"
     if IS_PRODUCTION and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     logger.info(
