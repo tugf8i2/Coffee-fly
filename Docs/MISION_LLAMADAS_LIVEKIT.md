@@ -18,4 +18,4 @@ La aplicación mantiene el sistema anterior mientras falte alguna variable LiveK
 
 Estado al 22 de octubre de 2026: Hostless informó `Deployed / Live` y `GET /api/llamadas/medio` sin sesión devolvió 401, confirmando que la API nueva está activa. La contraseña antigua del coordinador devolvió 401; evitar nuevos intentos hasta usar una sesión o contraseña válida. Sigue pendiente comprobar que el modo autenticado sea `livekit`.
 
-La prueba de audio web → APK y el ciclo de cámara salieron bien con ambos dispositivos en Wi-Fi. También funcionaron tres llamadas web → APK consecutivas entre Wi-Fi y datos móviles. APK → web funcionó con nombre, tono, audio, cámara y colgado en ambos lados. Faltan cambio de red durante la llamada y rotar la clave compartida.
+La prueba de audio web → APK y el ciclo de cámara salieron bien con ambos dispositivos en Wi-Fi. También funcionaron tres llamadas web → APK consecutivas entre Wi-Fi y datos móviles. APK → web funcionó con nombre, tono, audio, cámara y colgado en ambos lados. El usuario no puede probar por ahora el cambio de red durante una llamada. Sigue pendiente rotar la clave compartida y actualizarla en Hostless.
