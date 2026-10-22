@@ -8,7 +8,8 @@ Objetivo: verificar llamadas de voz y vídeo entre coordinador y conductor cuand
 - [ ] Probar localmente una llamada en ambos sentidos, varias llamadas consecutivas, apagado y encendido de cámara y recuperación tras cambio de red.
 - [x] Publicar el commit `658d5b8` en `master`: la API nueva responde en el dominio oficial.
 - [ ] Repetir la prueba con un móvil en Wi-Fi y otro en datos móviles.
-- [ ] Verificar que el nombre, el tono, colgar y el estado de cámara se muestran correctamente.
+- [ ] Verificar nombre, tono y colgar en ambos dispositivos.
+- [x] Comprobar que la cámara se ve en el otro dispositivo al encenderla, apagarla y volverla a encender, con audio continuo (confirmado por el usuario).
 - [x] Comprobar una llamada web → APK de 60 segundos con audio continuo en ambos sentidos (confirmado por el usuario).
 - [ ] Rotar la clave compartida por chat tras la prueba y actualizar el secret privado en Hostless.
 
@@ -16,4 +17,4 @@ La aplicación mantiene el sistema anterior mientras falte alguna variable LiveK
 
 Estado al 22 de octubre de 2026: Hostless informó `Deployed / Live` y `GET /api/llamadas/medio` sin sesión devolvió 401, confirmando que la API nueva está activa. La contraseña antigua del coordinador devolvió 401; evitar nuevos intentos hasta usar una sesión o contraseña válida. Sigue pendiente comprobar que el modo autenticado sea `livekit`.
 
-La prueba de audio web → APK salió bien. Aún falta confirmar si los dispositivos usaron redes distintas, probar la cámara al apagarla y encenderla, y repetir llamadas sin reiniciar.
+La prueba de audio web → APK y el ciclo de cámara salieron bien con ambos dispositivos en Wi-Fi. Falta repetir entre Wi-Fi y datos móviles y realizar varias llamadas consecutivas sin reiniciar.
