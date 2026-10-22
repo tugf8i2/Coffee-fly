@@ -116,7 +116,12 @@ export default function LlamadasRuta({ token, user, screen }) {
         audio.play().catch(() => setError('Toca reproducir audio para escuchar la llamada.'));
       }
       if (track.kind === 'video') {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.play().catch(() => {
+            if (callRef.current?.llamada_id === active.llamada_id) setError('Toca el vídeo para verlo en este navegador.');
+          });
+        }
         setRemoteCameraOn(!track.muted);
         const clearVideo = () => {
           if (remoteVideoRef.current?.srcObject === stream) remoteVideoRef.current.srcObject = null;
@@ -125,7 +130,12 @@ export default function LlamadasRuta({ token, user, screen }) {
         track.addEventListener('mute', clearVideo);
         track.addEventListener('ended', clearVideo);
         track.addEventListener('unmute', () => {
-          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = stream;
+            remoteVideoRef.current.play().catch(() => {
+              if (callRef.current?.llamada_id === active.llamada_id) setError('Toca el vídeo para verlo en este navegador.');
+            });
+          }
           setRemoteCameraOn(true);
         });
       }
@@ -376,7 +386,14 @@ export default function LlamadasRuta({ token, user, screen }) {
           videoSenderRef.current = peer.addTrack(track, stream);
           addedVideoSender = true;
         }
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.play().catch(() => {
+            if (generation === mediaGenerationRef.current && callRef.current?.llamada_id === active.llamada_id) {
+              setError('No se pudo mostrar tu cámara en este navegador.');
+            }
+          });
+        }
         setCameraOn(true);
       }
       if (addedVideoSender && peer.remoteDescription && peer.signalingState === 'stable') {
