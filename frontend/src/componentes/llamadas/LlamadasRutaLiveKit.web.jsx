@@ -50,6 +50,8 @@ export default function LlamadasRutaLiveKit({ token, user }) {
     remoteLeaveTimerRef.current = null;
     const room = roomRef.current;
     roomRef.current = null;
+    const localVideo = localVideoRef.current;
+    if (localVideo) room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track?.detach(localVideo);
     room?.disconnect();
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
@@ -264,10 +266,12 @@ export default function LlamadasRutaLiveKit({ token, user }) {
     if (!room) return;
     try {
       const next = !cameraOn;
+      const currentTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
       await room.localParticipant.setCameraEnabled(next);
       if (roomRef.current !== room) return;
       const video = localVideoRef.current;
       if (video) {
+        if (!next) currentTrack?.detach(video);
         video.srcObject = null;
         if (next) {
           const track = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;

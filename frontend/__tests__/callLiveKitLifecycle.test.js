@@ -22,6 +22,7 @@ jest.mock('livekit-client', () => {
       this.localParticipant = {
         setMicrophoneEnabled: jest.fn(async () => {}),
         setCameraEnabled: jest.fn(async () => {}),
+        getTrackPublication: jest.fn(() => null),
       };
     }
     on = jest.fn();
