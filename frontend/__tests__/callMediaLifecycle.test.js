@@ -91,3 +91,25 @@ test('a late camera permission result is released after hanging up', async () =>
   expect(peers[0].close).toHaveBeenCalledTimes(1);
   await act(async () => { view.unmount(); });
 });
+
+test('a delayed duplicate answer is ignored after signaling becomes stable', async () => {
+  navigator.mediaDevices.getUserMedia.mockResolvedValue(stream());
+  let view;
+  await act(async () => { view = create(<LlamadasRuta token="token" user={{ id: 1, rol: 'coordinador' }} />); });
+  await act(async () => { sockets[0].onmessage({ data: JSON.stringify({ tipo: 'listo' }) }); });
+  await act(async () => { view.root.findByProps({ className: 'cf-call-launch' }).props.onClick(); });
+  await act(async () => { view.root.findByProps({ className: 'cf-call-menu' }).findByType('button').props.onClick(); });
+  const invitation = sockets[0].send.mock.calls.map(([value]) => JSON.parse(value)).find((value) => value.tipo === 'invitar');
+  const peer = peers[0];
+  peer.signalingState = 'have-local-offer';
+  peer.setRemoteDescription = jest.fn(async () => { peer.signalingState = 'stable'; });
+  const answer = { tipo: 'respuesta', viaje_id: invitation.viaje_id, llamada_id: invitation.llamada_id, contenido: { sdp: 'answer' } };
+  await act(async () => {
+    sockets[0].onmessage({ data: JSON.stringify(answer) });
+    sockets[0].onmessage({ data: JSON.stringify(answer) });
+    await Promise.resolve();
+  });
+  expect(peer.setRemoteDescription).toHaveBeenCalledTimes(1);
+  expect(view.root.findAllByProps({ className: 'cf-call-error' })).toHaveLength(0);
+  await act(async () => { view.unmount(); });
+});

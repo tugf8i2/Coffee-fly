@@ -43,6 +43,7 @@ export default function LlamadasRuta({ token, user, screen }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const receiveSignalRef = useRef(null);
+  const signalingQueueRef = useRef(Promise.resolve());
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
@@ -205,11 +206,17 @@ export default function LlamadasRuta({ token, user, screen }) {
     }
     const peer = peerRef.current;
     if (message.tipo === 'aceptar' && peer) {
+      if (peer.signalingState !== 'stable') return;
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       send('oferta', active, { sdp: offer.sdp, type: offer.type });
     }
     if (message.tipo === 'oferta' && peer) {
+      if (peer.signalingState !== 'stable') {
+        // The caller keeps its pending offer; the receiver yields to it.
+        if (active.initiator) return;
+        await peer.setLocalDescription({ type: 'rollback' });
+      }
       await peer.setRemoteDescription({ type: 'offer', sdp: message.contenido?.sdp });
       await addRemoteIce(peer);
       const answer = await peer.createAnswer();
@@ -217,6 +224,8 @@ export default function LlamadasRuta({ token, user, screen }) {
       send('respuesta', active, { sdp: answer.sdp, type: answer.type });
     }
     if (message.tipo === 'respuesta' && peer) {
+      // Late or duplicate answers arrive after renegotiation has settled.
+      if (peer.signalingState !== 'have-local-offer') return;
       await peer.setRemoteDescription({ type: 'answer', sdp: message.contenido?.sdp });
       await addRemoteIce(peer);
     }
@@ -239,7 +248,12 @@ export default function LlamadasRuta({ token, user, screen }) {
       socketRef.current = socket;
       socket.onopen = () => socket.send(JSON.stringify({ token: authToken }));
       socket.onmessage = ({ data }) => {
-        try { receiveSignalRef.current(JSON.parse(data)).catch((reason) => setError(reason.message || 'Falló la llamada.')); }
+        try {
+          const message = JSON.parse(data);
+          signalingQueueRef.current = signalingQueueRef.current
+            .then(() => receiveSignalRef.current(message))
+            .catch((reason) => setError(reason.message || 'Falló la llamada.'));
+        }
         catch { setError('La llamada recibió una señal inválida.'); }
       };
       socket.onclose = ({ code }) => {
