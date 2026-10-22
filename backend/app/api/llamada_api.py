@@ -1,8 +1,12 @@
 import asyncio
 import json
+import os
+import time
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+import jwt
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_user_from_token, require_roles
@@ -14,6 +18,58 @@ from app.services.llamada_services import authorized_call_peer, call_contacts, c
 
 router = APIRouter(prefix="/llamadas", tags=["Llamadas de ruta"])
 SIGNAL_TYPES = {"invitar", "aceptar", "rechazar", "oferta", "respuesta", "candidato", "video_apagado", "finalizar"}
+
+
+class LiveKitCallRequest(BaseModel):
+    viaje_id: UUID
+    llamada_id: UUID
+
+
+def _livekit_settings() -> tuple[str, str, str] | None:
+    url = os.getenv("LIVEKIT_URL", "").strip()
+    key = os.getenv("LIVEKIT_API_KEY", "").strip()
+    secret = os.getenv("LIVEKIT_API_SECRET", "").strip()
+    if url.startswith("wss://") and key and secret:
+        return url, key, secret
+    return None
+
+
+@router.get("/medio")
+def call_media_mode(
+    _user: Usuario = Depends(require_roles("coordinador", "conductor")),
+):
+    return {"medio": "livekit" if _livekit_settings() else "webrtc"}
+
+
+@router.post("/livekit-token")
+def livekit_call_token(
+    request: LiveKitCallRequest,
+    db: Session = Depends(get_db),
+    user: Usuario = Depends(require_roles("coordinador", "conductor")),
+):
+    settings = _livekit_settings()
+    if settings is None:
+        raise HTTPException(status_code=503, detail="LiveKit no está configurado")
+    authorized_call_peer(db, user, request.viaje_id)
+    url, key, secret = settings
+    now = int(time.time())
+    room = f"coffee-fly-{request.viaje_id}-{request.llamada_id}"
+    token = jwt.encode({
+        "iss": key,
+        "sub": str(user.id_usuario),
+        "name": f"{user.nombre_usuario} {user.apellido}".strip(),
+        "iat": now,
+        "nbf": now,
+        "exp": now + 1800,
+        "video": {
+            "room": room,
+            "roomJoin": True,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": False,
+        },
+    }, secret, algorithm="HS256")
+    return {"server_url": url, "participant_token": token}
 
 
 def _authenticated_user(token: str) -> int:

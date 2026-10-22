@@ -43,6 +43,8 @@ El script no imprime la clave y todas sus operaciones son de solo lectura.
 - `ALLOWED_HOSTS=<dominio-hostless>`
 - `BOOTSTRAP_REGISTRADOR_EMAIL=<correo inicial>`
 - `BOOTSTRAP_REGISTRADOR_PASSWORD=<contraseña inicial segura>`
+- `LIVEKIT_URL=wss://<proyecto>.livekit.cloud` para llamadas de audio y vídeo
+- `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` como variables privadas de la App; nunca en el frontend ni en Git
 
 Opcionales: `BOOTSTRAP_REGISTRADOR_NOMBRE`,
 `BOOTSTRAP_REGISTRADOR_APELLIDO`, `ROUTING_PROVIDER` y `ROUTING_URL`.

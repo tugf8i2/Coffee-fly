@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 from uuid import uuid4
 
+import jwt
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -18,6 +19,7 @@ from app.models.rol_models import Rol
 from app.models.usuario_models import Usuario
 from app.models.viaje_models import Viaje
 from app.services.llamada_services import authorized_call_peer, call_contacts
+from app.api.llamada_api import LiveKitCallRequest, livekit_call_token
 
 
 class FakeSocket:
@@ -105,6 +107,28 @@ class CallSocketTests(unittest.TestCase):
                 return True
 
         return Sender()
+
+
+class LiveKitTokenTests(unittest.TestCase):
+    def test_token_is_limited_to_authenticated_participant_and_call_room(self):
+        trip_id, call_id = uuid4(), uuid4()
+        user = Usuario(id_usuario=7, nombre_usuario="Chofer", apellido="Dos")
+        with patch("app.api.llamada_api._livekit_settings", return_value=("wss://example.livekit.cloud", "test-key", "test-secret")), patch("app.api.llamada_api.authorized_call_peer", return_value=8) as authorize:
+            response = livekit_call_token(LiveKitCallRequest(viaje_id=trip_id, llamada_id=call_id), object(), user)
+        authorize.assert_called_once()
+        claims = jwt.decode(response["participant_token"], "test-secret", algorithms=["HS256"])
+        self.assertEqual(response["server_url"], "wss://example.livekit.cloud")
+        self.assertEqual(claims["sub"], "7")
+        self.assertEqual(claims["video"]["room"], f"coffee-fly-{trip_id}-{call_id}")
+        self.assertTrue(claims["video"]["roomJoin"])
+        self.assertLessEqual(claims["exp"] - claims["iat"], 1800)
+
+    def test_denied_trip_does_not_issue_token(self):
+        request = LiveKitCallRequest(viaje_id=uuid4(), llamada_id=uuid4())
+        with patch("app.api.llamada_api._livekit_settings", return_value=("wss://example.livekit.cloud", "test-key", "test-secret")), patch("app.api.llamada_api.authorized_call_peer", side_effect=HTTPException(status_code=403, detail="denegado")):
+            with self.assertRaises(HTTPException) as denied:
+                livekit_call_token(request, object(), Usuario(id_usuario=7))
+        self.assertEqual(denied.exception.status_code, 403)
 
 
 if __name__ == "__main__":

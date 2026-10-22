@@ -2,7 +2,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 
-import LlamadasRuta from '../src/componentes/llamadas/LlamadasRuta.web';
+import LlamadasRuta from '../src/componentes/llamadas/LlamadasRutaLegacy.web';
 
 jest.mock('../src/componentes/llamadas/LlamadasRuta.css', () => ({}));
 jest.mock('../src/configuracion', () => ({
