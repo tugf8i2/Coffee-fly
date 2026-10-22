@@ -39,7 +39,7 @@ beforeEach(() => {
   global.RTCPeerConnection = class {
     close = jest.fn();
     addTrack = jest.fn();
-    constructor() { peers.push(this); }
+    constructor(config) { this.config = config; peers.push(this); }
   };
   Object.defineProperty(global.navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: jest.fn() } });
   Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => `call-${Math.random()}`) } });
@@ -80,6 +80,7 @@ test('a late camera permission result is released after hanging up', async () =>
   await act(async () => { view.root.findByProps({ className: 'cf-call-launch' }).props.onClick(); });
   await act(async () => { view.root.findByProps({ className: 'cf-call-menu' }).findByType('button').props.onClick(); });
   expect(peers).toHaveLength(1);
+  expect(peers[0].config.iceServers).toContainEqual({ urls: 'stun:stun.cloudflare.com:3478' });
   await act(async () => {
     view.root.findAllByType('button').find((button) => button.props.children === 'Compartir cámara').props.onClick();
   });

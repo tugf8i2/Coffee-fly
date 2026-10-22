@@ -11,10 +11,11 @@ const socketUrl = () => {
 };
 
 const iceServers = () => {
+  const publicStun = { urls: 'stun:stun.cloudflare.com:3478' };
   try {
     const servers = JSON.parse(process.env.EXPO_PUBLIC_CALL_ICE_SERVERS || '[]');
-    return Array.isArray(servers) ? servers : [];
-  } catch { return []; }
+    return Array.isArray(servers) ? [publicStun, ...servers] : [publicStun];
+  } catch { return [publicStun]; }
 };
 
 export default function LlamadasRuta({ token, user, screen }) {
@@ -151,7 +152,8 @@ export default function LlamadasRuta({ token, user, screen }) {
         recoveryTimerRef.current = null;
         if (peerRef.current !== peer || callRef.current?.llamada_id !== active.llamada_id || peer.connectionState === 'connected') return;
         if (recoveryAttemptsRef.current >= 3) {
-          setError('No se pudo recuperar el audio. Revisa la conexión y vuelve a llamar.');
+          endCall();
+          setError('La llamada perdió la conexión. Revisa la red y vuelve a llamar.');
           return;
         }
         if (peer.signalingState !== 'stable' || socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -172,7 +174,7 @@ export default function LlamadasRuta({ token, user, screen }) {
     };
     peer.onconnectionstatechange = monitorConnection;
     return peer;
-  }, [send, setCall]);
+  }, [endCall, send, setCall]);
 
   const addRemoteIce = useCallback(async (peer) => {
     const pending = pendingIceRef.current.splice(0);
