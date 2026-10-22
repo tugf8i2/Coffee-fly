@@ -35,6 +35,8 @@ export default function LlamadasRuta({ token, user, screen }) {
   const pendingIceRef = useRef([]);
   const recoveryTimerRef = useRef(null);
   const recoveryAttemptsRef = useRef(0);
+  const mediaGenerationRef = useRef(0);
+  const cameraBusyRef = useRef(false);
   const remoteAudioRef = useRef(null);
   const ringtoneRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -55,6 +57,8 @@ export default function LlamadasRuta({ token, user, screen }) {
   }, []);
 
   const clearMedia = useCallback(() => {
+    mediaGenerationRef.current += 1;
+    cameraBusyRef.current = false;
     clearTimeout(recoveryTimerRef.current);
     recoveryTimerRef.current = null;
     recoveryAttemptsRef.current = 0;
@@ -286,40 +290,69 @@ export default function LlamadasRuta({ token, user, screen }) {
     setCall(active);
     setMenuOpen(false);
     setError('');
+    const generation = mediaGenerationRef.current;
     try {
-      localStreamRef.current = await captureMedia({ audio: true, video: false });
+      const stream = await captureMedia({ audio: true, video: false });
+      if (generation !== mediaGenerationRef.current || callRef.current?.llamada_id !== active.llamada_id) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      localStreamRef.current = stream;
       newPeer(active);
       if (!send('invitar', active, { medio: 'audio' })) throw Error('No hay conexión para llamar.');
-    } catch (reason) { endCall(false); setError(reason.message || 'No se pudo activar el micrófono.'); }
+    } catch (reason) {
+      if (generation !== mediaGenerationRef.current || callRef.current?.llamada_id !== active.llamada_id) return;
+      endCall(false);
+      setError(reason.message || 'No se pudo activar el micrófono.');
+    }
   };
 
   const acceptCall = async () => {
     const active = callRef.current;
     if (!active || active.status !== 'incoming') return;
+    setCall({ ...active, status: 'connecting' });
+    const generation = mediaGenerationRef.current;
     try {
-      localStreamRef.current = await captureMedia({ audio: true, video: false });
+      const stream = await captureMedia({ audio: true, video: false });
+      if (generation !== mediaGenerationRef.current || callRef.current?.llamada_id !== active.llamada_id) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      localStreamRef.current = stream;
       newPeer(active);
-      setCall({ ...active, status: 'connecting' });
-      send('aceptar', active);
-    } catch (reason) { send('rechazar', active); endCall(false); setError(reason.message || 'No se pudo activar el micrófono.'); }
+      if (!send('aceptar', active)) throw Error('No hay conexión para contestar.');
+    } catch (reason) {
+      if (generation !== mediaGenerationRef.current || callRef.current?.llamada_id !== active.llamada_id) return;
+      send('rechazar', active);
+      endCall(false);
+      setError(reason.message || 'No se pudo activar el micrófono.');
+    }
   };
 
   const toggleCamera = async () => {
     const active = callRef.current;
     const peer = peerRef.current;
-    if (!active || !peer) return;
+    if (!active || !peer || cameraBusyRef.current) return;
+    cameraBusyRef.current = true;
+    const generation = mediaGenerationRef.current;
     try {
       let addedVideoSender = false;
       if (cameraStreamRef.current) {
+        const stream = cameraStreamRef.current;
         await videoSenderRef.current?.replaceTrack(null);
-        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
-        cameraStreamRef.current = null;
+        stream.getTracks().forEach((track) => track.stop());
+        if (cameraStreamRef.current === stream) cameraStreamRef.current = null;
+        if (generation !== mediaGenerationRef.current) return;
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
         setCameraOn(false);
         send('video_apagado', active);
         return;
       } else {
         const stream = await captureMedia({ audio: false, video: true });
+        if (generation !== mediaGenerationRef.current || peerRef.current !== peer || callRef.current?.llamada_id !== active.llamada_id) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         cameraStreamRef.current = stream;
         const track = stream.getVideoTracks()[0];
         if (videoSenderRef.current) await videoSenderRef.current.replaceTrack(track);
@@ -335,7 +368,17 @@ export default function LlamadasRuta({ token, user, screen }) {
         await peer.setLocalDescription(offer);
         send('oferta', active, { sdp: offer.sdp, type: offer.type });
       }
-    } catch (reason) { setError(reason.message || 'No se pudo activar la cámara.'); }
+    } catch (reason) {
+      if (generation === mediaGenerationRef.current && peerRef.current === peer) {
+        cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+        cameraStreamRef.current = null;
+        if (localVideoRef.current) localVideoRef.current.srcObject = null;
+        setCameraOn(false);
+        setError(reason.message || 'No se pudo activar la cámara.');
+      }
+    } finally {
+      if (generation === mediaGenerationRef.current) cameraBusyRef.current = false;
+    }
   };
 
   const toggleMic = () => {
