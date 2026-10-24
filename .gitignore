@@ -10,7 +10,23 @@ frontend/public/maplibre-gl-csp-worker.js
 frontend/public/maplibre-gl-shared.mjs
 frontend/.verification-*/
 .env
+**/.env.*
+!**/.env.example
 *.log
+
+# Salidas locales y material sensible generado durante pruebas.
+outputs/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.apk
+*.aab
+*.sqlite
+*.sqlite3
+*.db
 
 **/.git/
 **/.env

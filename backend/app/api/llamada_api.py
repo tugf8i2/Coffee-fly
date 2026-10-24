@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_user_from_token, require_roles
 from app.core.call_connections import call_connections
+from app.core.observability import protect_websocket_connection, release_websocket_connection
 from app.core.database import SessionLocal, get_db
 from app.models.usuario_models import Usuario
 from app.services.llamada_services import authorized_call_peer, call_contacts, call_role
@@ -104,6 +105,10 @@ def listar_contactos(
 
 @router.websocket("/ws")
 async def call_signaling(socket: WebSocket):
+    allowed, connection_key, _retry_after = protect_websocket_connection(socket)
+    if not allowed:
+        await socket.close(code=4429, reason="Demasiadas conexiones desde este cliente")
+        return
     await socket.accept()
     user_id = None
     try:
@@ -159,3 +164,4 @@ async def call_signaling(socket: WebSocket):
         await socket.close(code=4408, reason="Tiempo de autenticación agotado")
     finally:
         await call_connections.disconnect(user_id, socket)
+        release_websocket_connection(connection_key)

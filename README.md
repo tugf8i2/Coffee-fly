@@ -1,239 +1,72 @@
-![Logo de mi proyecto](LOGO.png)
+<p align="center">
+  <img src="frontend/src/assets/brand/logo.png" width="180" alt="Logo de Coffee Fly">
+</p>
 
-# ☕ Cumbre Cafetera — Aplicativo de Transporte y Logística de Café
+# ☕ Coffee Fly
 
-**SENA · Tecnólogo en Análisis y Desarrollo de Software · Ficha 3407179**
-**Bootcamp: Arquitectura de Software · Marzo 2026**
+**SENA · Tecnólogo en Análisis y Desarrollo de Software · Ficha 3407179**<br>
 
-La guía técnica completa y actualizada del backend y el front-end está en
-[`Docs/DOCUMENTACION-BACKEND-FRONTEND.md`](Docs/DOCUMENTACION-BACKEND-FRONTEND.md).
+Coffee Fly es un aplicativo de transporte y logística de café. Digitaliza la
+recolección desde las zonas rurales hasta los centros de acopio, incluso con
+conectividad limitada.
 
----
+**Sitio web:** [https://coffee-fly.hostless.app](https://coffee-fly.hostless.app)
 
-## 1️⃣ ¿Qué Problema Resuelve?
+La documentación técnica completa está en
+[Docs/DOCUMENTACION-BACKEND-FRONTEND.md](Docs/DOCUMENTACION-BACKEND-FRONTEND.md).
 
-La empresa **Cumbre Cafetera** coordina la recolección y transporte de café desde caficultores rurales hacia centros de acopio, operando en zonas con conectividad limitada o intermitente. Actualmente, todo el proceso se gestiona de forma manual con papel y registros escritos a mano, lo que genera:
+## ¿Qué problema resuelve?
 
-- Errores e inconsistencias en los datos registrados
-- Pérdida de información y baja trazabilidad del café
-- Dificultades para coordinar vehículos y conductores en tiempo real
-- Retrasos en las entregas y desorganización en la recepción del producto
+La recolección y el transporte de café desde zonas rurales suelen coordinarse
+con registros manuales y conectividad intermitente. Esto puede causar errores,
+pérdida de trazabilidad, retrasos y dificultades para saber dónde está cada
+carga.
 
-Este sistema es una **plataforma de gestión logística integral** que digitaliza el flujo del café desde las zonas de producción hasta los centros de acopio. Permite gestionar caficultores, solicitudes de recolección, entregas y vehículos, hacer seguimiento del estado de cada carga mediante GPS en tiempo real, y generar reportes operativos, **incluso sin conexión a internet**.
+Coffee Fly centraliza solicitudes, entregas, vehículos y conductores; permite
+seguir viajes por GPS, actualizar estados y conservar el trabajo para
+sincronizarlo cuando vuelva la conexión.
 
----
+## Qué incluye
 
-## 2️⃣ Usuarios del Sistema
+- Roles: Registrador, Caficultor, Coordinador y Conductor.
+- API FastAPI, PostgreSQL y aplicación Expo para web, Android e iOS.
+- Seguimiento GPS, WebSockets, cola offline cifrada y reportes.
+- Llamadas de audio/vídeo con LiveKit, autorizadas por viaje.
+- Sesiones revocables, contraseñas Argon2id, controles de abuso y registros JSON.
 
-| Rol | Responsabilidades |
-|---|---|
-| **Coordinador** | Revisa solicitudes de recolección, registra entregas vinculadas al caficultor, asigna vehículos y conductores, consulta historial, genera y exporta reportes, y hace seguimiento GPS de los vehículos. |
-| **Conductor** | Consulta las entregas asignadas a su vehículo, actualiza el estado de la carga (Pendiente → En camino → Entregado) y visualiza su ruta y destino en el GPS. |
-| **Registrador** | Crea, edita y elimina cuentas de todos los roles, vehículos y cooperativas con sus ubicaciones. |
-| **Caficultor** | Envía solicitudes de recolección cuando tiene café listo para recoger. Consulta el estado e historial de sus entregas y hace seguimiento GPS del vehículo asignado. |
-
----
-
-## 3️⃣ Flujo de Operación
-
-```
-Caficultor → envía solicitud de recolección
-     ↓
-Coordinador → registra la entrega y asigna vehículo + conductor
-     ↓
-Conductor → realiza el viaje y actualiza el estado en tiempo real
-     ↓
-Caficultor / Coordinador → hacen seguimiento GPS del vehículo
-     ↓
-Conductor → marca la entrega como "Entregado"
-```
-
----
-
-## 4️⃣ Funcionalidades Principales
-
-### Requisitos Funcionales
-
-| ID | Nombre | Rol | Prioridad |
-|---|---|---|---|
-| RF-01 | Registro de usuarios | Registrador | Alta |
-| RF-02 | Autenticación de usuarios | Todos | Alta |
-| RF-03 | Solicitud de recolección de café | Caficultor | Alta |
-| RF-04 | Registro de entrega de café | Coordinador | Alta |
-| RF-05 | Actualización de estado de entrega | Conductor | Alta |
-| RF-06 | Consulta de historial de entregas | Coordinador / Caficultor | Media |
-| RF-07 | Registro de vehículos | Registrador | Alta |
-| RF-08 | Asignación de vehículo a entrega | Coordinador | Alta |
-| RF-09 | Consulta de estado de vehículos | Coordinador | Media |
-| RF-10 | Seguimiento GPS del vehículo | Coordinador / Conductor / Caficultor | Alta |
-| RF-11 | Funcionamiento en modo offline | Conductor / Coordinador | Alta |
-| RF-12 | Sincronización automática de datos | Todos | Alta |
-| RF-13 | Generación de reportes | Coordinador | Media |
-| RF-14 | Exportación de reportes | Coordinador | Baja |
-| RF-15 | Dashboard / Panel de inicio | Todos | Media |
-| RF-16 | Gestión de cooperativas y ubicación | Registrador | Alta |
-| RF-17 | Historial temporal de eventos del trayecto | Conductor / Coordinador / Caficultor | Alta |
-
-### Requisitos No Funcionales
-
-| ID | Nombre | Descripción | Prioridad |
-|---|---|---|---|
-| RNF-01 | Usabilidad | Registro completo en menos de 3 minutos sin capacitación previa | Alta |
-| RNF-02 | Disponibilidad offline | Operación continua por al menos 8 horas sin conexión; datos seguros hasta 72 horas | Alta |
-| RNF-03 | Rendimiento | Respuesta en menos de 3 segundos para el 95% de las operaciones con hasta 10 usuarios concurrentes | Alta |
-| RNF-04 | Seguridad | HTTPS/TLS, tokens JWT revocables, contraseñas con Argon2id y datos offline cifrados con AES-256-GCM | Alta |
-| RNF-05 | Escalabilidad | Soporta hasta 500 caficultores, 10.000 entregas históricas y 20 usuarios concurrentes | Media |
-| RNF-06 | Compatibilidad | Android 8.0+, iOS 13+, Chrome / Firefox / Edge; diseño responsivo desde 5" | Alta |
-| RNF-07 | Confiabilidad de datos | Guardado automático e inmediato; recuperación ante cierres inesperados | Alta |
-
----
-
-## 5️⃣ Alcance
-
-El sistema cubre el **registro, control y seguimiento logístico** de las jornadas de acopio de café.
-
-**Incluido:**
-- Gestión de caficultores, solicitudes, entregas, vehículos, cooperativas y usuarios
-- Seguimiento de estados con trazabilidad completa
-- Seguimiento GPS en tiempo real con WebSockets
-- Mensajes de novedades por recolección con retención configurable y acceso por rol
-- Modo offline con sincronización automática (SQLite)
-- Generación y exportación de reportes básicos
-
-**Excluido:**
-- Gestión de pagos o facturación electrónica
-- Integración con plataformas externas
-- Módulos ajenos a la operación interna de acopio
-
----
-
-## 6️⃣ Arquitectura y Tecnología
-
-### Metodología: Scrum
-
-Se eligió Scrum por su enfoque iterativo e incremental, que permite desarrollar el sistema en Sprints con entregas funcionales. El entorno logístico de Cumbre Cafetera es dinámico: rutas cambian, la disponibilidad de conductores varía y los requerimientos evolucionan. Scrum facilita la adaptación a esos cambios, reduce riesgos al detectar errores desde etapas iniciales y mejora la comunicación entre el equipo y la empresa.
-
-**Roles:** Product Owner · Scrum Master · Equipo de Desarrollo
-**Artefactos:** Product Backlog · Sprint Backlog · Daily Scrum · Sprint Review & Retrospective
-
-### Arquitectura: N-Capas
-
-El sistema sigue una **arquitectura N-Capas**, un patrón de diseño que organiza el software en capas independientes, donde cada una tiene una responsabilidad específica y solo se comunica con la capa inmediatamente adyacente. Esto permite que el equipo trabaje en paralelo sin interferencias, facilita el mantenimiento futuro y permite escalar la solución sin reescribir todo desde cero.
-
-**Frontend (interfaces de usuario):**
-
-- **Web App (React):** Dashboard, Usuarios, Vehículos, Rutas, Viajes, Monitoreo en tiempo real, Reportes.
-- **Mobile App (React Native):** Dashboard, Viaje, Eventos, Historial, Perfil, Configuración. Implementa la estrategia **Offline First** descrita más abajo, con almacenamiento local (SQLite) y una cola de pendientes para sincronización.
-
-**Backend (capas del servidor):**
-
-| Capa | Responsabilidad |
-|---|---|
-| **1. API / Routers** | Gestiona los puntos de entrada (FastAPI), define rutas y dirige peticiones de la app web y móvil hacia el servicio correspondiente. |
-| **2. Services** | Contiene la lógica de negocio: validar solicitudes, iniciar viajes, procesar sincronización offline. |
-| **3. Models** | Define las entidades del sistema y sus relaciones: Usuario, Caficultor, Vehículo, Solicitud, Entrega, GPS, Historial. |
-| **4. Schemas** | Valida los datos de entrada y salida con Pydantic (ej: coordenadas GPS válidas, solicitudes completas). |
-| **5. Repositories** | Abstrae el acceso a PostgreSQL para guardar ubicaciones, consultar viajes y registrar eventos. PostGIS queda como evolución documentada cuando existan consultas espaciales complejas. |
-| **6. Utils / Externos** | Funciones auxiliares para fechas, reportes, lógica geográfica, configuración y seguridad. |
-
-El flujo de una petición recorre las capas de arriba hacia abajo: la petición entra por **API/Routers**, pasa a **Services** para aplicar las reglas de negocio, estos usan los **Models** y **Schemas** para validar la información, y finalmente los **Repositories** acceden a la base de datos. Cada capa solo conoce a la capa siguiente, nunca se salta niveles ni depende de capas superiores — esto mantiene el sistema desacoplado y fácil de mantener.
-
-### Estrategia Offline First
-
-El transporte de café se realiza en zonas rurales con cobertura limitada. Por eso el sistema implementa una estrategia **Offline First**:
-
-1. **Almacenamiento local (SQLite):** los datos se guardan en el dispositivo si no hay conexión.
-2. **Cola de pendientes:** los registros se marcan para sincronización posterior.
-3. **Sincronización automática:** al detectar conexión, el sistema envía los datos en segundo plano sin interrumpir al usuario.
-
-### GPS y Trazabilidad en Tiempo Real
-
-- La app captura periódicamente **latitud, longitud, fecha/hora y estado del viaje**.
-- Se usan **WebSockets** para transmitir la ubicación automáticamente sin consultas constantes.
-- **PostgreSQL** almacena coordenadas y el servicio calcula la distancia incremental con Haversine. PostGIS no es una dependencia actual; se recomienda al incorporar geocercas, búsquedas por proximidad o análisis espacial a escala.
-
-### Seguridad
-
-Implementación de **HTTPS/TLS**, tokens **JWT** firmados y revocables, contraseñas protegidas con **Argon2id** y cola offline móvil cifrada y autenticada con **AES-256-GCM**.
-
-### Stack Tecnológico
-
-| Capa | Tecnología | Justificación |
-|---|---|---|
-| **Backend** | Python + FastAPI | Alto rendimiento, manejo de múltiples solicitudes simultáneas, ideal para APIs REST y WebSockets |
-| **Base de datos** | PostgreSQL | Robusta, transaccional e indexada; PostGIS queda reservado para necesidades espaciales futuras |
-| **Frontend web** | React | Interfaces responsivas, amplia documentación, experiencia previa del equipo |
-| **App móvil** | React Native | Una sola base de código para Android e iOS |
-| **Offline** | SQLite | Almacenamiento local ligero y confiable en dispositivos móviles |
-| **Comunicación en tiempo real** | WebSockets | Transmisión continua de ubicación sin consultas constantes |
-
----
-
-## 7️⃣ Equipo
-
-| Nombre | Rol |
-|---|---|
-| Brandon Cristopher Poveda Romero | Líder |
-| Cristian Ronaldo Hernández Ducuara | Arquitecto · Asegurador de Calidad |
-| Jhonatan David Prieto González | Programador |
-| Nicolás Ramírez Rincón | Analista |
-
-**Instructora:** Rocío Malpica
-
----
-
-## Implementación actual: Docker + React Native
-
-La versión funcional actual se encuentra en `frontend/` y utiliza React Native con Expo para web, Android e iOS. El backend FastAPI y PostgreSQL se levantan con Docker Compose.
-
-### Levantar el proyecto
+## Inicio rápido
 
 ```powershell
+Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Las imágenes y dependencias están fijadas para que una instalación nueva sea
-repetible. Copia primero `.env.example` como `.env`; no es necesario instalar
-Python, Node.js, PostgreSQL ni Nginx en el equipo anfitrión. La guía completa
-está en `DEPLOY_OTHER_PC.md`.
-
-No es obligatorio crear `.env` para desarrollo local. En una base nueva se crea
-el Registrador `admin@coffeefly.com` con contraseña `Admin123`. Cambia estas
-credenciales y `JWT_SECRET_KEY` antes de publicar el sistema en producción.
-Los eventos de trayecto se eliminan automáticamente después de 30 días. El período
-puede cambiarse con `EVENT_RETENTION_DAYS`.
-
-- Frontend web: `http://localhost:8080`
+- Web: `http://localhost:8080`
 - API: `http://localhost:8000`
 - Documentación API: `http://localhost:8000/docs`
-- PostgreSQL para clientes externos: `127.0.0.1:5433`
-- DBeaver: usuario `postgres`, contraseña `1234`, base `coffeefly`
 
-### Comandos Docker
+No publiques las credenciales de ejemplo. Para una instalación real, consulta
+la [guía de despliegue](Docs/HOSTLESS_DEPLOYMENT.md) y define las variables de
+producción antes de abrir el servicio.
 
-```powershell
-docker compose ps
-docker compose logs -f
-docker compose down
+## Seguridad y operación
+
+- La guía breve de controles, límites y respuesta a incidentes está en
+  [Docs/SEGURIDAD_Y_OPERACION.md](Docs/SEGURIDAD_Y_OPERACION.md).
+- El índice de documentación técnica está en [Docs/README.md](Docs/README.md).
+- Las llamadas LiveKit pendientes de prueba real están en
+  [Docs/MISION_LLAMADAS_LIVEKIT.md](Docs/MISION_LLAMADAS_LIVEKIT.md).
+
+## Estructura
+
+```text
+backend/   API, autorización, servicios y migraciones
+frontend/  aplicación Expo y experiencia web/móvil
+infra/     motores de rutas y mapas opcionales
+Docs/      operación, arquitectura y pruebas
 ```
 
-Para rutas autohospedadas usa uno de los motores opcionales. Valhalla es la
-opción recomendada para navegación con maniobras y español; su primer arranque
-descarga el extracto de Colombia y construye el grafo:
+## Licencia y uso
 
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.valhalla.yml up --build -d
-# Alternativa ya preparada con OSRM:
-docker compose -f docker-compose.yml -f docker-compose.osrm.yml up --build -d
-```
-
-La aplicación solicita rutas mediante FastAPI, no directamente al motor. Así se
-validan la sesión, el viaje autorizado y el destino antes de calcular la ruta.
-La preparación y los recursos están documentados en
-[`infra/valhalla/README.md`](infra/valhalla/README.md).
-
-`docker compose down` conserva los datos. No agregues `-v` para una parada normal:
-`docker compose down -v` elimina el volumen de PostgreSQL. Úsalo únicamente si
-quieres borrar deliberadamente toda la base y ya tienes una copia de seguridad.
-
-La auditoría técnica, las limitaciones reales del GPS en segundo plano y la matriz de pruebas físicas están en [Docs/AUDITORIA-GPS-ARQUITECTURA.md](Docs/AUDITORIA-GPS-ARQUITECTURA.md).
+Proyecto académico y operativo de Cumbre Cafetera. No almacenes secretos,
+tokens, contraseñas ni claves de proveedores en Git.

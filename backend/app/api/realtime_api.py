@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from app.core.auth import get_user_from_token
 from app.core.database import SessionLocal
 from app.core.realtime import tracking_connections
+from app.core.observability import protect_websocket_connection, release_websocket_connection
 from app.services.entrega_services import EntregaService
 
 
@@ -27,6 +28,10 @@ def authenticated_snapshot(token: str, delivery_id: UUID):
 
 @router.websocket("/ws/seguimiento")
 async def seguimiento_tiempo_real(websocket: WebSocket):
+    allowed, connection_key, _retry_after = protect_websocket_connection(websocket)
+    if not allowed:
+        await websocket.close(code=4429, reason="Demasiadas conexiones desde este cliente")
+        return
     await websocket.accept()
     delivery_id = None
     token = None
@@ -58,3 +63,4 @@ async def seguimiento_tiempo_real(websocket: WebSocket):
         await websocket.close(code=4408, reason="Tiempo de autenticación agotado")
     finally:
         await tracking_connections.disconnect(delivery_id, websocket)
+        release_websocket_connection(connection_key)

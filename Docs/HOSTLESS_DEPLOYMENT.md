@@ -41,6 +41,11 @@ El script no imprime la clave y todas sus operaciones son de solo lectura.
 - `JWT_SECRET_KEY` (valor aleatorio largo, nunca versionado)
 - `CORS_ORIGINS=https://<dominio-hostless>`
 - `ALLOWED_HOSTS=<dominio-hostless>`
+- `TRUST_PROXY_HEADERS=true` para que los límites identifiquen al cliente real
+  detrás del proxy de Hostless
+- `API_RATE_LIMIT_PER_MINUTE=180`
+- `WEBSOCKET_CONNECTIONS_PER_MINUTE=30`
+- `WEBSOCKET_CONNECTIONS_PER_CLIENT=5`
 - `BOOTSTRAP_REGISTRADOR_EMAIL=<correo inicial>`
 - `BOOTSTRAP_REGISTRADOR_PASSWORD=<contraseña inicial segura>`
 - `LIVEKIT_URL=wss://<proyecto>.livekit.cloud` para llamadas de audio y vídeo
@@ -59,3 +64,13 @@ contraseña de bootstrap del entorno.
 - `GET /health/ready` devuelve `status=ready` y `database=ok`.
 - `GET /api/health/ready` permite comprobar la API desde el mismo dominio.
 - El APK debe usar `EXPO_PUBLIC_API_URL=https://<dominio-hostless>/api`.
+
+## Seguridad operativa
+
+La instrumentación automática de Hostless no está disponible para el Docker
+actual sin un runtime declarado. Si se requieren trazas, instrumenta la app
+con OpenTelemetry y conéctala a un colector aprobado; no cambies el runtime
+solo para habilitarla. Las alertas pueden entregar un correo al abrir y otro
+al cerrar un mismo incidente; verifica primero si hay incidentes activos antes
+de reiniciar. La guía corta está en
+[`SEGURIDAD_Y_OPERACION.md`](SEGURIDAD_Y_OPERACION.md).

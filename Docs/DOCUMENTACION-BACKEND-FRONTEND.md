@@ -276,14 +276,20 @@ sirve para una base nueva y Alembic actualiza bases existentes.
 
 - Contraseñas con Argon2id; nunca se guarda texto plano.
 - JWT con emisor, audiencia, vencimiento, `jti` y sesión revocable.
-- Bloqueo temporal después de intentos fallidos y estado habilitado/deshabilitado.
+- Límite de login, API y aperturas WebSocket por cliente; las conexiones
+  WebSocket simultáneas también se acotan por instancia.
+- Solicitudes de más de 6 MB se rechazan antes de autenticarlas.
 - Permisos aplicados en el backend; ocultar botones no sustituye autorización.
 - CORS y hosts exactos obligatorios en producción.
+- `TRUST_PROXY_HEADERS` es explícito: solo se activa detrás de un proxy
+  administrado que controle `X-Forwarded-For`.
 - Consultas con timeout, verificación de conexión y pool configurable.
 - Errores HTTP, validación, base de datos y fallos inesperados tienen respuesta
   uniforme con `X-Request-ID`.
 - Logs JSON facilitan diagnóstico en Docker o un agregador externo.
 - Health checks separan proceso vivo de servicio listo.
+- Android de producción bloquea HTTP claro; las excepciones de red son solo
+  para builds locales de prueba.
 - Eventos temporales se eliminan según `EVENT_RETENTION_DAYS`.
 - Sincronización GPS y solicitudes usa identificadores idempotentes.
 

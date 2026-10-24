@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.observability import OperationalMetrics, SlidingWindowRateLimiter
+from app.core.observability import ConnectionLimiter, OperationalMetrics, SlidingWindowRateLimiter
 from app.api.monitoring_api import classify_gps_state
 
 
@@ -31,6 +31,22 @@ class RateLimiterTests(unittest.TestCase):
         self.assertEqual(limiter.tracked_keys, 2)
         limiter.check("current", now=11)
         self.assertEqual(limiter.tracked_keys, 1)
+
+    def test_caps_distinct_keys_to_prevent_limiter_memory_growth(self):
+        limiter = SlidingWindowRateLimiter(limit=2, window_seconds=60, max_keys=2)
+        self.assertTrue(limiter.check("first", now=0)[0])
+        self.assertTrue(limiter.check("second", now=0)[0])
+        self.assertFalse(limiter.check("third", now=0)[0])
+        self.assertEqual(limiter.tracked_keys, 2)
+
+
+class ConnectionLimiterTests(unittest.TestCase):
+    def test_releases_slots_after_disconnect(self):
+        limiter = ConnectionLimiter(limit=1)
+        self.assertTrue(limiter.acquire("client"))
+        self.assertFalse(limiter.acquire("client"))
+        limiter.release("client")
+        self.assertTrue(limiter.acquire("client"))
 
 
 class OperationalMetricsTests(unittest.TestCase):

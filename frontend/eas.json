@@ -33,7 +33,7 @@
         "EXPO_PUBLIC_OFFLINE_MAP_STYLE_URL": "https://coffee-fly.hostless.app/maps/styles/coffee-fly/style.json"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     }
   }

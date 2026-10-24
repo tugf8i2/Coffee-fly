@@ -23,6 +23,15 @@ def _integer_setting(name: str, default: int, minimum: int, maximum: int) -> int
     return value
 
 
+def _boolean_setting(name: str, default: bool = False) -> bool:
+    value = os.getenv(name, str(default)).strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} debe ser true o false")
+
+
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "").strip()
 if not JWT_SECRET_KEY:
     if IS_PRODUCTION:
@@ -44,6 +53,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = _integer_setting(
     minimum=5,
     maximum=1440,
 )
+API_RATE_LIMIT_PER_MINUTE = _integer_setting("API_RATE_LIMIT_PER_MINUTE", 180, 30, 10000)
+WEBSOCKET_CONNECTIONS_PER_MINUTE = _integer_setting(
+    "WEBSOCKET_CONNECTIONS_PER_MINUTE", 30, 5, 1000
+)
+WEBSOCKET_CONNECTIONS_PER_CLIENT = _integer_setting(
+    "WEBSOCKET_CONNECTIONS_PER_CLIENT", 5, 1, 100
+)
+TRUST_PROXY_HEADERS = _boolean_setting("TRUST_PROXY_HEADERS", False)
 DB_POOL_SIZE = _integer_setting("DB_POOL_SIZE", 10, 1, 100)
 DB_MAX_OVERFLOW = _integer_setting("DB_MAX_OVERFLOW", 20, 0, 200)
 DB_POOL_TIMEOUT_SECONDS = _integer_setting("DB_POOL_TIMEOUT_SECONDS", 15, 1, 120)
