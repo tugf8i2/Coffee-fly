@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
@@ -25,6 +25,15 @@ function EntradaWebView() {
   const sensorSubscriptions = useRef([]);
   const [canGoBack, setCanGoBack] = useState(false);
   const [failed, setFailed] = useState(false);
+  const publishAppState = useCallback((state) => {
+    const active = state === 'active';
+    webViewRef.current?.injectJavaScript(`window.__COFFEE_FLY_APP_ACTIVE__ = ${active}; window.dispatchEvent(new Event('coffee-fly:app-state')); true;`);
+  }, []);
+
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', publishAppState);
+    return () => subscription.remove();
+  }, [publishAppState]);
 
   React.useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -145,6 +154,7 @@ function EntradaWebView() {
           setFailed(false);
           KeepAwake.deactivateKeepAwake(CALL_WAKE_TAG).catch(() => {});
         }}
+        onLoadEnd={() => publishAppState(AppState.currentState)}
         onNavigationStateChange={(state) => setCanGoBack(state.canGoBack)}
         onMessage={(event) => {
           if (event.nativeEvent.data === 'navigation_sensors_start') startSensors();

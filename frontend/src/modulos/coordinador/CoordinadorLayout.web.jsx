@@ -150,7 +150,9 @@ export default function CoordinadorLayout({
     total: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [liveError, setLiveError] = useState('');
+  const [summaryError, setSummaryError] = useState('');
+  const lastSummaryRefresh = useRef({ page: null, at: 0 });
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Todas');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -246,33 +248,20 @@ export default function CoordinadorLayout({
     },
     [token],
   );
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceFull = false) => {
     try {
       const [
-        dashboard,
         requests,
-        deliveries,
         activeFirstPage,
         drivers,
         fleet,
         notifications,
-        vehicles,
       ] = await Promise.all([
-        get('/dashboard/'),
         get('/entregas/solicitudes-activas'),
-        get(`/entregas/historial?pagina=${page}`),
         get('/entregas/historial?estado=en%20camino&pagina=1'),
         get('/entregas/conductores-disponibles'),
         get('/monitoreo/resumen'),
         get('/entregas/eventos/notificaciones'),
-        (async () => {
-          const all = [];
-          for (let skip = 0; ; skip += 100) {
-            const batch = await get(`/vehiculos/estado?skip=${skip}&limit=100`);
-            all.push(...batch);
-            if (batch.length < 100) return all;
-          }
-        })(),
       ]);
       const activeDeliveries = [...(activeFirstPage.items || [])];
       for (let activePage = 2; activeDeliveries.length < activeFirstPage.total; activePage += 1) {
@@ -289,20 +278,47 @@ export default function CoordinadorLayout({
         }
       }
       knownNotificationIds.current = latestIds;
-      setData({
+      setData((previous) => ({
+        ...previous,
         requests,
-        deliveries: deliveries.items || [],
         activeDeliveries,
-        total: deliveries.total || 0,
-        metrics: dashboard.metricas || {},
-        vehicles,
         drivers,
         fleet,
         notifications,
-      });
-      setError('');
+      }));
+      setLiveError('');
     } catch (reason) {
-      setError(reason.message);
+      setLiveError(reason.message);
+      setLoading(false);
+      return;
+    }
+    try {
+      const lastRefresh = lastSummaryRefresh.current;
+      if (forceFull || lastRefresh.page !== page || Date.now() - lastRefresh.at >= 60000) {
+        const [dashboard, deliveries, vehicles] = await Promise.all([
+          get('/dashboard/'),
+          get(`/entregas/historial?pagina=${page}`),
+          (async () => {
+            const all = [];
+            for (let skip = 0; ; skip += 100) {
+              const batch = await get(`/vehiculos/estado?skip=${skip}&limit=100`);
+              all.push(...batch);
+              if (batch.length < 100) return all;
+            }
+          })(),
+        ]);
+        setData((previous) => ({
+          ...previous,
+          deliveries: deliveries.items || [],
+          total: deliveries.total || 0,
+          metrics: dashboard.metricas || {},
+          vehicles,
+        }));
+        lastSummaryRefresh.current = { page, at: Date.now() };
+        setSummaryError('');
+      }
+    } catch (reason) {
+      setSummaryError(reason.message);
     } finally {
       setLoading(false);
     }
@@ -312,7 +328,7 @@ export default function CoordinadorLayout({
   useEffect(() => {
     if (previousPage.current !== page) {
       previousPage.current = page;
-      load();
+      load(true);
     }
   }, [page, load]);
   useEffect(() => {
@@ -431,7 +447,7 @@ export default function CoordinadorLayout({
       setCancelTarget(null);
       setCancelReason('');
       setCancelMessage('La carga en camino fue cancelada. El motivo quedó registrado.');
-      await load();
+      await load(true);
     } catch (reason) {
       setCancelError(reason.message);
     } finally {
@@ -557,9 +573,9 @@ export default function CoordinadorLayout({
               {notice}
             </div>
           )}
-          {error && (
+          {(liveError || summaryError) && (
             <div className="coord-notice" role="alert">
-              {error} <button onClick={load}>Reintentar</button>
+              {liveError || summaryError} <button onClick={() => load(true)}>Reintentar</button>
             </div>
           )}
           {current === 'dashboard' && (

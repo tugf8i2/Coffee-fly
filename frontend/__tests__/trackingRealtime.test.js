@@ -1,4 +1,4 @@
-import { applyTrackingMessage, mergeTrackingPoints, trackingSocketUrl } from '../src/servicios/seguimientoTiempoReal';
+import { applyTrackingMessage, connectTrackingSocket, mergeTrackingPoints, trackingSocketUrl } from '../src/servicios/seguimientoTiempoReal';
 
 const point = (id, second) => ({
   client_point_id: id,
@@ -30,5 +30,49 @@ describe('actualización incremental del seguimiento', () => {
     const updated = applyTrackingMessage(initial, { tipo: 'ubicaciones', puntos: [point('b', 2), point('c', 3)] });
     expect(updated.vehiculo_placa).toBe('ABC123');
     expect(updated.puntos).toHaveLength(3);
+  });
+
+  test('cierra el canal al pasar a segundo plano y lo recupera al volver', () => {
+    const previousWebSocket = global.WebSocket;
+    const previousAppState = window.__COFFEE_FLY_APP_ACTIVE__;
+    const previousAddListener = window.addEventListener;
+    const previousRemoveListener = window.removeEventListener;
+    const sockets = [];
+    let onAppStateChange;
+    class FakeSocket {
+      constructor() {
+        this.readyState = 0;
+        sockets.push(this);
+      }
+      close() {
+        this.readyState = 3;
+        this.onclose?.({ code: 1000 });
+      }
+      send() {}
+    }
+    FakeSocket.OPEN = 1;
+    global.WebSocket = FakeSocket;
+    window.__COFFEE_FLY_APP_ACTIVE__ = true;
+    window.addEventListener = (name, listener) => {
+      if (name === 'coffee-fly:app-state') onAppStateChange = listener;
+    };
+    window.removeEventListener = () => {};
+    try {
+      const disconnect = connectTrackingSocket({ deliveryId: 1, token: 'test' });
+      expect(sockets).toHaveLength(1);
+      window.__COFFEE_FLY_APP_ACTIVE__ = false;
+      onAppStateChange();
+      expect(sockets[0].readyState).toBe(3);
+      expect(sockets).toHaveLength(1);
+      window.__COFFEE_FLY_APP_ACTIVE__ = true;
+      onAppStateChange();
+      expect(sockets).toHaveLength(2);
+      disconnect();
+    } finally {
+      global.WebSocket = previousWebSocket;
+      window.__COFFEE_FLY_APP_ACTIVE__ = previousAppState;
+      window.addEventListener = previousAddListener;
+      window.removeEventListener = previousRemoveListener;
+    }
   });
 });

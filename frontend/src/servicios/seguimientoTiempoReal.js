@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../configuracion';
+import { AppState } from 'react-native';
 
 export function trackingSocketUrl(baseUrl = API_BASE_URL, locationOverride = null) {
   if (/^https?:\/\//i.test(baseUrl)) return `${baseUrl.replace(/^http/i, 'ws')}/ws/seguimiento`;
@@ -41,25 +42,36 @@ export function connectTrackingSocket({ deliveryId, token, onMessage, onStatus }
   let heartbeatTimer = null;
   let reconnectAttempt = 0;
   let stopped = false;
+  let blocked = false;
+  const isAppActive = () => !['background', 'inactive'].includes(AppState.currentState)
+    && (typeof document === 'undefined' || document.visibilityState !== 'hidden')
+    && (typeof window === 'undefined' || window.__COFFEE_FLY_APP_ACTIVE__ !== false);
+  let appIsActive = isAppActive();
 
   const clearTimers = () => {
     clearTimeout(reconnectTimer);
     clearInterval(heartbeatTimer);
+    reconnectTimer = null;
+    heartbeatTimer = null;
   };
 
   const connect = () => {
-    if (stopped || !deliveryId || !token) return;
+    if (stopped || blocked || !appIsActive || socket || !deliveryId || !token) return;
     onStatus?.('connecting');
-    socket = new WebSocket(socketUrl);
-    socket.onopen = () => {
+    const currentSocket = new WebSocket(socketUrl);
+    socket = currentSocket;
+    currentSocket.onopen = () => {
+      if (socket !== currentSocket || !appIsActive) return;
       reconnectAttempt = 0;
       onStatus?.('connected');
-      socket.send(JSON.stringify({ tipo: 'autenticar', token, entrega_id: deliveryId }));
+      currentSocket.send(JSON.stringify({ tipo: 'autenticar', token, entrega_id: deliveryId }));
       heartbeatTimer = setInterval(() => {
-        if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ tipo: 'ping' }));
+        if (currentSocket === socket && currentSocket.readyState === WebSocket.OPEN)
+          currentSocket.send(JSON.stringify({ tipo: 'ping' }));
       }, 20000);
     };
-    socket.onmessage = (event) => {
+    currentSocket.onmessage = (event) => {
+      if (socket !== currentSocket) return;
       try {
         const message = JSON.parse(event.data);
         if (!['ping', 'pong'].includes(message.tipo)) onMessage?.(message);
@@ -67,11 +79,16 @@ export function connectTrackingSocket({ deliveryId, token, onMessage, onStatus }
         onStatus?.('invalid_message');
       }
     };
-    socket.onerror = () => onStatus?.('error');
-    socket.onclose = (event) => {
+    currentSocket.onerror = () => {
+      if (socket === currentSocket) onStatus?.('error');
+    };
+    currentSocket.onclose = (event) => {
+      if (socket !== currentSocket) return;
+      socket = null;
       clearTimers();
-      if (stopped) return;
+      if (stopped || !appIsActive) return;
       if ([4401, 4403].includes(event.code)) {
+        blocked = true;
         onStatus?.(event.code === 4401 ? 'auth_required' : 'forbidden');
         return;
       }
@@ -82,10 +99,29 @@ export function connectTrackingSocket({ deliveryId, token, onMessage, onStatus }
     };
   };
 
+  const updateActivity = () => {
+    const wasActive = appIsActive;
+    appIsActive = isAppActive();
+    if (wasActive && !appIsActive) {
+      clearTimers();
+      const currentSocket = socket;
+      socket = null;
+      currentSocket?.close(1000, 'Aplicación en segundo plano');
+      onStatus?.('paused');
+    } else if (!wasActive && appIsActive) {
+      connect();
+    }
+  };
+  const subscription = AppState.addEventListener('change', updateActivity);
+  if (typeof window !== 'undefined') window.addEventListener('coffee-fly:app-state', updateActivity);
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', updateActivity);
   connect();
   return () => {
     stopped = true;
     clearTimers();
     socket?.close(1000, 'Pantalla cerrada');
+    subscription.remove();
+    if (typeof window !== 'undefined') window.removeEventListener('coffee-fly:app-state', updateActivity);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', updateActivity);
   };
 }

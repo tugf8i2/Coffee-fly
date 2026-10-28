@@ -9,7 +9,10 @@ export default function usePolling(task, intervalMs) {
     let active = true;
     let timer = null;
     let running = false;
-    let appIsActive = !['background', 'inactive'].includes(AppState.currentState);
+    const isAppActive = () => !['background', 'inactive'].includes(AppState.currentState)
+      && (typeof document === 'undefined' || document.visibilityState !== 'hidden')
+      && (typeof window === 'undefined' || window.__COFFEE_FLY_APP_ACTIVE__ !== false);
+    let appIsActive = isAppActive();
     const run = async () => {
       if (!active || !appIsActive || running) return;
       running = true;
@@ -23,17 +26,24 @@ export default function usePolling(task, intervalMs) {
         if (active && appIsActive) timer = setTimeout(run, intervalMs);
       }
     };
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      appIsActive = !['background', 'inactive'].includes(nextState);
+    const updateActivity = () => {
+      const wasActive = appIsActive;
+      appIsActive = isAppActive();
+      if (wasActive === appIsActive) return;
       if (timer) clearTimeout(timer);
       timer = null;
       if (appIsActive) run();
-    });
+    };
+    const subscription = AppState.addEventListener('change', updateActivity);
+    if (typeof window !== 'undefined') window.addEventListener('coffee-fly:app-state', updateActivity);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', updateActivity);
     run();
     return () => {
       active = false;
       if (timer) clearTimeout(timer);
       subscription.remove();
+      if (typeof window !== 'undefined') window.removeEventListener('coffee-fly:app-state', updateActivity);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', updateActivity);
     };
   }, [intervalMs]);
 }

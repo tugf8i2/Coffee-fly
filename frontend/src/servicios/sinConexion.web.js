@@ -333,6 +333,7 @@ export function observarConexion(token, onSync, onConnectionChange) {
   let stopped = false;
   let checkPromise = null;
   const check = () => {
+    if (document.visibilityState === 'hidden' || window.__COFFEE_FLY_APP_ACTIVE__ === false) return;
     if (checkPromise) return checkPromise;
     checkPromise = (async () => {
       if (!navigator.onLine) {
@@ -355,6 +356,11 @@ export function observarConexion(token, onSync, onConnectionChange) {
   };
   window.addEventListener('online', check);
   window.addEventListener('offline', check);
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') check();
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('coffee-fly:app-state', check);
   const timer = setInterval(check, 60000);
   check();
   return () => {
@@ -362,5 +368,7 @@ export function observarConexion(token, onSync, onConnectionChange) {
     clearInterval(timer);
     window.removeEventListener('online', check);
     window.removeEventListener('offline', check);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('coffee-fly:app-state', check);
   };
 }

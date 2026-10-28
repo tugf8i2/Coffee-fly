@@ -5,6 +5,7 @@ const REALTIME_LABELS = {
   auth_required: 'Sesión vencida',
   forbidden: 'Sin permiso',
   disconnected: 'Desconectado',
+  paused: 'En pausa',
   error: 'Conexión interrumpida',
   invalid_message: 'Respuesta inválida del servidor',
 };

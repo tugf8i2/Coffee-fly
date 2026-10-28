@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { API_BASE_URL, fetchApi } from '../../configuracion';
+import usePolling from '../../ganchos/usarSondeo';
 
 const timeLabel = (value) => value
   ? new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
@@ -29,11 +30,7 @@ export default function DispositivosEmpresa({ token }) {
     }
   }, [token]);
 
-  useEffect(() => { refresh(); }, [refresh]);
-  useEffect(() => {
-    const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+  usePolling(refresh, 30000);
 
   const revoke = async (sessionId) => {
     setBusy(sessionId);

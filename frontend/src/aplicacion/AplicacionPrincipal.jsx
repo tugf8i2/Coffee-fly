@@ -2,7 +2,7 @@ import FeedbackMessage from '../componentes/comunes/MensajeRetroalimentacion';
 import AvisoConexion from '../componentes/comunes/AvisoConexion';
 import LlamadasRuta from '../componentes/llamadas/LlamadasRuta';
 import { useEffect, useState } from 'react';
-import { Platform, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Platform, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -167,8 +167,11 @@ export default function AplicacionPrincipal() {
   ), [user]);
   useEffect(() => {
     if (!user || connectionStatus !== 'online') return undefined;
+    const isAppActive = () => !['background', 'inactive'].includes(AppState.currentState)
+      && (typeof window === 'undefined' || window.__COFFEE_FLY_APP_ACTIVE__ !== false);
+    let appIsActive = isAppActive();
     const sendHeartbeat = () => {
-      if (!sessionToken) return;
+      if (!sessionToken || !appIsActive) return;
       fetchApi(`${API_BASE_URL}/seguridad/sesion/latido`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${sessionToken}` },
@@ -179,7 +182,18 @@ export default function AplicacionPrincipal() {
     };
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 30000);
-    return () => clearInterval(interval);
+    const updateActivity = () => {
+      const wasActive = appIsActive;
+      appIsActive = isAppActive();
+      if (!wasActive && appIsActive) sendHeartbeat();
+    };
+    const subscription = AppState.addEventListener('change', updateActivity);
+    if (Platform.OS === 'web') window.addEventListener('coffee-fly:app-state', updateActivity);
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+      if (Platform.OS === 'web') window.removeEventListener('coffee-fly:app-state', updateActivity);
+    };
   }, [user, connectionStatus]);
   useEffect(() => {
     if (!user || connectionStatus !== 'online') return undefined;

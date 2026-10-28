@@ -1,4 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
+import { AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as SQLite from 'expo-sqlite';
 
@@ -537,7 +538,9 @@ export async function enviarOSolicitarEnCola(tipo, payload, token) {
 export function observarConexion(token, onSync, onConnectionChange) {
   let stopped = false;
   let checkPromise = null;
+  let appIsActive = !['background', 'inactive'].includes(AppState.currentState);
   const check = () => {
+    if (!appIsActive) return;
     if (checkPromise) return checkPromise;
     checkPromise = (async () => {
       try {
@@ -570,11 +573,17 @@ export function observarConexion(token, onSync, onConnectionChange) {
     return checkPromise;
   };
   const unsubscribe = NetInfo.addEventListener(check);
+  const subscription = AppState.addEventListener('change', (nextState) => {
+    const wasActive = appIsActive;
+    appIsActive = !['background', 'inactive'].includes(nextState);
+    if (!wasActive && appIsActive) check();
+  });
   const timer = setInterval(check, 10000);
   check();
   return () => {
     stopped = true;
     clearInterval(timer);
     unsubscribe();
+    subscription.remove();
   };
 }
