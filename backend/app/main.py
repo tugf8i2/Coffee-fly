@@ -9,6 +9,7 @@ from app.api.vehiculo_api import (router as vehiculo_router)
 from app.api.carga_api import (router as carga_router)
 from app.api.solicitud_api import (router as solicitud_router)
 from app.api.historial_eventos_api import (router as historial_eventos_api)
+from app.api.entrega_api import router as entrega_router
 import app.models
 from app.core.database import Base, engine, SessionLocal
 from app.models.usuario_models import Usuario
@@ -114,6 +115,10 @@ app.include_router(
 
 app.include_router(
     solicitud_router
+)
+
+app.include_router(
+    entrega_router
 )
 
 app.include_router(

@@ -178,6 +178,26 @@ CREATE TABLE public.solicitud (
 );
 
 -- =========================
+-- ENTREGA DE CAFE (RF-04)
+-- =========================
+CREATE TABLE public.entrega (
+    id_entrega uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    solicitud_id uuid NOT NULL UNIQUE,
+    caficultor_id integer NOT NULL,
+    cantidad_kg numeric(8,2) NOT NULL,
+    fecha_hora timestamp NOT NULL,
+    observaciones character varying(100),
+    estado_entrega character varying(20) NOT NULL DEFAULT 'Pendiente',
+
+    CONSTRAINT chk_entrega_cantidad_positiva CHECK (cantidad_kg > 0),
+    CONSTRAINT chk_entrega_estado CHECK (estado_entrega = 'Pendiente'),
+    CONSTRAINT fk_entrega_solicitud FOREIGN KEY (solicitud_id)
+        REFERENCES public.solicitud (id_solicitud),
+    CONSTRAINT fk_entrega_caficultor FOREIGN KEY (caficultor_id)
+        REFERENCES public.usuario (id_usuario)
+);
+
+-- =========================
 -- HISTORIAL DE EVENTOS (UUID)
 -- =========================
 CREATE TABLE public.historial_de_eventos (

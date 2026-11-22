@@ -9,3 +9,4 @@ from app.models.carga_models import Carga
 from app.models.solicitud_models import Solicitud
 from app.models.historial_eventos_models import HistorialEvento
 from app.models.auth_session_models import AuthSession
+from app.models.entrega_models import Entrega
