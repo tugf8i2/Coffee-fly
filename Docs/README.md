@@ -2,6 +2,7 @@
 
 | Documento | Para qué sirve |
 | --- | --- |
+| [PLAN_DE_RESPALDO_COFFEE_FLY.docx](../Plan_de_Respaldo_Coffee_Fly.docx) | Plan operativo de respaldo y recuperación; incluye los comandos de copia y verificación local. |
 | [SEGURIDAD_Y_OPERACION.md](SEGURIDAD_Y_OPERACION.md) | Controles actuales, variables de producción y respuesta a incidentes. |
 | [HOSTLESS_DEPLOYMENT.md](HOSTLESS_DEPLOYMENT.md) | Despliegue y verificación en Hostless. |
 | [DOCUMENTACION-BACKEND-FRONTEND.md](DOCUMENTACION-BACKEND-FRONTEND.md) | Arquitectura, módulos y flujos de la aplicación. |
