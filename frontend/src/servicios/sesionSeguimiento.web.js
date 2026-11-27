@@ -1,5 +1,6 @@
-// El navegador conserva el token solo en memoria. Dentro de la APK, el puente
-// nativo lo guarda en SecureStore para restaurar la sesión tras reiniciar offline.
+// En web, sessionStorage conserva la sesión al recargar la pestaña y la elimina
+// al cerrarla. Dentro de la APK, el puente nativo usa SecureStore.
+const WEB_SESSION_KEY = 'coffee-fly:authenticated-session';
 let currentSession = null;
 let activeTracking = null;
 let sessionLoaded = false;
@@ -38,6 +39,7 @@ export async function saveAuthenticatedSession(user, token) {
   const { foto_perfil: _fotoPerfil, ...sessionUser } = user;
   currentSession = { user: sessionUser, token, savedAt: new Date().toISOString() };
   sessionLoaded = true;
+  try { globalThis.sessionStorage?.setItem(WEB_SESSION_KEY, JSON.stringify(currentSession)); } catch { /* El navegador puede bloquear el almacenamiento. */ }
   await nativeSession('set', currentSession);
 }
 
@@ -45,7 +47,11 @@ export async function getAuthenticatedSession() {
   if (!sessionLoaded) {
     if (!sessionLoadPromise) {
       sessionLoadPromise = nativeSession('get').then((stored) => {
-        if (!sessionLoaded) currentSession = stored;
+        if (!sessionLoaded) {
+          let webStored = null;
+          try { webStored = JSON.parse(globalThis.sessionStorage?.getItem(WEB_SESSION_KEY) || 'null'); } catch { /* Sesión dañada: iniciar sin sesión. */ }
+          currentSession = stored || webStored;
+        }
       }).catch(() => {
         // La app aún puede iniciar sesión online si SecureStore está indisponible.
       }).finally(() => { sessionLoaded = true; sessionLoadPromise = null; });
@@ -58,6 +64,7 @@ export async function getAuthenticatedSession() {
 export async function clearAuthenticatedSession() {
   currentSession = null;
   sessionLoaded = true;
+  try { globalThis.sessionStorage?.removeItem(WEB_SESSION_KEY); } catch { /* La limpieza nativa/web continúa. */ }
   await nativeSession('delete');
 }
 

@@ -86,7 +86,7 @@ async function validateSavedSession(saved) {
 
 export default function AplicacionPrincipal() {
   const { width } = useWindowDimensions();
-  const [screen, setScreen] = useState('login');
+  const [screen, setScreenState] = useState('login');
   const [user, setUser] = useState(null);
   const [syncMessage, setSyncMessageText] = useState('');
   const [syncMessageType, setSyncMessageType] = useState('info');
@@ -95,6 +95,14 @@ export default function AplicacionPrincipal() {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [restoring, setRestoring] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const goToScreen = (target, replace = false) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const state = { ...(window.history.state || {}), coffeeFlyScreen: target };
+      if (replace) window.history.replaceState(state, '', window.location.href);
+      else if (window.history.state?.coffeeFlyScreen !== target) window.history.pushState(state, '', window.location.href);
+    }
+    setScreenState(target);
+  };
   const showSyncResult = (result) => {
     setSyncStatus(result?.estado || 'synced');
     if (result?.sincronizadas || result?.duplicados || result?.conflictos || result?.descartadas) {
@@ -126,7 +134,7 @@ export default function AplicacionPrincipal() {
     sessionToken = token;
     await saveAuthenticatedSession(nextUser, token);
     setUser(nextUser);
-    setScreen('dashboard');
+    goToScreen('dashboard', true);
     await synchronizeSession(token);
   };
   const logout = async () => {
@@ -137,7 +145,7 @@ export default function AplicacionPrincipal() {
     await clearAuthenticatedSession();
     sessionToken = '';
     setUser(null);
-    setScreen('login');
+    goToScreen('login', true);
     setSyncMessage('');
     setConnectionStatus('checking');
     setSyncStatus('idle');
@@ -150,11 +158,27 @@ export default function AplicacionPrincipal() {
       if (!mounted || !saved?.token || !saved?.user) return;
       sessionToken = saved.token;
       setUser(saved.user);
-      setScreen('dashboard');
+      const savedScreen = typeof window !== 'undefined' ? window.history.state?.coffeeFlyScreen : null;
+      goToScreen(savedScreen && savedScreen !== 'login' ? savedScreen : 'dashboard', true);
       await synchronizeSession(saved.token);
     }).finally(() => mounted && setRestoring(false));
     return () => { mounted = false; };
   }, []);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const onPopState = (event) => {
+      const target = event.state?.coffeeFlyScreen;
+      if (!target) return;
+      if (!user && target !== 'login') {
+        window.history.replaceState({ coffeeFlyScreen: 'login' }, '', window.location.href);
+        setScreenState('login');
+        return;
+      }
+      setScreenState(target);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [user]);
   useEffect(() => observarConexion(
     sessionToken,
     (result) => {
@@ -229,7 +253,7 @@ export default function AplicacionPrincipal() {
     await clearAuthenticatedSession();
     sessionToken = '';
     setUser(null);
-    setScreen('login');
+    goToScreen('login', true);
     setSyncMessage('Tu sesión venció. Inicia sesión nuevamente; los datos offline permanecen guardados.', 'warning');
   }), []);
   useEffect(() => {
@@ -257,7 +281,7 @@ export default function AplicacionPrincipal() {
     return next;
   });
   establecerTemaOscuro(Platform.OS !== 'web' && darkMode);
-  const common = { go: setScreen, token: sessionToken, user, connectionStatus, darkMode, onToggleDarkMode: toggleDarkMode };
+  const common = { go: goToScreen, token: sessionToken, user, connectionStatus, darkMode, onToggleDarkMode: toggleDarkMode };
   const displayedConnection = connectionLabel(connectionStatus);
   const displayedSynchronization = synchronizationLabel(connectionStatus, syncStatus);
   const screens = {
@@ -285,14 +309,14 @@ export default function AplicacionPrincipal() {
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'caficultor') return <SafeAreaProvider>
     <AvisoConexion status={connectionStatus}><CaficultorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
-      <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>{screens[screen] || screens.dashboard}</AppErrorBoundary>
+      <AppErrorBoundary key={screen} styles={styles} onReset={() => goToScreen('dashboard')}>{screens[screen] || screens.dashboard}</AppErrorBoundary>
     </CaficultorLayout></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (String(user?.rol || '').toLowerCase() === 'conductor') return <SafeAreaProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: darkMode ? '#102c27' : '#faf9f1' }}>
       <AvisoConexion status={connectionStatus}>
-        <AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+        <AppErrorBoundary styles={styles} onReset={() => goToScreen('dashboard')}>
           <ConductorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} trackingScreen={screens.tracking} assignedScreen={screens.assignedDeliveries} supportScreen={screens.support} />
         </AppErrorBoundary>
         {Platform.OS === 'web' && <LlamadasRuta token={sessionToken} user={user} screen={screen} />}
@@ -301,14 +325,14 @@ export default function AplicacionPrincipal() {
     </SafeAreaView>
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'coordinador') return <SafeAreaProvider>
-    <AvisoConexion status={connectionStatus}><AppErrorBoundary styles={styles} onReset={() => setScreen('dashboard')}>
+    <AvisoConexion status={connectionStatus}><AppErrorBoundary styles={styles} onReset={() => goToScreen('dashboard')}>
       <CoordinadorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage} operationsScreens={screens} />
     </AppErrorBoundary><LlamadasRuta token={sessionToken} user={user} screen={screen} /></AvisoConexion>
     <StatusBar style="dark" />
   </SafeAreaProvider>;
   if (Platform.OS === 'web' && String(user?.rol || '').toLowerCase() === 'registrador') return <SafeAreaProvider>
     <AvisoConexion status={connectionStatus}><RegistradorLayout {...common} screen={screen} onLogout={logout} connectionStatus={connectionStatus} notice={syncMessage}>
-      <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
+      <AppErrorBoundary key={screen} styles={styles} onReset={() => goToScreen('dashboard')}>
         {screens[screen] || screens.dashboard}
       </AppErrorBoundary>
     </RegistradorLayout></AvisoConexion>
@@ -316,15 +340,15 @@ export default function AplicacionPrincipal() {
   </SafeAreaProvider>;
   return <SafeAreaProvider>
     <AvisoConexion status={connectionStatus}><SafeAreaView style={styles.safe}>
-      {user ? <Encabezado user={user} onLogout={logout} screen={screen} go={setScreen} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /> : null}
+      {user ? <Encabezado user={user} onLogout={logout} screen={screen} go={goToScreen} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /> : null}
       {user ? <View style={styles.connectionBanner}>
         <Text style={styles.connectionText}>Red: {displayedConnection} · Datos: {displayedSynchronization}</Text>
       </View> : null}
       {syncMessage ? <FeedbackMessage type={syncMessageType}>{syncMessage}</FeedbackMessage> : null}
       <View style={[styles.screenStage, { flexDirection: width >= 1000 ? 'row' : 'column' }]}>
-        {user ? <NavegacionPrincipal user={user} screen={screen} go={setScreen} darkMode={darkMode} /> : null}
+        {user ? <NavegacionPrincipal user={user} screen={screen} go={goToScreen} darkMode={darkMode} /> : null}
         <View style={styles.screenContent}>
-          <AppErrorBoundary key={screen} styles={styles} onReset={() => setScreen('dashboard')}>
+          <AppErrorBoundary key={screen} styles={styles} onReset={() => goToScreen('dashboard')}>
             {screens[screen] || screens.dashboard}
           </AppErrorBoundary>
         </View>
